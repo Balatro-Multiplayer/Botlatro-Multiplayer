@@ -28,16 +28,15 @@ export async function updateQueueMessage(textChannel: TextChannel, newMessage: b
         members_per_team: membersPerTeam
     } = response.rows[0];
 
-    const msg = await textChannel.messages.fetch(messageId);
+    let msg;
     
     const lastMessage = (await textChannel.messages.fetch({ limit: 1 })).first();
     if (lastMessage && messageId !== lastMessage.id) newMessage = true;
 
-    if (newMessage) {
-        try {
-            await msg.delete();
-        } catch (err) {}
-    }
+    try {
+        msg = await textChannel.messages.fetch(messageId);
+        if (newMessage) await msg.delete();
+    } catch (err) {}
     
     const matchType = `${membersPerTeam}v`.repeat(numberOfTeams).slice(0, -1);
     const playerCount = (await getUsersInQueue(textChannel)).length;
@@ -47,15 +46,25 @@ export async function updateQueueMessage(textChannel: TextChannel, newMessage: b
         .setDescription(`${playerCount} player${playerCount !== 1 ? 's' : ''} in queue`)
         .setColor(0xFF0000);
 
-    const toggleQueue = new ButtonBuilder()
-        .setCustomId('toggle-queue')
-        .setLabel('Join/Leave Queue')
+    const joinQueue = new ButtonBuilder()
+        .setCustomId('join-queue')
+        .setLabel('Join Queue')
         .setStyle(ButtonStyle.Primary);
 
-    const row = new ActionRowBuilder<ButtonBuilder>()
-        .addComponents(toggleQueue);
+    const leaveQueue = new ButtonBuilder()
+        .setCustomId('leave-queue')
+        .setLabel('Leave Queue')
+        .setStyle(ButtonStyle.Danger);
 
-    if (newMessage) {
+    const checkQueued = new ButtonBuilder()
+        .setCustomId('check-queued')
+        .setLabel('Check Queued State')
+        .setStyle(ButtonStyle.Secondary);
+
+    const row = new ActionRowBuilder<ButtonBuilder>()
+        .addComponents(joinQueue, leaveQueue, checkQueued);
+
+    if (newMessage || !msg) {
         const newMsg = await textChannel.send({ embeds: [embed], components: [row] });
         await pool.query(
             'UPDATE queues SET message_id = $1 WHERE channel_id = $2',
@@ -67,9 +76,68 @@ export async function updateQueueMessage(textChannel: TextChannel, newMessage: b
 }
 
 
-async function checkForQueue(): Promise<void> {
+export async function checkForQueue(): Promise<void> {
+    try {
+        const response = await pool.query(`
+            SELECT u.* FROM queue_users u
+            JOIN queues q ON u.queue_channel_id = q.channel_id
+            WHERE u.queue_join_time IS NOT NULL
+            AND q.locked = false`);
+
+        let possibleQueues = []; 
+
+        for (let i = 0; i < response.rows.length; i++) {
+            const user1 = response.rows[i];
+            const queue = await pool.query(
+                'SELECT * FROM queues WHERE channel_id = $1',
+                [user1.queue_channel_id]
+            );
+
+            for (let j = i+1; j < response.rows.length; j++) {
+                const user2 = response.rows[j];
+                if (user1.id === user2.id) continue;
+                if (user2.queue_channel_id !== user1.queue_channel_id) continue;
+
+                const eloDifference = Math.abs(user1.elo - user2.elo);
+                let longestQueueUser = user1.queue_join_time.getTime() > user2.queue_join_time.getTime() ? user2 : user1;
+                
+                const userDistance = Math.abs(longestQueueUser.queue_join_time.getTime() - Date.now());
+
+                const defaultDistance = queue.rows[0].elo_search_start;
+                const intervalTime = queue.rows[0].elo_search_speed * 1000;
+                const intervalSize = queue.rows[0].elo_search_increment;
+
+                const secondsInQueue = Math.floor(userDistance / 1000);
+                const intervalsPassed = Math.floor(secondsInQueue / intervalTime);
+                const allowedDistance = defaultDistance + (intervalsPassed * intervalSize);
+
+                // Add to list if the elo difference is within the allowed distance
+                if (eloDifference <= allowedDistance)
+                    possibleQueues.push([user1, user2, eloDifference]);
+            }
+        }
+            // const client = (await import('../index')).default;
+            // let textChannel;
+            // try {
+            //     textChannel = await client.channels.fetch(user1.queue_channel_id) as TextChannel;
+            // } catch (err) {}
+            // if (!textChannel) return;
+
+            console.log(possibleQueues);
+
+            // await updateQueueMessage(textChannel, false);
+    } catch (err) {
+        console.error('Error checking for queues:', err);
+    }
+}
+
+
+export async function userInQueue(userId: string, textChannel: TextChannel): Promise<boolean> {
     const response = await pool.query(`
-        SELECT * FROM queue_users uWHERE queue_join_time IS NOT NULL
-        `, [channelId]
+        SELECT * FROM queue_users
+        WHERE user_id = $1 AND queue_channel_id = $2 AND queue_join_time IS NOT NULL`,
+        [userId, textChannel.id]
     );
+
+    return response.rows.length > 0;
 }

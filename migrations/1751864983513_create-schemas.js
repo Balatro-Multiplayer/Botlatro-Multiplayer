@@ -25,6 +25,7 @@ export const up = (pgm) => {
         default_elo: { type: 'integer', notNull: true },
         minimum_elo: { type: 'integer' },
         maximum_elo: { type: 'integer' },
+        max_party_elo_difference: { type: 'integer' },
 
         locked: { type: 'boolean', notNull: true, default: false },
     });

@@ -56,6 +56,11 @@ module.exports = {
 			option.setName('maximum-elo')
 				.setDescription('Maximum ELO')
 				.setRequired(false)
+				.setMinValue(1))
+        .addIntegerOption(option =>
+			option.setName('max-party-elo-difference')
+				.setDescription('Maximum ELO')
+				.setRequired(false)
 				.setMinValue(1)),
 	async execute(interaction: ChatInputCommandInteraction) {
 		const membersPerTeam = interaction.options.getInteger('members-per-team', true);
@@ -68,14 +73,15 @@ module.exports = {
 		const defaultElo = interaction.options.getInteger('default-elo', true);
 		const minimumElo = interaction.options.getInteger('minimum-elo');
 		const maximumElo = interaction.options.getInteger('maximum-elo');
+		const maxPartyEloDifference = interaction.options.getInteger('max-party-elo-difference');
 
 		try {
 			const textChannel = interaction.channel as TextChannel;
 
 			await pool.query(`
                 INSERT INTO queues
-				(queue_name, category_id, channel_id, members_per_team, number_of_teams, elo_search_start, elo_search_increment, elo_search_speed, default_elo, minimum_elo, maximum_elo)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+				(queue_name, category_id, channel_id, members_per_team, number_of_teams, elo_search_start, elo_search_increment, elo_search_speed, default_elo, minimum_elo, maximum_elo, max_party_elo_difference)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
                 `, [
 					queueName,
 					category.id,
@@ -86,8 +92,9 @@ module.exports = {
 					eloSearchIncrement,
 					eloSearchSpeed,
 					defaultElo,
-					minimumElo,
-					maximumElo
+					minimumElo ?? null,
+					maximumElo ?? null,
+                    maxPartyEloDifference ?? null
 				]
 			);
 
