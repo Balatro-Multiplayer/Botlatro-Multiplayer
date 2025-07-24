@@ -36,9 +36,19 @@ export const up = (pgm) => {
         channel_id: { type: 'varchar(255)', notNull: true, unique: true },
     });
 
+    pgm.createTable('users', {
+        id: { type: 'serial', primaryKey: true },
+        user_id: { type: 'varchar(255)', unique: true, notNull: true },
+
+        team: { type: 'integer' },
+        match_id: { type: 'integer', references: '"matches"', onDelete: 'SET NULL' },
+        
+        joined_party_id: { type: 'varchar(255)' },
+    });
+
     pgm.createTable('queue_users', {
         id: { type: 'serial', primaryKey: true },
-        user_id: { type: 'varchar(255)', notNull: true },
+        user_id: { type: 'varchar(255)', notNull: true, references: '"users"(user_id)', onDelete: 'CASCADE', onUpdate: 'CASCADE' },
         elo: { type: 'integer', notNull: true },
         peak_elo: { type: 'integer', notNull: true },
         wins: { type: 'integer', notNull: true, default: 0 },
@@ -51,10 +61,34 @@ export const up = (pgm) => {
         queue_join_time: { type: 'timestamp with time zone' },
     });
 
+    // TODO: joined party id should reference another queue user
+
+    // Add constraints in case of invalid manually inserted data
+    pgm.addConstraint('queue_users', 'elo_not_negative', {
+        check: 'elo >= 0'
+    });
+    pgm.addConstraint('queue_users', 'peak_elo_not_negative', {
+        check: 'peak_elo >= 0'
+    });
+    pgm.addConstraint('queue_users', 'wins_not_negative', {
+        check: 'wins >= 0'
+    });
+    pgm.addConstraint('queue_users', 'losses_not_negative', {
+        check: 'losses >= 0'
+    });
+    pgm.addConstraint('queue_users', 'games_played_not_negative', {
+        check: 'games_played >= 0'
+    });
+    pgm.addConstraint('queue_users', 'win_streak_not_negative', {
+        check: 'win_streak >= 0'
+    });
+    pgm.addConstraint('queue_users', 'peak_win_streak_not_negative', {
+        check: 'peak_win_streak >= 0'
+    });
     pgm.addConstraint('queue_users', 'elo_not_greater_than_peak_elo', {
         check: 'elo <= peak_elo'
     });
-    pgm.addConstraint('queue_users', 'ws_not_greater_than_peak_ws', {
+    pgm.addConstraint('queue_users', 'win_streak_not_greater_than_peak_win_streak', {
         check: 'win_streak <= peak_win_streak'
     });
     pgm.addConstraint('queue_users', 'unique_user_per_queue', {
@@ -63,16 +97,6 @@ export const up = (pgm) => {
 
     pgm.addIndex('queue_users', 'user_id');
 
-    pgm.createTable('match_users_join', {
-        id: { type: 'serial', primaryKey: true },
-        user_id: { type: 'varchar(255)', notNull: true },
-        team: { type: 'integer' },
-        match_id: { type: 'integer', references: '"matches"', onDelete: 'SET NULL' },
-    });
-
-    pgm.addConstraint('match_users_join', 'match_id_team_not_null', {
-        check: '(match_id IS NULL OR team IS NOT NULL)'
-    });
 
     pgm.createTable('bans', {
         id: { type: 'serial', primaryKey: true },
@@ -90,7 +114,7 @@ export const up = (pgm) => {
 export const down = (pgm) => {
     pgm.dropTable('queues', { ifExists: true, cascade: true });
     pgm.dropTable('matches', { ifExists: true, cascade: true });
-    pgm.dropTable('match_users_join', { ifExists: true, cascade: true });
+    pgm.dropTable('users', { ifExists: true, cascade: true });
     pgm.dropTable('queue_users', { ifExists: true, cascade: true });
     pgm.dropTable('bans', { ifExists: true, cascade: true });
 };
