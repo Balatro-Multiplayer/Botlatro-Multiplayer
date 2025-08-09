@@ -1,6 +1,6 @@
 import { Events, Interaction, MessageFlags, TextChannel } from 'discord.js';
 import { pool } from '../db';
-import { updateQueueMessage, matchUpGames, userInQueue, getPartyList } from '../utils/queueHelpers';
+import { updateQueueMessage, matchUpGames, userInQueue, getPartyList, timeSpentInQueue, userInMatch } from '../utils/queueHelpers';
 
 module.exports = {
   name: Events.InteractionCreate,
@@ -48,17 +48,31 @@ module.exports = {
                     [interaction.user.id])).rows.length > 0;
 
                 if (inParty) {
-                    await interaction.followUp({ content: `You are not the party leader.`, flags: MessageFlags.Ephemeral });
+                    await interaction.followUp({ content: `You're not the party leader.`, flags: MessageFlags.Ephemeral });
+                    return;
+                }
+
+                const inMatch = await userInMatch(interaction.user.id);
+                if (interaction.customId === 'join-queue' && inMatch) {
+                    const matchId = await pool.query(
+                    `SELECT match_id FROM users WHERE user_id = $1`,
+                    [interaction.user.id]);
+
+                    const matchData = await pool.query(
+                    `SELECT * FROM matches WHERE id = $1`,
+                    [matchId.rows[0].match_id]);
+
+                    await interaction.followUp({ content: `You're already in a match! <#${matchData.rows[0].channel_id}>`, flags: MessageFlags.Ephemeral });
                     return;
                 }
 
                 const inQueue = await userInQueue(interaction.user.id, interaction.channel as TextChannel);
                 if (interaction.customId === 'leave-queue' && !inQueue) {
-                    await interaction.followUp({ content: 'You are not in this queue.', flags: MessageFlags.Ephemeral });
+                    await interaction.followUp({ content: `You're not in this queue.`, flags: MessageFlags.Ephemeral });
                     return;
                 }
                 if (interaction.customId === 'join-queue' && inQueue) {
-                    await interaction.followUp({ content: 'You are already in this queue.', flags: MessageFlags.Ephemeral });
+                    await interaction.followUp({ content: `You're already in this queue.`, flags: MessageFlags.Ephemeral });
                     return;
                 }
 
@@ -97,9 +111,6 @@ module.exports = {
                         `, [interaction.user.id, queue.rows[0].default_elo, interaction.channelId]);
                 }
 
-                
-
-
                 await updateQueueMessage(interaction.channel as TextChannel, false);
                 await matchUpGames();
                 await interaction.followUp({ content: `You ${user.rows[0]?.queue_join_time === null ? "left" : "joined"} the ${queue.rows[0].queue_name} Queue!`, flags: MessageFlags.Ephemeral });
@@ -116,9 +127,10 @@ module.exports = {
             const inQueue = await userInQueue(interaction.user.id, interaction.channel as TextChannel);
 
             if (inQueue) {
-                await interaction.reply({ content: 'You **are** currently in this queue.', flags: MessageFlags.Ephemeral });
+                const timeSpent = await timeSpentInQueue(interaction.user.id, interaction.channel as TextChannel)
+                await interaction.reply({ content: `You **are** in the queue!\nJoined queue ${timeSpent}.`, flags: MessageFlags.Ephemeral });
             } else {
-                await interaction.reply({ content: 'You are **not** currently in this queue.', flags: MessageFlags.Ephemeral });
+                await interaction.reply({ content: `You're **not** currently in this queue.`, flags: MessageFlags.Ephemeral });
             }
         }
         if (interaction.customId.startsWith('accept-party-invite-')) {

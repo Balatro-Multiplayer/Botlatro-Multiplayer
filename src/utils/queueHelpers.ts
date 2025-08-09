@@ -13,7 +13,6 @@ export async function getUsersInQueue(textChannel: TextChannel): Promise<string[
     return response.rows.map(row => row.user_id);
 }
 
-
 // Updates or sends a new queue message for the specified text channel  
 export async function updateQueueMessage(textChannel: TextChannel, newMessage: boolean): Promise<void> {
     const response = await pool.query(
@@ -233,6 +232,19 @@ async function queueUsers(userIds: string[], queueId: string): Promise<void> {
     }
 
     updateQueueMessage((client.guilds.cache.get(queueId) ?? await client.channels.fetch(queueId)) as TextChannel, true);
+
+    // Send queue start messages
+}
+
+// Checks if a user is in a match
+export async function userInMatch(userId: string): Promise<boolean> {
+     const response = await pool.query(`
+        SELECT * FROM users
+        WHERE user_id = $1 AND match_id IS NOT NULL
+        `, [userId]
+    );
+
+    return response.rows.length > 0;
 }
 
 // Checks if a user is currently in a specific queue
@@ -244,6 +256,21 @@ export async function userInQueue(userId: string, textChannel: TextChannel): Pro
     );
 
     return response.rows.length > 0;
+}
+
+export async function timeSpentInQueue(userId: string, textChannel: TextChannel): Promise<string | null> {
+    if (!(await userInQueue(userId, textChannel))) return null;
+
+    const response = await pool.query(
+        `SELECT queue_join_time FROM queue_users WHERE user_id = $1 AND queue_channel_id = $2`,
+        [userId, textChannel.id]
+    );
+
+    if (response.rows.length === 0) return null;
+
+    const joinTime = new Date(response.rows[0].queue_join_time);
+    const timeSpent = Math.floor(joinTime.getTime() / 1000); // Convert to seconds for Discord timestamp
+    return `<t:${timeSpent}:R>`;
 }
 
 // Returns the party list for a given user
