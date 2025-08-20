@@ -3,7 +3,7 @@ import { pool } from '../db';
 import client from '../index';
 import _ from 'lodash-es';
 
-export function getRandomDeck(): string {
+export function getRandomDeck(includeCustomDecks: boolean): string {
   const decks = [
     "<:red_deck:1407754986598830150> Red Deck",
     "<:blue_deck:1407755009269174342> Blue Deck",
@@ -19,7 +19,15 @@ export function getRandomDeck(): string {
     "<:painted_deck:1407755200525242459> Painted Deck",
     "<:anaglyph_deck:1407755208733360271> Anaglyph Deck",
     "<:plasma_deck:1407755215083667560> Plasma Deck",
-    "<:erratic_deck:1407755223484596294> Erratic Deck"
+    "<:erratic_deck:1407755223484596294> Erratic Deck",
+    
+    ...(includeCustomDecks ? [
+    "<:PLACEHOLDER:1234> Orange Deck",
+    "<:PLACEHOLDER:1234> Cocktail Deck",
+    "<:PLACEHOLDER:1234> Gradient Deck",
+    "<:PLACEHOLDER:1234> Sibyl Deck",
+    "<:PLACEHOLDER:1234> Violet Deck",
+    ] : []),
   ]
 
   return _.sample(decks) ?? "Red Deck";
