@@ -26,6 +26,16 @@ module.exports = {
             }
         }
     }
+    //autocomplete interactions
+    if (interaction.isAutocomplete()) {
+        const command = interaction.client.commands.get(interaction.commandName);
+        if (!command || !command.autocomplete) return;
+        try {
+            await command.autocomplete(interaction);
+        } catch (err) {
+            console.error(err);
+        }
+    }
 
     // Button interactions
     if (interaction.isButton()) {
