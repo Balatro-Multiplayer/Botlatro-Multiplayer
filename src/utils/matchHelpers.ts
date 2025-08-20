@@ -72,6 +72,7 @@ export async function sendMatchInitMessages(matchId: number, textChannel: TextCh
   // This is just for testing the layout, ^ the above does it properly
   // const teamData = [{ team: 1, users: [{user_id: '122568101995872256', elo: 250}] }, {team: 2, users: [{user_id: '122568101995872256', elo: 500}] }];
   const queueTeamSelectOptions: any[] = [];
+  let teamPingString = ``;
 
   let teamFields: any[] = teamData.map(async (t: any) => {
 
@@ -81,18 +82,27 @@ export async function sendMatchInitMessages(matchId: number, textChannel: TextCh
       [t.users.map((u: any) => u.user_id)])
 
     let teamString = ``;
+    let onePersonTeam = false;
+    let onePersonTeamName;
 
     if (teamQueueUsersData.rowCount == 0) return;
+    if (teamQueueUsersData.rowCount == 1) onePersonTeam = true;
 
     for (const user of teamQueueUsersData.rows) {
       let userDiscordInfo = await client.users.fetch(user.user_id);
+      teamPingString += `<@${user.user_id}> `;
 
-      teamString += `**${userDiscordInfo.displayName}** - ${user.elo}\n`;
+      if (onePersonTeam) {
+        teamString += `${user.elo} **MMR**\n`;
+        onePersonTeamName = userDiscordInfo.displayName;
+      } else {
+        teamString += `**${userDiscordInfo.displayName}** - ${user.elo}\n`;
+      }
     }
     
-    queueTeamSelectOptions.push(new StringSelectMenuOptionBuilder().setLabel(`Team ${t.team}`).setDescription(`Select team ${t.team} as the winner.`).setValue(`team_${t.team}`))
-    return { name: `Team ${t.team}`, value: teamString }
-    
+    queueTeamSelectOptions.push(new StringSelectMenuOptionBuilder().setLabel(onePersonTeam == true ? `${onePersonTeamName}` : `Team ${t.team}`).setDescription(`Select ${onePersonTeam == true ? `${onePersonTeamName}` : `team ${t.team}`} as the winner.`).setValue(`team_${t.team}`))
+    teamPingString += 'vs. ';
+    return { name: onePersonTeam ? `${onePersonTeamName}` : `Team ${t.team}`, value: teamString }
   })
 
   teamFields = await Promise.all(teamFields)
@@ -100,17 +110,25 @@ export async function sendMatchInitMessages(matchId: number, textChannel: TextCh
     new StringSelectMenuBuilder().setCustomId('match_winner').setPlaceholder('Select the game winner!').setOptions(queueTeamSelectOptions)
   )];
 
+    // Slice off the last vs.
+  teamPingString = teamPingString.slice(0, -4); 
+
   queueGameComponents.push(new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`cancel-${matchId}`).setLabel('Cancel Match').setStyle(ButtonStyle.Danger)),
-    new ButtonBuilder().setCustomId(`call-helper`).setLabel('Call Helpers').setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder().setCustomId(`cancel-${matchId}`).setLabel('Cancel Match').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId(`call-helper`).setLabel('Call Helpers').setStyle(ButtonStyle.Secondary))
   )
 
   const eloEmbed = new EmbedBuilder()
-        .setTitle(`Queue #${matchId}`)
+        .setTitle(`Match #${matchId}`)
         .setFields(teamFields)
         .setColor(0xFF0000);
 
-  await textChannel.send({ embeds: [eloEmbed], components: queueGameComponents })
+  const deckEmbed = new EmbedBuilder()
+        .setTitle(`Deck`)
+        .setDescription(`Team 1 bans 5 decks\nTeam 2 chooses 3\nTeam 1 picks 1\nAlternatively, use </random-deck:1407756759057174560> to select a random deck.`)
+        .setColor(0xFF0000);
+
+  await textChannel.send({ content: `# ${teamPingString}`, embeds: [eloEmbed, deckEmbed], components: queueGameComponents });
 }
 
 export async function cancelMatch(matchId: number): Promise<boolean> {

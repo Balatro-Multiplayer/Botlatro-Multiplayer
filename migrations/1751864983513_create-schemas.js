@@ -16,6 +16,7 @@ export const up = (pgm) => {
         queue_name: { type: 'varchar(255)', notNull: true, unique: true },
         category_id: { type: 'varchar(255)', notNull: true },
         channel_id: { type: 'varchar(255)', notNull: true, unique: true },
+        results_channel_id: { type: 'varchar(255)', notNull: true, unique: true },
         message_id: { type: 'varchar(255)', unique: true },
         members_per_team: { type: 'integer', notNull: true },
         number_of_teams: { type: 'integer', notNull: true },
