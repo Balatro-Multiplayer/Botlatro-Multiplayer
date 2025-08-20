@@ -22,11 +22,12 @@ export function getRandomDeck(includeCustomDecks: boolean): string {
     "<:erratic_deck:1407755223484596294> Erratic Deck",
     
     ...(includeCustomDecks ? [
-    "<:PLACEHOLDER:1234> Orange Deck",
-    "<:PLACEHOLDER:1234> Cocktail Deck",
-    "<:PLACEHOLDER:1234> Gradient Deck",
-    "<:PLACEHOLDER:1234> Sibyl Deck",
-    "<:PLACEHOLDER:1234> Violet Deck",
+    "<:orange_deck:1407823492757585950> Orange Deck",
+    "<:violet_deck:1407823549741273171> Violet Deck",
+    "<:cocktail_deck:1407823448729976862> Cocktail Deck",
+    "<:gradient_deck:1407823575158882495> Gradient Deck",
+    "<:sybil_deck:1407823470967918655> Sibyl Deck",
+    "<:indigo_deck:1407823516967112795> Indigo Deck",
     ] : []),
   ]
 
