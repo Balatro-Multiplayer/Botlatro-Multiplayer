@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, MessageFlags, TextChannel } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, MessageFlags, TextChannel, ChannelType } from 'discord.js';
 import { pool } from '../../db';
 import { updateQueueMessage } from '../../utils/queueHelpers';
 
@@ -77,15 +77,33 @@ module.exports = {
 
 		try {
 			const textChannel = interaction.channel as TextChannel;
+			
+			const client = (await import('../../index')).default;
+			const guild = client.guilds.cache.get(process.env.GUILD_ID!) 
+				?? await client.guilds.fetch(process.env.GUILD_ID!);
+			if (!guild) throw new Error('Guild not found');
+			const resultsChannel = await guild.channels.create({
+				name: `${queueName.toLowerCase()}-results`,
+				type: ChannelType.GuildText,
+				parent: category.id,
+				permissionOverwrites: [
+					{
+						id: guild.roles.everyone,
+						deny: [PermissionFlagsBits.SendMessages],
+					}
+				]
+			})
+
 
 			await pool.query(`
                 INSERT INTO queues
-				(queue_name, category_id, channel_id, members_per_team, number_of_teams, elo_search_start, elo_search_increment, elo_search_speed, default_elo, minimum_elo, maximum_elo, max_party_elo_difference)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+				(queue_name, category_id, channel_id, results_channel_id, members_per_team, number_of_teams, elo_search_start, elo_search_increment, elo_search_speed, default_elo, minimum_elo, maximum_elo, max_party_elo_difference)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12, $13)
                 `, [
 					queueName,
 					category.id,
 					textChannel.id,
+					resultsChannel.id,
 					membersPerTeam,
 					numberOfTeams,
 					eloSearchStart,

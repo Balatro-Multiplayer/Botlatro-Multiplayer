@@ -1,11 +1,15 @@
 /// <reference path="./@types/discord.d.ts" />
-import { Client, Collection, GatewayIntentBits, Events } from 'discord.js';
+import { Client, Collection, GatewayIntentBits, Events, REST, Routes } from 'discord.js';
 import * as dotenv from 'dotenv';
 import fs from 'node:fs';
 import path from 'node:path';
-import { cancelMatch } from './utils/matchHelpers';
+require('dotenv').config();
 
 dotenv.config();
+
+const token = process.env.DISCORD_TOKEN || '';
+const clientId = process.env.CLIENT_ID || '';
+const guildId = process.env.GUILD_ID || '';
 
 const client = new Client({
     intents: [
@@ -14,6 +18,7 @@ const client = new Client({
 });
 client.commands = new Collection();
 
+const commands = [];
 const foldersPath = path.join(__dirname, 'commands');
 const commandFolders = fs.readdirSync(foldersPath);
 
@@ -24,13 +29,36 @@ for (const folder of commandFolders) {
     for (const file of commandFiles) {
         const filePath = path.join(commandsPath, file);
         const command = require(filePath);
+
         if ('data' in command && 'execute' in command) {
+            commands.push(command.data.toJSON());
             client.commands.set(command.data.name, command);
         } else {
             console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
         }
     }
 }
+
+// Construct and prepare an instance of the REST module
+const rest = new REST().setToken(token);
+
+// and deploy your commands!
+(async () => {
+	try {
+		console.log(`Started refreshing ${commands.length} application (/) commands.`);
+
+		// The put method is used to fully refresh all commands in the guild with the current set
+		const data: any = await rest.put(
+			Routes.applicationGuildCommands(clientId, guildId),
+			{ body: commands },
+		);
+
+		console.log(`Successfully reloaded ${data.length} application (/) commands.`);
+	} catch (error) {
+		// And of course, make sure you catch and log any errors!
+		console.error(error);
+	}
+})();
 
 const eventsPath = path.join(__dirname, 'events');
 const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.ts')  || file.endsWith('.js'));
