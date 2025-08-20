@@ -15,9 +15,11 @@
   "dependencies": {
     "discord.js": "^14.21.0",
     "dotenv": "^17.0.1",
+    "lodash-es": "^4.17.21",
     "pg": "^8.16.3"
   },
   "devDependencies": {
+    "@types/lodash-es": "^4.17.12",
     "@types/node": "^24.0.10",
     "@types/pg": "^8.15.4",
     "node-pg-migrate": "^8.0.3",
