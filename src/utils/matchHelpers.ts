@@ -1,7 +1,44 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, TextChannel } from 'discord.js';
 import { pool } from '../db';
 import client from '../index';
-// import { QueueUsers, Users } from 'psqlDB';
+import _ from 'lodash-es';
+
+export function getRandomDeck(): string {
+  const decks = [
+    "<:red_deck:1407754986598830150> Red Deck",
+    "<:blue_deck:1407755009269174342> Blue Deck",
+    "<:yellow_deck:1407755032568533093> Yellow Deck",
+    "<:green_deck:1407755057923100693> Green Deck",
+    "<:black_deck:1407755080748367952> Black Deck",
+    "<:magic_deck:1407755102122414090> Magic Deck",
+    "<:nebula_deck:1407755121412280361> Nebula Deck",
+    "<:ghost_deck:1407755153460690976> Ghost Deck",
+    "<:abandoned_deck:1407755177909293187> Abandoned Deck",
+    "<:checkered_deck:1407755185157312645> Checkered Deck",
+    "<:zodiac_deck:1407755192933552159> Zodiac Deck",
+    "<:painted_deck:1407755200525242459> Painted Deck",
+    "<:anaglyph_deck:1407755208733360271> Anaglyph Deck",
+    "<:plasma_deck:1407755215083667560> Plasma Deck",
+    "<:erratic_deck:1407755223484596294> Erratic Deck"
+  ]
+
+  return _.sample(decks) ?? "Red Deck";
+}
+
+export function getRandomStake(): string {
+  const stakes = [
+    "<:white_stake:1407754838108016733> White Stake",
+    "<:red_stake:1407754861944242196> Red Stake",
+    "<:green_stake:1407754883506901063> Green Stake",
+    "<:black_stake:1407754899470422129> Black Stake",
+    "<:blue_stake:1407754917535285450> Blue Stake",
+    "<:purple_stake:1407754932664270940> Purple Stake",
+    "<:orange_stake:1407754951626588273> Orange Stake",
+    "<:gold_stake:1407754971692404776> Gold Stake"
+  ]
+
+  return _.sample(stakes) ?? "White Stake";
+}
 
 export async function getTeamsInMatch(matchId: number): Promise<{ team: number, users: any[] }[]> {
   const userRes = await pool.query(`
@@ -31,12 +68,12 @@ export async function getTeamsInMatch(matchId: number): Promise<{ team: number, 
 
 export async function sendMatchInitMessages(matchId: number, textChannel: TextChannel) {
 
-    const teamData = await getTeamsInMatch(matchId);
-    // This is just for testing the layout, ^ the above does it properly
-    // const teamData = [{ team: 1, users: [{user_id: '122568101995872256', elo: 250}] }, {team: 2, users: [{user_id: '122568101995872256', elo: 500}] }];
-    const queueTeamSelectOptions: any[] = [];
+  const teamData = await getTeamsInMatch(matchId);
+  // This is just for testing the layout, ^ the above does it properly
+  // const teamData = [{ team: 1, users: [{user_id: '122568101995872256', elo: 250}] }, {team: 2, users: [{user_id: '122568101995872256', elo: 500}] }];
+  const queueTeamSelectOptions: any[] = [];
 
-    let teamFields: any[] = teamData.map(async (t: any) => {
+  let teamFields: any[] = teamData.map(async (t: any) => {
 
     let teamQueueUsersData = await pool.query(
       `SELECT * FROM queue_users
@@ -55,15 +92,17 @@ export async function sendMatchInitMessages(matchId: number, textChannel: TextCh
     
     queueTeamSelectOptions.push(new StringSelectMenuOptionBuilder().setLabel(`Team ${t.team}`).setDescription(`Select team ${t.team} as the winner.`).setValue(`team_${t.team}`))
     return { name: `Team ${t.team}`, value: teamString }
+    
   })
 
   teamFields = await Promise.all(teamFields)
-  const queueGameRow: any[] = [new ActionRowBuilder().addComponents(
+  const queueGameComponents: any[] = [new ActionRowBuilder().addComponents(
     new StringSelectMenuBuilder().setCustomId('match_winner').setPlaceholder('Select the game winner!').setOptions(queueTeamSelectOptions)
   )]
 
-  queueGameRow.push(new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`cancel-${matchId}`).setLabel('Cancel Match').setStyle(ButtonStyle.Danger))
+  queueGameComponents.push(new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId(`cancel-${matchId}`).setLabel('Cancel Match').setStyle(ButtonStyle.Danger)),
+    new ButtonBuilder().setCustomId(`call-helper`).setLabel('Call Helpers').setStyle(ButtonStyle.Secondary)
   )
 
   const eloEmbed = new EmbedBuilder()
@@ -71,7 +110,7 @@ export async function sendMatchInitMessages(matchId: number, textChannel: TextCh
         .setFields(teamFields)
         .setColor(0xFF0000);
 
-  await textChannel.send({ embeds: [eloEmbed], components: queueGameRow })
+  await textChannel.send({ embeds: [eloEmbed], components: queueGameComponents })
 }
 
 export async function cancelMatch(matchId: number): Promise<boolean> {
