@@ -1,5 +1,6 @@
 import { pool } from '../db';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, EmbedBuilder, TextChannel, PermissionFlagsBits } from 'discord.js';
+import { sendMatchInitMessages } from './matchHelpers';
 
 // Fetches all users currently in the specified queue
 export async function getUsersInQueue(textChannel: TextChannel): Promise<string[]> {
@@ -234,6 +235,7 @@ async function queueUsers(userIds: string[], queueId: string): Promise<void> {
     updateQueueMessage((client.guilds.cache.get(queueId) ?? await client.channels.fetch(queueId)) as TextChannel, true);
 
     // Send queue start messages
+    await sendMatchInitMessages(matchId, channel)
 }
 
 // Checks if a user is in a match

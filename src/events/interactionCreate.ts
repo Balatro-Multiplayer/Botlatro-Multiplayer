@@ -1,6 +1,7 @@
 import { Events, Interaction, MessageFlags, TextChannel } from 'discord.js';
 import { pool } from '../db';
 import { updateQueueMessage, matchUpGames, userInQueue, getPartyList, timeSpentInQueue, userInMatch } from '../utils/queueHelpers';
+import { cancelMatch } from '../utils/matchHelpers';
 
 module.exports = {
   name: Events.InteractionCreate,
@@ -132,6 +133,19 @@ module.exports = {
             } else {
                 await interaction.reply({ content: `You're **not** currently in this queue.`, flags: MessageFlags.Ephemeral });
             }
+        }
+        if (interaction.customId.startsWith('cancel-')) {
+            const matchId = parseInt(interaction.customId.split('-')[1])
+            cancelMatch(matchId)
+            await interaction.reply({ content: `Match ID ${matchId} has been cancelled.`})
+        }
+        if (interaction.customId.startsWith('match-winner-')) {
+            // Format for this is match-winner-<match-id>-<team-id>
+            const matchData = interaction.customId.split('-');
+            const matchId = matchData[2];
+            const matchWinnerId = matchData[3];
+
+            
         }
         if (interaction.customId.startsWith('accept-party-invite-')) {
             const memberId = interaction.customId.split('-').pop();

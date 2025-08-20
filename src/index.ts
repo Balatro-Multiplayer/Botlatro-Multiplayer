@@ -3,6 +3,7 @@ import { Client, Collection, GatewayIntentBits, Events } from 'discord.js';
 import * as dotenv from 'dotenv';
 import fs from 'node:fs';
 import path from 'node:path';
+import { cancelMatch } from './utils/matchHelpers';
 
 dotenv.config();
 
