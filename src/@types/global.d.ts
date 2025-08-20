@@ -6,6 +6,7 @@ declare module 'psqlDB' {
     queue_name: string;
     category_id: string;
     channel_id: string;
+    results_channel_id: string;
     message_id?: string | null;
     members_per_team: number;
     number_of_teams: number;
