@@ -98,7 +98,7 @@ export async function sendMatchInitMessages(matchId: number, textChannel: TextCh
   teamFields = await Promise.all(teamFields)
   const queueGameComponents: any[] = [new ActionRowBuilder().addComponents(
     new StringSelectMenuBuilder().setCustomId('match_winner').setPlaceholder('Select the game winner!').setOptions(queueTeamSelectOptions)
-  )]
+  )];
 
   queueGameComponents.push(new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId(`cancel-${matchId}`).setLabel('Cancel Match').setStyle(ButtonStyle.Danger)),
