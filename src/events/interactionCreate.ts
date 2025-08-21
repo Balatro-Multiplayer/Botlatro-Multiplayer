@@ -1,7 +1,8 @@
 import { Events, Interaction, MessageFlags, TextChannel } from 'discord.js';
 import { pool } from '../db';
-import { updateQueueMessage, matchUpGames, userInQueue, getPartyList, timeSpentInQueue, userInMatch } from '../utils/queueHelpers';
-import { cancelMatch } from '../utils/matchHelpers';
+import { updateQueueMessage, matchUpGames, timeSpentInQueue } from '../utils/queueHelpers';
+import { cancelMatch, endMatch } from '../utils/matchHelpers';
+import { getPartyList, userInMatch, userInQueue } from '../utils/queryDB';
 
 module.exports = {
   name: Events.InteractionCreate,
@@ -34,6 +35,16 @@ module.exports = {
             await command.autocomplete(interaction);
         } catch (err) {
             console.error(err);
+        }
+    }
+
+    // Select Menu Interactions
+    if (interaction.isAnySelectMenu()) {
+        // winmatch_1_0 as an example, matchId then teamId
+        if (interaction.values[0].includes('winmatch_')) {
+            const winMatchData: string[] = interaction.values[0].split('_');
+            await endMatch(parseInt(winMatchData[2]), parseInt(winMatchData[1]));
+            interaction.update({ content: 'The match has ended!', embeds: [], components: [] });
         }
     }
 
@@ -147,15 +158,11 @@ module.exports = {
         if (interaction.customId.startsWith('cancel-')) {
             const matchId = parseInt(interaction.customId.split('-')[1])
             cancelMatch(matchId)
-            await interaction.reply({ content: `Match ID ${matchId} has been cancelled.`})
+            await interaction.update({ content: 'The match has been cancelled.', embeds: [], components: [] });
         }
-        if (interaction.customId.startsWith('match-winner-')) {
-            // Format for this is match-winner-<match-id>-<team-id>
-            const matchData = interaction.customId.split('-');
-            const matchId = matchData[2];
-            const matchWinnerId = matchData[3];
-
-            
+        if (interaction.customId.startsWith('call-helpers-')) {
+            const matchId = parseInt(interaction.customId.split('-')[1]);
+            // TODO: Make helpers call stuff
         }
         if (interaction.customId.startsWith('accept-party-invite-')) {
             const memberId = interaction.customId.split('-').pop();

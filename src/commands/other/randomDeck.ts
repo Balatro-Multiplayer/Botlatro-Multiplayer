@@ -9,14 +9,14 @@ module.exports = {
 			option.setName('custom-decks')
 				.setDescription('Include custom BMP decks in random deck pool')
 				.setRequired(false)
-				.addChoices({ name: 'yes', value: 'true'})),
+				.addChoices({ name: 'yes', value: 'yes' })),
 	async execute(interaction: ChatInputCommandInteraction) {
 		const customDecks = interaction.options.getString('custom-decks') || null;
 		let customDecksBoolean = false;
 		if (customDecks == 'yes') { customDecksBoolean = true }
 
 		try {
-            interaction.reply({ content: getRandomDeck(customDecksBoolean) });
+      interaction.reply({ content: getRandomDeck(customDecksBoolean) });
 		} catch (err: any) {
 			console.error(err);
 			const errorMsg = err.detail || err.message || 'Unknown';

@@ -1,18 +1,7 @@
 import { pool } from '../db';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, EmbedBuilder, TextChannel, PermissionFlagsBits } from 'discord.js';
 import { sendMatchInitMessages } from './matchHelpers';
-
-// Fetches all users currently in the specified queue
-export async function getUsersInQueue(textChannel: TextChannel): Promise<string[]> {
-    const response = await pool.query(`
-        SELECT u.user_id FROM queue_users u
-        JOIN queues q ON u.queue_channel_id = q.channel_id
-        WHERE q.channel_id = $1 AND u.queue_join_time IS NOT NULL`,
-        [textChannel.id]
-    );
-
-    return response.rows.map(row => row.user_id);
-}
+import { getUsersInQueue, userInQueue } from './queryDB';
 
 // Updates or sends a new queue message for the specified text channel  
 export async function updateQueueMessage(textChannel: TextChannel, newMessage: boolean): Promise<void> {
@@ -238,28 +227,6 @@ async function queueUsers(userIds: string[], queueId: string): Promise<void> {
     await sendMatchInitMessages(matchId, channel)
 }
 
-// Checks if a user is in a match
-export async function userInMatch(userId: string): Promise<boolean> {
-     const response = await pool.query(`
-        SELECT * FROM users
-        WHERE user_id = $1 AND match_id IS NOT NULL
-        `, [userId]
-    );
-
-    return response.rows.length > 0;
-}
-
-// Checks if a user is currently in a specific queue
-export async function userInQueue(userId: string, textChannel: TextChannel): Promise<boolean> {
-    const response = await pool.query(`
-        SELECT * FROM queue_users
-        WHERE user_id = $1 AND queue_channel_id = $2 AND queue_join_time IS NOT NULL
-        `, [userId, textChannel.id]
-    );
-
-    return response.rows.length > 0;
-}
-
 export async function timeSpentInQueue(userId: string, textChannel: TextChannel): Promise<string | null> {
     if (!(await userInQueue(userId, textChannel))) return null;
 
@@ -273,13 +240,4 @@ export async function timeSpentInQueue(userId: string, textChannel: TextChannel)
     const joinTime = new Date(response.rows[0].queue_join_time);
     const timeSpent = Math.floor(joinTime.getTime() / 1000); // Convert to seconds for Discord timestamp
     return `<t:${timeSpent}:R>`;
-}
-
-// Returns the party list for a given user
-export async function getPartyList(userId: string): Promise<string[]> {
-    const response = await pool.query(
-        `SELECT user_id FROM users WHERE joined_party_id = $1`,
-        [userId]
-    );
-    return response.rows.map(row => row.id);
 }

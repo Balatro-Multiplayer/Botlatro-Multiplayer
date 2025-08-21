@@ -2,6 +2,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelec
 import { pool } from '../db';
 import client from '../index';
 import _ from 'lodash-es';
+import { getMatchResultsChannel } from './queryDB';
 
 export function getRandomDeck(includeCustomDecks: boolean): string {
   const decks = [
@@ -31,7 +32,8 @@ export function getRandomDeck(includeCustomDecks: boolean): string {
     ] : []),
   ]
 
-  return _.sample(decks) ?? "Red Deck";
+  return decks[Math.floor(Math.random() * decks.length)];
+
 }
 
 export function getRandomStake(): string {
@@ -46,7 +48,7 @@ export function getRandomStake(): string {
     "<:gold_stake:1407754971692404776> Gold Stake"
   ]
 
-  return _.sample(stakes) ?? "White Stake";
+  return stakes[Math.floor(Math.random() * stakes.length)];
 }
 
 export async function getTeamsInMatch(matchId: number): Promise<{ team: number, users: any[] }[]> {
@@ -102,14 +104,19 @@ export async function sendMatchInitMessages(matchId: number, textChannel: TextCh
       teamPingString += `<@${user.user_id}> `;
 
       if (onePersonTeam) {
-        teamString += `${user.elo} **MMR**\n`;
+        teamString += `\`${user.elo} MMR\`\n`;
         onePersonTeamName = userDiscordInfo.displayName;
       } else {
         teamString += `**${userDiscordInfo.displayName}** - ${user.elo}\n`;
       }
     }
     
-    queueTeamSelectOptions.push(new StringSelectMenuOptionBuilder().setLabel(onePersonTeam == true ? `${onePersonTeamName}` : `Team ${t.team}`).setDescription(`Select ${onePersonTeam == true ? `${onePersonTeamName}` : `team ${t.team}`} as the winner.`).setValue(`team_${t.team}`))
+    queueTeamSelectOptions.push(
+      new StringSelectMenuOptionBuilder()
+        .setLabel(onePersonTeam == true ? `${onePersonTeamName}` : `Team ${t.team}`)
+        .setDescription(`Select ${onePersonTeam == true ? `${onePersonTeamName}` : `team ${t.team}`} as the winner.`)
+        .setValue(`winmatch_${matchId}_${t.team}`));
+
     teamPingString += 'vs. ';
     return { name: onePersonTeam ? `${onePersonTeamName}` : `Team ${t.team}`, value: teamString }
   })
@@ -124,7 +131,7 @@ export async function sendMatchInitMessages(matchId: number, textChannel: TextCh
 
   queueGameComponents.push(new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId(`cancel-${matchId}`).setLabel('Cancel Match').setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId(`call-helper`).setLabel('Call Helpers').setStyle(ButtonStyle.Secondary))
+    new ButtonBuilder().setCustomId(`call-helpers-${matchId}`).setLabel('Call Helpers').setStyle(ButtonStyle.Secondary))
   )
 
   const eloEmbed = new EmbedBuilder()
@@ -148,6 +155,25 @@ export async function cancelMatch(matchId: number): Promise<boolean> {
   return true;
 }
 
-export async function endMatch(winningTeamId: string, matchId: number) {
-  
+export async function endMatch(winningTeamId: number, matchId: number): Promise<boolean> {
+  let matchTeams = await getTeamsInMatch(matchId);
+  const winningTeam = matchTeams.filter(t => t.team == winningTeamId)[0];
+  const losingTeams = matchTeams.filter(t => t.team != winningTeamId);
+  const resultsChannel = await getMatchResultsChannel(matchId);
+  if (resultsChannel == null) throw Error('Results channel was not found!');
+  const resultsFields = [];
+
+  const resultsEmbed = new EmbedBuilder()
+        .setTitle(`🏆 Winner For Match #${matchId} 🏆`)
+        .setColor('Gold');
+
+  // TODO: Add information about both teams (winningTeam and losingTeams) in here
+  // PLEASE make sure to make it ONLY say teams if there is more than 1 player on each team
+  // there is logic on how that type of thing is done in sendMatchInitMessages
+  // it's kinda jank but it works and feels much nicer to look at
+
+  resultsChannel.send({ embeds: [resultsEmbed] });
+
+  await cancelMatch(matchId);
+  return true;
 }

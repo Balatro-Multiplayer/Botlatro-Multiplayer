@@ -5,7 +5,7 @@ module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('resend-queue-message')
 		.setDescription('Resends the queue message in the current channel')
-    	.setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+		.setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 	async execute(interaction: ChatInputCommandInteraction) {
 
 		try {
