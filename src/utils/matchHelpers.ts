@@ -53,7 +53,7 @@ export function getRandomStake(): string {
 
 export async function getTeamsInMatch(matchId: number): Promise<{ team: number, users: any[] }[]> {
   const userRes = await pool.query(`
-    SELECT * FROM users
+    SELECT * FROM match_users
     WHERE match_id = $1
   `, [matchId]);
 

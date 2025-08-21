@@ -34,7 +34,7 @@ export const up = (pgm) => {
     pgm.createTable('matches', {
         id: { type: 'serial', primaryKey: true },
         queue_id: { type: 'integer', references: '"queues"', notNull: true, onDelete: 'CASCADE' },
-        channel_id: { type: 'varchar(255)', notNull: true, unique: true }
+        channel_id: { type: 'varchar(255)', notNull: true, unique: true },
     });
 
     pgm.createTable('users', {

@@ -68,13 +68,24 @@ export async function getUsersInQueue(textChannel: TextChannel): Promise<string[
 
 // Checks if a user is in a match
 export async function userInMatch(userId: string): Promise<boolean> {
-  const response = await pool.query(`
-    SELECT * FROM users
-    WHERE user_id = $1 AND match_id IS NOT NULL
-    `, [userId]
-  );
 
-  return response.rows.length > 0;
+  // gets all open matches
+  const openMatches = await pool.query(`
+    SELECT * FROM matches
+    WHERE open = true
+  `);
+
+  // checks for the requested userId (not optimised but im stupid) - casjb
+  let response: any[] = [];
+  for (const match of openMatches.rows) {
+    const result = await pool.query(`
+      SELECT * FROM match_users
+      WHERE user_id = $1 AND match_id = $2
+      `, [userId, match.id])
+    response = response.concat(result.rows); 
+  }
+
+  return response.length > 0;
 }
 
 // Returns the party list for a given user
@@ -95,4 +106,62 @@ export async function userInQueue(userId: string, textChannel: TextChannel): Pro
     );
 
     return response.rows.length > 0;
+}
+
+// gets all settings for a specific queue
+export async function getQueueSettings(queueId: string) {
+  const response = await pool.query(`
+    SELECT * FROM queues WHERE id = $1
+  `, [queueId]);
+
+  if (response.rowCount === 0) {
+    throw new Error(`Queue with id ${queueId} does not exist.`);
+  }
+
+  return response.rows[0];
+}
+
+// gets data from a match 
+export async function getMatchData(matchId: number) {
+  const response = await pool.query(`
+    SELECT * FROM matches WHERE id = $1
+  `, [matchId]);
+  if (response.rowCount === 0) {
+    throw new Error(`Match with ID ${matchId} does not exist.`);
+  }
+
+  return response.rows[0];
+}
+
+
+
+
+// gets player data for a live match to calculate Glicko-2 or openSkill ratings
+export async function getPlayerDataLive(matchId: number) {
+
+  // get user_id for every player in the match
+  const matchUsers = await pool.query(`
+    SELECT user_id FROM match_users
+    WHERE match_id = $1`,
+    [matchId]
+  );
+
+  let playerList: any[] = [];
+  try {
+    // repeat for each player in the match
+    for (const matchUser of matchUsers.rows) {        
+      // get the player's data for calculations
+      const playerData = await pool.query(`
+        SELECT elo, win_streak, volatility FROM queue_users WHERE user_id = $1`, 
+        [matchUser.user_id]
+      );
+      if (playerData.rows.length > 0) {
+        playerList.push({ [matchUser.user_id]: playerData.rows[0] });
+      }
+    }
+  } catch (err) {
+    throw new Error(`Failed to fetch player data for match ID ${matchId}`);
+  }
+
+  return { playerList };
 }
