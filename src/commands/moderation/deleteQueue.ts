@@ -21,7 +21,7 @@ module.exports = {
             if (res.rowCount === 0) {
                 return interaction.reply(`Failed to delete queue ${queueName}.`)
             } 
-
+			
 			// delete the results channel
 			const resultsChannel = await interaction.client.channels.fetch(res.rows[0].results_channel_id);
 			if (resultsChannel) await resultsChannel.delete();

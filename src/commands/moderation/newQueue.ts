@@ -5,18 +5,9 @@ import { updateQueueMessage } from '../../utils/queueHelpers';
 module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('new-queue')
-		.setDescription('Creates a new queue in the current channel')
+		.setDescription('Creates a new queue in the current channel (defaults to 1v1)')
     	.setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-		.addIntegerOption(option =>
-			option.setName('members-per-team')
-				.setDescription('Number of members per team')
-				.setRequired(true)
-				.setMinValue(1))
-		.addIntegerOption(option =>
-			option.setName('number-of-teams')
-				.setDescription('Number of teams per game')
-				.setRequired(true)
-				.setMinValue(2))
+		// required
 		.addStringOption(option =>
 			option.setName('queue-name')
 				.setDescription('Name of the queue')
@@ -28,30 +19,41 @@ module.exports = {
 				.setRequired(true)
 				.addChannelTypes(4))
 		.addIntegerOption(option =>
-			option.setName('queue-elo-search-start')
-				.setDescription('Starting ELO distance for searching players')
-				.setRequired(true)
-				.setMinValue(0))
-		.addIntegerOption(option =>
-			option.setName('queue-elo-search-increment')
-				.setDescription('ELO distance increment for searching players')
-				.setRequired(true)
-				.setMinValue(0))
-		.addIntegerOption(option =>
-			option.setName('queue-elo-search-speed')
-				.setDescription('Speed of ELO increment (in seconds)')
-				.setRequired(true)
-				.setMinValue(1))
-		.addIntegerOption(option =>
 			option.setName('default-elo')
 				.setDescription('Default ELO for new players')
 				.setRequired(true)
 				.setMinValue(0))
+		// optional
+		.addIntegerOption(option =>
+			option.setName('members-per-team')
+				.setDescription('Number of members per team')
+				.setRequired(false)
+				.setMinValue(1))
+		.addIntegerOption(option =>
+			option.setName('number-of-teams')
+				.setDescription('Number of teams per game')
+				.setRequired(false)
+				.setMinValue(2))
+		.addIntegerOption(option =>
+			option.setName('queue-elo-search-start')
+				.setDescription('Starting ELO distance for searching players')
+				.setRequired(false)
+				.setMinValue(0))
+		.addIntegerOption(option =>
+			option.setName('queue-elo-search-increment')
+				.setDescription('ELO distance increment for searching players')
+				.setRequired(false)
+				.setMinValue(0))
+		.addIntegerOption(option =>
+			option.setName('queue-elo-search-speed')
+				.setDescription('Speed of ELO increment (in seconds)')
+				.setRequired(false)
+				.setMinValue(1))
 		.addIntegerOption(option =>
 			option.setName('minimum-elo')
 				.setDescription('Minimum ELO')
 				.setRequired(false)
-				.setMinValue(0))
+				.setMinValue(-1000))
 		.addIntegerOption(option =>
 			option.setName('maximum-elo')
 				.setDescription('Maximum ELO')
@@ -62,18 +64,21 @@ module.exports = {
 				.setDescription('Maximum ELO')
 				.setRequired(false)
 				.setMinValue(1)),
+
 	async execute(interaction: ChatInputCommandInteraction) {
-		const membersPerTeam = interaction.options.getInteger('members-per-team', true);
-		const numberOfTeams = interaction.options.getInteger('number-of-teams', true);
+		// required 
 		const queueName = interaction.options.getString('queue-name', true);
 		const category = interaction.options.getChannel('category', true);
-		const eloSearchStart = interaction.options.getInteger('queue-elo-search-start', true);
-		const eloSearchIncrement = interaction.options.getInteger('queue-elo-search-increment', true);
-		const eloSearchSpeed = interaction.options.getInteger('queue-elo-search-speed', true);
 		const defaultElo = interaction.options.getInteger('default-elo', true);
-		const minimumElo = interaction.options.getInteger('minimum-elo');
-		const maximumElo = interaction.options.getInteger('maximum-elo');
-		const maxPartyEloDifference = interaction.options.getInteger('max-party-elo-difference');
+		// optional
+		const membersPerTeam = interaction.options.getInteger('members-per-team', false) ?? 1;
+		const numberOfTeams = interaction.options.getInteger('number-of-teams', false) ?? 2;
+		const eloSearchStart = interaction.options.getInteger('queue-elo-search-start', false) ?? 0;
+		const eloSearchIncrement = interaction.options.getInteger('queue-elo-search-increment', false) ?? 1;
+		const eloSearchSpeed = interaction.options.getInteger('queue-elo-search-speed', false) ?? 1;
+		const minimumElo = interaction.options.getInteger('minimum-elo', false) ?? 0;
+		const maximumElo = interaction.options.getInteger('maximum-elo', false) ?? 10000;
+		const maxPartyEloDifference = interaction.options.getInteger('max-party-elo-difference', false) ?? Math.floor(defaultElo / 2);
 
 		try {
 			const textChannel = interaction.channel as TextChannel;
