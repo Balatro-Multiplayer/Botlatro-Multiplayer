@@ -20,11 +20,12 @@ module.exports = {
 
 			const matchCancelCheck = await cancelMatch(matchId);
             
-            if (matchCancelCheck) {
-                interaction.reply({ content: `Successfully cancelled match ${matchId}` });
-            } else {
-                interaction.reply({ content: `Failed to cancel match ${matchId}.` });
-            }
+			if (matchCancelCheck) {
+					interaction.reply({ content: `Successfully cancelled match ${matchId}` });
+			} else {
+					interaction.reply({ content: `Failed to cancel match ${matchId}.` });
+			}
+			
 		} catch (err: any) {
 			console.error(err);
 			const errorMsg = err.detail || err.message || 'Unknown';

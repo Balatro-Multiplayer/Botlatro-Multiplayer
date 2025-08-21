@@ -7,7 +7,7 @@ module.exports = {
 		.setDescription('Get a random stake'),
 	async execute(interaction: ChatInputCommandInteraction) {
 		try {
-            interaction.reply({ content: getRandomStake() });
+      interaction.reply({ content: getRandomStake() });
 		} catch (err: any) {
 			console.error(err);
 			const errorMsg = err.detail || err.message || 'Unknown';
