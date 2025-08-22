@@ -203,7 +203,7 @@ async function queueUsers(userIds: string[], queueId: string): Promise<void> {
             [userId]
         );
         await pool.query(`
-            UPDATE users 
+            UPDATE match_users 
             SET team = $1, match_id = $2
             WHERE user_id = $3
         `, [userIds.indexOf(userId)+1, matchId, userId]);
