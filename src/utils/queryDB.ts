@@ -1,5 +1,6 @@
 import { Channel, TextChannel } from "discord.js";
 import { pool } from "../db";
+import { create } from "node:domain";
 
 // Get the queue names of all queues that exist
 export async function getQueueNames(): Promise<string[]> {
@@ -53,8 +54,8 @@ export async function getMatchResultsChannel(matchId: number): Promise<TextChann
   throw new Error(`Channel is not a TextChannel for match ID ${matchId}`);
 }
 
-
-// Get users in a specified channel queue
+// whats the point of this function? - casjb
+// Get users in a specified queue channel
 export async function getUsersInQueue(textChannel: TextChannel): Promise<string[]> {
   const response = await pool.query(`
       SELECT u.user_id FROM queue_users u
@@ -88,14 +89,40 @@ export async function userInMatch(userId: string): Promise<boolean> {
   return response.length > 0;
 }
 
-// Returns the party list for a given user
-export async function getPartyList(userId: string): Promise<string[]> {
-  const response = await pool.query(
-      `SELECT user_id FROM users WHERE joined_party_id = $1`,
-      [userId]
-  );
-  return response.rows.map(row => row.id);
-}
+
+// -- Party Functions --
+  export const partyUtils = {
+    getPartyUserList,
+    getUserParty,
+    userInQueue,
+    addUserToParty,
+    createParty,
+  }
+
+  // Returns the user list of a given party
+  export async function getPartyUserList(partyId: string): Promise<string[] | null> {
+    const response = await pool.query(`SELECT user_id FROM users WHERE joined_party_id = $1`,[partyId]);
+    return response.rows.map(row => row.user_id);
+  }
+
+  // returns the current party that the given user is in
+  export async function getUserParty(userId: string): Promise<string | null> {
+    const response = await pool.query(`SELECT joined_party_id FROM users WHERE user_id = $1`, [userId])
+    return response.rows.map(row => row.joined_party_id)[0] || null;
+  }
+
+  // adds user to a party
+  export async function addUserToParty(userId: string, partyId: string, isLeader: boolean = false): Promise<void> {
+    await pool.query(`UPDATE users SET joined_party_id = $1 WHERE user_id = $2`, [partyId, userId]);
+    await pool.query(`INSERT INTO party_users (party_id, user_id, is_leader) VALUES ($1, $2, $3)`, [partyId, userId, isLeader]);
+  }
+
+  // creates a party based on provided parameters
+  export async function createParty(partyName: string, partyCreatedAt: Date = new Date()): Promise<string> {
+    const response = await pool.query(`INSERT INTO parties (created_at, name) VALUES ($1, $2) RETURNING id`, [partyCreatedAt, partyName]);
+    return response.rows[0].id;
+  }
+
 
 // Checks if a user is currently in a specific queue
 export async function userInQueue(userId: string, textChannel: TextChannel): Promise<boolean> {

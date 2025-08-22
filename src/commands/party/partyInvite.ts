@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, MessageFlags, ButtonBuilder, ActionRowBuilder, ButtonStyle  } from 'discord.js';
 import { pool } from '../../db';
+import { partyUtils } from '../../utils/queryDB';
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -8,7 +9,7 @@ module.exports = {
     	.setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .addUserOption(option =>
 			option.setName('member')
-				.setDescription('Category where the new channels will be created for this queue')
+				.setDescription('The member you would like to invite to your party')
 				.setRequired(true)),
 	async execute(interaction: ChatInputCommandInteraction) {
 
@@ -25,13 +26,17 @@ module.exports = {
             const row = new ActionRowBuilder<ButtonBuilder>()
                     .addComponents(acceptButton);
 
-            // TODO: make sure user was created
+            // TODO: make sure user has an entry in DB
+            // TODO: add user to party when they accept invite
 
-            await pool.query(`
-                UPDATE users
-                SET joined_party_id = $1
-                WHERE user_id = $1
-                `, [interaction.user.id]);
+
+            // if user isn't already in a party, create a new party and add them
+            const partyId = await partyUtils.getUserParty(interaction.user.id);
+            if (!partyId) {
+                const newParty = await partyUtils.createParty(`${interaction.user.username}'s Party`, new Date());
+                await partyUtils.addUserToParty(interaction.user.id, newParty, true);
+            }
+
 
 			try {
                 await member.send({
@@ -42,6 +47,7 @@ module.exports = {
             } catch (err) {
                 await interaction.editReply({ content: `Failed to send invite to ${member.username}. They may have DMs disabled.` });
             }
+
 		} catch (err: any) {
 			console.error(err);
 			if (interaction.deferred || interaction.replied) {
