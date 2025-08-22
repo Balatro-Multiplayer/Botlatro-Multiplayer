@@ -57,6 +57,8 @@ export async function getTeamsInMatch(matchId: number): Promise<{ team: number, 
     WHERE match_id = $1
   `, [matchId]);
 
+  console.log(userRes);
+
   if (userRes.rowCount === 0) return [];
 
   const teamGroups: { [key: number]: any[] } = {};

@@ -203,10 +203,9 @@ async function queueUsers(userIds: string[], queueId: string): Promise<void> {
             [userId]
         );
         await pool.query(`
-            UPDATE match_users 
-            SET team = $1, match_id = $2
-            WHERE user_id = $3
-        `, [userIds.indexOf(userId)+1, matchId, userId]);
+            INSERT INTO match_users (user_id, match_id, team)
+            VALUES ($1, $2, $3)
+        `, [userId, matchId, userIds.indexOf(userId)+1]);
 
         const member = await guild.members.fetch(userId);
         try {
