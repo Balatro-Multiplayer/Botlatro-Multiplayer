@@ -23,11 +23,11 @@ module.exports = {
             } 
 			
 			// delete the results channel
-			const resultsChannel = await interaction.client.channels.fetch(res.rows[0].results_channel_id);
+			const resultsChannel = await interaction.client.channels.fetch(res.rows[0].results_channel_id).catch( err => console.error(err));
 			if (resultsChannel) await resultsChannel.delete();
 
 			// delete the queue message
-			const queueMessageChannel = await interaction.client.channels.fetch(res.rows[0].channel_id);
+			const queueMessageChannel = await interaction.client.channels.fetch(res.rows[0].channel_id).catch( err => console.error(err));
 			if (queueMessageChannel && queueMessageChannel.isTextBased()) {
 				const messageId = res.rows[0].message_id;
 				const message = await queueMessageChannel.messages.fetch(messageId);
