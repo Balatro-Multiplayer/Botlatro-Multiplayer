@@ -2,7 +2,7 @@ import { Events, Interaction, MessageFlags, TextChannel } from 'discord.js';
 import { pool } from '../db';
 import { updateQueueMessage, matchUpGames, timeSpentInQueue } from '../utils/queueHelpers';
 import { cancelMatch, endMatch } from '../utils/matchHelpers';
-import { getPartyList, userInMatch, userInQueue } from '../utils/queryDB';
+import { partyUtils, userInMatch, userInQueue } from '../utils/queryDB';
 
 module.exports = {
   name: Events.InteractionCreate,
@@ -59,25 +59,30 @@ module.exports = {
                     `SELECT * FROM queues WHERE channel_id = $1`, 
                     [interaction.channelId]);
 
-                const partyList = await getPartyList(interaction.user.id);
-                if (partyList.length > queue.rows[0].members_per_team) {
-                    await interaction.followUp({ content: `Your party has too many members for this queue.`, flags: MessageFlags.Ephemeral });
-                    return;
-                }
+                // checks that occur if a user is in a party:
+                const partyId = await partyUtils.getUserParty(interaction.user.id);
+                if (partyId) {
+                    // size of party check
+                    const partyList = partyId ? await partyUtils.getPartyUserList(partyId) : null;
+                    if (partyList && partyList.length > queue.rows[0].members_per_team) {
+                        await interaction.followUp({ content: `Your party has too many members for this queue.`, flags: MessageFlags.Ephemeral });
+                        return;
+                    }
 
-                const inParty = (await pool.query(
-                    `SELECT * FROM users WHERE user_id = $1 AND joined_party_id IS NOT NULL`,
-                    [interaction.user.id])).rows.length > 0;
+                    // party leader check
+                    const isLeader = await pool.query(`SELECT is_leader FROM party_users WHERE user_id = $1`, [interaction.user.id]);
+                    if (!(isLeader?.rows[0]?.is_leader ?? null)) {
+                        await interaction.followUp({ content: `You're not the party leader.`, flags: MessageFlags.Ephemeral });
+                        return;
+                    }
 
-                if (inParty) {
-                    await interaction.followUp({ content: `You're not the party leader.`, flags: MessageFlags.Ephemeral });
-                    return;
+                    //TODO: add ban check for every party member, also add ban check for solo queuers
                 }
 
                 const inMatch = await userInMatch(interaction.user.id);
                 if (interaction.customId === 'join-queue' && inMatch) {
                     const matchId = await pool.query(
-                    `SELECT match_id FROM users WHERE user_id = $1`,
+                    `SELECT match_id FROM match_users WHERE user_id = $1`,
                     [interaction.user.id]);
 
                     const matchData = await pool.query(
