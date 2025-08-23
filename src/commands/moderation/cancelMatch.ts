@@ -1,10 +1,11 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags, PermissionFlagsBits } from 'discord.js';
 import { cancelMatch } from '../../utils/matchHelpers';
 
 module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('cancel-match')
 		.setDescription('Cancel a specific match')
+		.setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .addIntegerOption(option =>
 			option.setName('match-id')
 				.setDescription('The match ID to cancel')

@@ -1,6 +1,7 @@
 import { Channel, TextChannel } from "discord.js";
 import { pool } from "../db";
 import { create } from "node:domain";
+import { remove } from "lodash-es";
 
 // Get the queue names of all queues that exist
 export async function getQueueNames(): Promise<string[]> {
@@ -94,20 +95,51 @@ export async function userInMatch(userId: string): Promise<boolean> {
   export const partyUtils = {
     getPartyUserList,
     getUserParty,
-    userInQueue,
     addUserToParty,
     createParty,
+    removeUserFromParty,
+    deleteParty,
+    isLeader,
+    getPartyName,
+    listAllParties, // admin only
   }
 
-  // Returns the user list of a given party
-  export async function getPartyUserList(partyId: string): Promise<string[] | null> {
+  // lists all parties (admin only)
+  export async function listAllParties(): Promise<any[]> {
+    const response = await pool.query(`SELECT * FROM parties`);
+    return response.rows;
+  }
+
+  // gets the name of a party by its ID
+  export async function getPartyName(partyId: string): Promise<string | null> {
+    const response = await pool.query(`SELECT name FROM parties WHERE id = $1`, [partyId]);
+    if (response.rowCount === 0) return null;
+    return response.rows[0].name;
+  }
+
+  // checks if a user is the leader of their party
+  export async function isLeader(userId: string): Promise<boolean> {
+    const userPartyId = await getUserParty(userId);
+    if (!userPartyId) return false;
+    const response = await pool.query(`SELECT is_leader FROM party_users WHERE user_id = $1 AND party_id = $2`, [userId, userPartyId]);
+    if (response.rowCount === 0) return false;
+    return response.rows[0].is_leader;
+  }
+
+  // Returns the user list of a given party (id or id with names)
+  export async function getPartyUserList(partyId: string, includeNames: boolean = false): Promise<any[] | null> {
     const response = await pool.query(`SELECT user_id FROM users WHERE joined_party_id = $1`,[partyId]);
-    return response.rows.map(row => row.user_id);
+    if (!includeNames) {return response.rows.map(row => row.user_id)}
+    return Promise.all(response.rows.map(async row => {
+      const client = (await import('../index')).default;
+      const user = await client.users.fetch(row.user_id);
+      return {name: user.username, id: row.user_id}
+    }));
   }
 
   // returns the current party that the given user is in
   export async function getUserParty(userId: string): Promise<string | null> {
-    const response = await pool.query(`SELECT joined_party_id FROM users WHERE user_id = $1`, [userId])
+    const response = await pool.query(`SELECT joined_party_id FROM users WHERE user_id = $1`, [userId]);
     return response.rows.map(row => row.joined_party_id)[0] || null;
   }
 
@@ -118,9 +150,31 @@ export async function userInMatch(userId: string): Promise<boolean> {
   }
 
   // creates a party based on provided parameters
-  export async function createParty(partyName: string, partyCreatedAt: Date = new Date()): Promise<string> {
+  export async function createParty(partyName: string, partyCreatorId?: string): Promise<string> {
+    const partyCreatedAt = new Date()
     const response = await pool.query(`INSERT INTO parties (created_at, name) VALUES ($1, $2) RETURNING id`, [partyCreatedAt, partyName]);
+    if (partyCreatorId) {await addUserToParty(partyCreatorId, response.rows[0].id, true)}
     return response.rows[0].id;
+  }
+
+  // removes a user from their party (including by leaving the party themselves)
+  export async function removeUserFromParty(userId: string): Promise<void> {
+    const partyId = await getUserParty(userId);
+    if (!partyId) return;
+
+    await pool.query(`UPDATE users SET joined_party_id = NULL WHERE user_id = $1`, [userId]);
+    await pool.query(`DELETE FROM party_users WHERE user_id = $1 AND party_id = $2`, [userId, partyId]);
+
+    // check if party is empty, if so delete it
+    const partyMembersCount = await getPartyUserList(partyId);
+    if (partyMembersCount && partyMembersCount.length === 0) {deleteParty(partyId)}
+  }
+
+  // delete a party by its ID
+  export async function deleteParty(partyId: string): Promise<void> {
+    await pool.query(`DELETE FROM parties WHERE id = $1`, [partyId]);
+    await pool.query(`UPDATE users SET joined_party_id = NULL WHERE joined_party_id = $1`, [partyId]);
+    await pool.query(`DELETE FROM party_users WHERE party_id = $1`, [partyId]);
   }
 
 
