@@ -4,30 +4,29 @@ import { partyUtils } from '../../utils/queryDB';
 
 module.exports = {
 	data: new SlashCommandBuilder()
-		.setName('party-list')
-		.setDescription('Lists all users in your party'),
+		.setName('admin-party-list')
+		.setDescription('Lists all users in any party')
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+        .addStringOption(option => option
+            .setName('party-to-check')
+            .setDescription('Only available for admins: lists users in the specified party')
+            .setAutocomplete(true)
+            .setRequired(true)),
 
 	async execute(interaction: ChatInputCommandInteraction) {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
 		try {
+            const partyId = interaction.options.getString('party-to-check', true);
+            const partyMembers = await partyUtils.getPartyUserList(partyId, true);
+            const partyName = await partyUtils.getPartyName(partyId) || partyId
 
-            const userId = interaction.user.id;
-            const partyId = await partyUtils.getUserParty(userId);
-
-            if (!partyId) {
-                await interaction.editReply({ content: `You are not currently in a party.` });
-                return;
-            }
-
-            const includeNames = true;
-            const partyMembers = await partyUtils.getPartyUserList(partyId, includeNames);
             if (!partyMembers || partyMembers.length === 0) {
-                await interaction.editReply({ content: `Your party apparently has no members, hmm... (please report this bug)` });
+                await interaction.editReply({ content: `The party "${partyName}" has no members. Deleting party now` });
+                await partyUtils.deleteParty(partyId);
                 return;
             }
 
-            const partyName = await partyUtils.getPartyName(partyId) || "Party";
             const memberList = await Promise.all(partyMembers.map(async member => {
                 const isLeader = await partyUtils.isLeader(member.id)
                 let displayTag: string = '';
@@ -37,6 +36,7 @@ module.exports = {
             }))
 
             await interaction.editReply({ content: `${partyName}: \n${memberList.join('\n')}` });
+            
         } catch (err: any) {
             console.error(err);
             if (interaction.deferred || interaction.replied) {
@@ -46,4 +46,13 @@ module.exports = {
             }
         }
     },
-}
+
+    async autocomplete(interaction: AutocompleteInteraction) {
+        const focusedValue = interaction.options.getFocused();
+
+        const parties = await partyUtils.listAllParties();
+        const filtered = parties.filter(party => party.name.toLowerCase().includes(focusedValue.toLowerCase()));
+        const choices = filtered.slice(0, 25).map(party => ({ name: party.name, value: party.id.toString() }));
+        await interaction.respond(choices);
+    }
+};
