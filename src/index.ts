@@ -75,4 +75,8 @@ for (const file of eventFiles) {
 
 client.login(process.env.DISCORD_TOKEN);
 
+// cronjob for deleting old parties every 5 minutes
+import { partyDeleteCronJob } from './utils/cronJobs';
+partyDeleteCronJob();
+
 export default client;
