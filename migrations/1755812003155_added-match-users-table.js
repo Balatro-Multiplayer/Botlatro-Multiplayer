@@ -16,6 +16,9 @@ export const up = (pgm) => {
         team: { type: 'integer', notNull: true },
         elo_change: { type: 'integer', notNull: true, default: 0 },
     });
+
+    pgm.dropColumn('users', 'team');
+    pgm.dropColumn('users', 'match_id');
 };
 
 /**
@@ -25,4 +28,8 @@ export const up = (pgm) => {
  */
 export const down = (pgm) => {
     pgm.dropTable('match_users');
+    pgm.addColumn('users', {
+        team: { type: 'integer' },
+        match_id: { type: 'integer', references: '"matches"', onDelete: 'SET NULL' },
+    });
 };

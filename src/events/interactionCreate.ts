@@ -169,32 +169,30 @@ module.exports = {
             const matchId = parseInt(interaction.customId.split('-')[1]);
             // TODO: Make helpers call stuff
         }
+
+        // accept party invite
         if (interaction.customId.startsWith('accept-party-invite-')) {
-            const memberId = interaction.customId.split('-').pop();
-            if (!memberId) {
+            const memberId = interaction.customId.split('-').pop(); // id of the user who sent the invite
+            if (!memberId) { // should never happen
                 await interaction.reply({ content: 'Invalid invite.', flags: MessageFlags.Ephemeral });
                 return;
             }
 
-            const client = (await import('../index')).default;
+            const client = (await import('../index')).default; 
             const guild = client.guilds.cache.get(process.env.GUILD_ID!) 
                 ?? await client.guilds.fetch(process.env.GUILD_ID!);
 
             const member = await guild.members.fetch(memberId);
-            if (!member) {
+            if (!member) { // should never happen
                 await interaction.reply({ content: 'Member not found.', flags: MessageFlags.Ephemeral });
                 return;
             }
 
-            const user = await pool.query(
-                `SELECT joined_party_id FROM users WHERE user_id = $1`,
-                [member.user.id]
-            );
-
+            const partyId = await partyUtils.getUserParty(member.user.id); // get party id
             const sendTime = interaction.message.createdTimestamp;
             const currentTime = Date.now();
-            if (currentTime - sendTime > 5 * 60 * 1000 // 5 minutes
-            || user.rows[0].joined_party_id !== member.user.id) {
+            if (currentTime - sendTime > 5 * 60 * 1000 // greater than 5 minutes
+            || !partyId) { // if party no longer exists
                 await interaction.reply({ content: 'This invite has expired.', flags: MessageFlags.Ephemeral });
                 return;
             }
@@ -202,13 +200,15 @@ module.exports = {
             try {
                 await pool.query(
                     `UPDATE users SET joined_party_id = $1 WHERE user_id = $2`,
-                    [member.user.id, interaction.user.id]
+                    [partyId, interaction.user.id]
                 );
-                await interaction.reply({ content: `Joined ${member.user.displayName}'s party!`, flags: MessageFlags.Ephemeral });
+                const partyName = await partyUtils.getPartyName(partyId);
+                await interaction.reply({ content: `Joined ${partyName}!`, flags: MessageFlags.Ephemeral });
                 await member.send({
                     content: `**${interaction.user.displayName}** has joined your party!`
                 });
             } catch (err) {
+                console.error(err);
                 await interaction.reply({ content: `Failed to join ${member.user.username}'s party.`, flags: MessageFlags.Ephemeral });
             }
         }

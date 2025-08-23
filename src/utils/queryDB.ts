@@ -145,6 +145,11 @@ export async function userInMatch(userId: string): Promise<boolean> {
 
   // adds user to a party
   export async function addUserToParty(userId: string, partyId: string, isLeader: boolean = false): Promise<void> {
+    // ensure user exists in users table
+    await pool.query(
+      "INSERT INTO users (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING",
+      [userId]
+    );
     await pool.query(`UPDATE users SET joined_party_id = $1 WHERE user_id = $2`, [partyId, userId]);
     await pool.query(`INSERT INTO party_users (party_id, user_id, is_leader) VALUES ($1, $2, $3)`, [partyId, userId, isLeader]);
   }
