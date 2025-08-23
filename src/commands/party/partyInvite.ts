@@ -6,7 +6,6 @@ module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('party-invite')
 		.setDescription('Invites users to your party')
-    	.setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .addUserOption(option =>
 			option.setName('member')
 				.setDescription('The member you would like to invite to your party')
@@ -33,8 +32,7 @@ module.exports = {
             // if user isn't already in a party, create a new party and add them
             const partyId = await partyUtils.getUserParty(interaction.user.id);
             if (!partyId) {
-                const newParty = await partyUtils.createParty(`${interaction.user.username}'s Party`, new Date());
-                await partyUtils.addUserToParty(interaction.user.id, newParty, true);
+                await partyUtils.createParty(`${interaction.user.username}'s Party`, interaction.user.id);
             }
 
 
