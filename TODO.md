@@ -21,7 +21,8 @@
   
 ## Webhooks/API
 - Webhooks that will receive data for when a user's mmr is updated, when they play a match, who their current opponent is, etc. just anything that is possible to get
-- Have an API where we can programmatically decide things about games like who won
+- Have an API where we can programmatically decide things like when a game is over
+- match up APIs to work with Andy's website
 
 ## Moderation Tools
 - All matches need to be able to be modified by staff, including canceling matches or giving the win to someone
@@ -33,5 +34,5 @@
 ## Leaderboard
 - Some way to view a players stats and position on the leaderboard and stuff like that via a discord command needs to be there
 
-## Not Required
-- Tournaments using the same bot, this is a bit of a complex addition but just having one bot for tournaments and queues would be very nice, and allow us to actually seed tourneys using mmr instead of just randomly
+## Not Required (lets be honest we're doing this)
+- Tournaments using the same bot, this is a bit of a complex addition but just having one bot for tournaments and queues would be very nice, and allow us to seed tourneys without using an external script
