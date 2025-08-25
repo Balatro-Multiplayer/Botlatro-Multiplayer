@@ -3,6 +3,11 @@ import { pool } from '../db';
 import client from '../index';
 import _ from 'lodash-es';
 import { getMatchResultsChannel } from './queryDB';
+import { Users } from 'psqlDB';
+import dotenv from 'dotenv';
+require('dotenv').config();
+
+dotenv.config();
 
 export function getRandomDeck(includeCustomDecks: boolean): string {
   const decks = [
@@ -51,13 +56,11 @@ export function getRandomStake(): string {
   return stakes[Math.floor(Math.random() * stakes.length)];
 }
 
-export async function getTeamsInMatch(matchId: number): Promise<{ team: number, users: any[] }[]> {
+export async function getTeamsInMatch(matchId: number): Promise<{ team: number, users: Users[] }[]> {
   const userRes = await pool.query(`
     SELECT * FROM match_users
     WHERE match_id = $1
   `, [matchId]);
-
-  console.log(userRes);
 
   if (userRes.rowCount === 0) return [];
 
@@ -102,6 +105,7 @@ export async function sendMatchInitMessages(matchId: number, textChannel: TextCh
     if (teamQueueUsersData.rowCount == 1) onePersonTeam = true;
 
     for (const user of teamQueueUsersData.rows) {
+      console.log(teamQueueUsersData.rows);
       let userDiscordInfo = await client.users.fetch(user.user_id);
       teamPingString += `<@${user.user_id}> `;
 
@@ -158,24 +162,64 @@ export async function cancelMatch(matchId: number): Promise<boolean> {
 }
 
 export async function endMatch(winningTeamId: number, matchId: number): Promise<boolean> {
-  let matchTeams = await getTeamsInMatch(matchId);
-  const winningTeam = matchTeams.filter(t => t.team == winningTeamId)[0];
-  const losingTeams = matchTeams.filter(t => t.team != winningTeamId);
+  const matchTeams = await getTeamsInMatch(matchId);
+  const winningTeam = matchTeams.find(t => t.team === winningTeamId);
+  if (!winningTeam) return false;
+
+  const losingTeams = matchTeams.filter(t => t.team !== winningTeamId);
   const resultsChannel = await getMatchResultsChannel(matchId);
-  if (resultsChannel == null) throw Error('Results channel was not found!');
-  const resultsFields = [];
+  if (!resultsChannel) return false;
+
+  const guild =
+    client.guilds.cache.get(process.env.GUILD_ID!) ??
+    (await client.guilds.fetch(process.env.GUILD_ID!));
 
   const resultsEmbed = new EmbedBuilder()
-        .setTitle(`🏆 Winner For Match #${matchId} 🏆`)
-        .setColor('Gold');
+    .setTitle(`🏆 Winner For Match #${matchId} 🏆`)
+    .setColor("Gold");
 
-  // TODO: Add information about both teams (winningTeam and losingTeams) in here
-  // PLEASE make sure to make it ONLY say teams if there is more than 1 player on each team
-  // there is logic on how that type of thing is done in sendMatchInitMessages
-  // it's kinda jank but it works and feels much nicer to look at
+  const [winUserLabels, winUserDescs] = await Promise.all(
+    winningTeam.users.map(async winUser => {
+      const member = await guild.members.fetch(winUser.user_id);
+      return [
+        `__${member.displayName}__`,
+        `<@${winUser.user_id}> +10.0 (250)`, // TODO: Replace placeholder ELO logic
+      ] as const;
+    })
+  ).then(results => results.reduce<[string[], string[]]>(
+    ([labels, descs], [label, desc]) => {
+      labels.push(label);
+      descs.push(desc);
+      return [labels, descs];
+    },
+    [[], []]
+  ));
 
-  resultsChannel.send({ embeds: [resultsEmbed] });
+  const [lossUserLabels, lossUserDescs] = await Promise.all(
+    losingTeams.flatMap(team =>
+      team.users.map(async lossUser => {
+        const member = await guild.members.fetch(lossUser.user_id);
+        return [
+          `${member.displayName}`,
+          `<@${lossUser.user_id}> -10.0 (150)`, // TODO: Replace placeholder ELO logic
+        ] as const;
+      })
+    )
+  ).then(results => results.reduce<[string[], string[]]>(
+    ([labels, descs], [label, desc]) => {
+      labels.push(label);
+      descs.push(desc);
+      return [labels, descs];
+    },
+    [[], []]
+  ));
 
+  resultsEmbed.addFields(
+    { name: winUserLabels.join(" / "), value: winUserDescs.join("\n"), inline: true },
+    { name: lossUserLabels.join(" / "), value: lossUserDescs.join("\n"), inline: true }
+  );
+
+  await resultsChannel.send({ embeds: [resultsEmbed] });
   await cancelMatch(matchId);
   return true;
 }
