@@ -1,7 +1,7 @@
 import { Channel, TextChannel } from "discord.js";
 import { pool } from "../db";
 import { create } from "node:domain";
-import { remove } from "lodash-es";
+import { remove, update } from "lodash-es";
 
 // Get the queue names of all queues that exist
 export async function getQueueNames(): Promise<string[]> {
@@ -251,3 +251,59 @@ export async function getPlayerDataLive(matchId: number) {
 
   return { playerList };
 }
+
+// todo: write these:
+// -- Rating Functions --  
+  export const ratingUtils = {
+    updatePlayerElo,
+    updatePlayerVolatility,
+    updatePlayerDeviation,
+    resetPlayerElo,
+    getPlayerElo,
+    getPlayerVolatility,
+    getPlayerDeviation,
+    updatePlayerGlickoAll,
+  }
+
+  // updates all of a player's glicko values at once
+  export async function updatePlayerGlickoAll(queue_user_id: number, newElo: number, newDeviation: number, newVolatility: number): Promise<void> {
+    await pool.query(`UPDATE queue_users SET elo = $1, rating_deviation = $2, volatility = $3 WHERE id = $4`, [newElo, newDeviation, newVolatility, queue_user_id]);
+  }
+
+  // updates a player's ELO
+  export async function updatePlayerElo(queue_user_id: number, newElo: number): Promise<void> {
+    await pool.query(`UPDATE queue_users SET elo = $1 WHERE id = $2`, [newElo, queue_user_id]);
+  }
+
+  // updates a player's volatility
+  export async function updatePlayerVolatility(queue_user_id: string, newVolatility: number): Promise<void> {
+    await pool.query(`UPDATE queue_users SET volatility = $1 WHERE user_id = $2`, [newVolatility, queue_user_id]);
+  }
+
+  // updates a player's rating deviation
+  export async function updatePlayerDeviation(queue_user_id: string, newDeviation: number): Promise<void> {
+    await pool.query(`UPDATE queue_users SET rating_deviation = $1 WHERE user_id = $2`, [newDeviation, queue_user_id]);
+  }
+
+  // resets a player's ELO to default
+  export async function resetPlayerElo(queue_user_id: string): Promise<void> {
+    const defaultEloRes = await pool.query(`SELECT default_elo FROM queues WHERE id = (SELECT queue_id FROM queue_users WHERE id = $1)`, [queue_user_id]);
+    if (defaultEloRes.rowCount === 0) throw new Error('No default elo founf.');
+    const defaultElo = defaultEloRes.rows[0].default_elo;
+    await pool.query(`UPDATE queue_users SET elo = $1 WHERE id = $2`, [defaultElo, queue_user_id]);
+  }
+
+  // gets a player's current ELO
+  export async function getPlayerElo(userId: string): Promise<number | null> {
+    return null;
+  }
+
+  // gets a player's current volatility
+  export async function getPlayerVolatility(userId: string): Promise<number | null> {
+    return null;
+  }
+
+  // gets a player's current rating deviation
+  export async function getPlayerDeviation(userId: string): Promise<number | null> {
+    return null;
+  }

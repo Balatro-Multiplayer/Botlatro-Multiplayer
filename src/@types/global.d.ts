@@ -35,10 +35,15 @@ declare module 'psqlDB' {
   }
 
   export interface QueueUsers {
+    // glicko2 fields
+    _rating: number | undefined; // rating
+    _rd: number | undefined; // rating deviation
+    _vol: number | undefined; // rating change volatility
+
+    // our fields
     id: number;
     user_id: string;
-    elo: number;
-    peak_elo: number;
+    peak_rating: number;
     wins: number;
     losses: number;
     games_played: number;
@@ -54,4 +59,13 @@ declare module 'psqlDB' {
     reason: string;
     expires_at?: Date | null;
   }
+
+  export type teamResults = {
+      teams: { 
+        id: number; 
+        score: 0 | 0.5 | 1; 
+        players: QueueUsers[];
+      } []
+    }
+  
 }
