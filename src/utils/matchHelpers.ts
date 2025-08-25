@@ -124,7 +124,7 @@ export async function sendMatchInitMessages(matchId: number, textChannel: TextCh
         .setValue(`winmatch_${matchId}_${t.team}`));
 
     teamPingString += 'vs. ';
-    return { name: onePersonTeam ? `${onePersonTeamName}` : `Team ${t.team}`, value: teamString }
+    return { name: onePersonTeam ? `${onePersonTeamName}` : `Team ${t.team}`, value: teamString, inline: true }
   })
 
   teamFields = await Promise.all(teamFields)
