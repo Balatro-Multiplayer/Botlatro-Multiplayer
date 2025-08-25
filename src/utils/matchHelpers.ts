@@ -144,10 +144,12 @@ export async function sendMatchInitMessages(matchId: number, textChannel: TextCh
         .setTitle(`Match #${matchId}`)
         .setFields(teamFields)
         .setColor(0xFF0000);
+     
+  const randomTeams = _.shuffle(teamFields);
 
   const deckEmbed = new EmbedBuilder()
         .setTitle(`Deck`)
-        .setDescription(`Team 1 bans 5 decks\nTeam 2 chooses 3\nTeam 1 picks 1\nAlternatively, use </random-deck:1407756759057174560> to select a random deck.`)
+        .setDescription(`**${randomTeams[0].name}** bans 5 decks\n**${randomTeams[1].name}** chooses 3 decks\n**${randomTeams[0].name}** picks 1 deck\nAlternatively, use </random-deck:1407756759057174560> to select a random deck.`)
         .setColor(0xFF0000);
 
   await textChannel.send({ content: `# ${teamPingString}`, embeds: [eloEmbed, deckEmbed], components: queueGameComponents });
@@ -162,6 +164,10 @@ export async function cancelMatch(matchId: number): Promise<boolean> {
 }
 
 export async function endMatch(winningTeamId: number, matchId: number): Promise<boolean> {
+  const rematchButtonRow: ActionRowBuilder<ButtonBuilder> = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder().setCustomId(`rematch-${matchId}`).setLabel('Rematch').setEmoji('⚔️').setStyle(ButtonStyle.Primary)
+  )
+
   const matchTeams = await getTeamsInMatch(matchId);
   const winningTeam = matchTeams.find(t => t.team === winningTeamId);
   if (!winningTeam) return false;
@@ -219,7 +225,7 @@ export async function endMatch(winningTeamId: number, matchId: number): Promise<
     { name: lossUserLabels.join(" / "), value: lossUserDescs.join("\n"), inline: true }
   );
 
-  await resultsChannel.send({ embeds: [resultsEmbed] });
+  await resultsChannel.send({ embeds: [resultsEmbed], components: [rematchButtonRow] });
   await cancelMatch(matchId);
   return true;
 }
