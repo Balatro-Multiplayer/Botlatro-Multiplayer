@@ -5,6 +5,7 @@ import { cancelMatch, endMatch, getTeamsInMatch } from '../utils/matchHelpers';
 import { getMatchData, partyUtils, userInMatch, userInQueue } from '../utils/queryDB';
 import { QueryResult } from 'pg';
 import { Queues } from 'psqlDB';
+import { handleVoting } from '../utils/voteHelpers';
 
 module.exports = {
   name: Events.InteractionCreate,
@@ -163,56 +164,46 @@ module.exports = {
             }
         }
         if (interaction.customId.startsWith('cancel-')) {
-            const matchId = parseInt(interaction.customId.split('-')[1])
-            cancelMatch(matchId)
-            await interaction.update({ content: 'The match has been cancelled.', embeds: [], components: [] });
+            const matchId = parseInt(interaction.customId.split('-')[1]);
+            const matchUsers = await getTeamsInMatch(matchId);
+            const matchUsersArray = matchUsers.flatMap(t => t.users.map(u => u.user_id));
+
+             await handleVoting(interaction, {
+                voteType: "Cancel Match?",
+                embedFieldIndex: 2,
+                participants: matchUsersArray,
+                onComplete: async (interaction) => {
+                    cancelMatch(matchId)
+                    await interaction.update({ content: 'The match has been cancelled.', embeds: [], components: [] });
+                }
+            });
+
+           
         }
         if (interaction.customId.startsWith('call-helpers-')) {
             const matchId = parseInt(interaction.customId.split('-')[1]);
             // TODO: Make helpers call stuff
         }
         if (interaction.customId.startsWith('rematch-')) {
-            // Please don't kill me I know this is janky -jeff
-            const queueMatchCheck = await userInMatch(interaction.user.id);
-            if (queueMatchCheck == true) {
-                return interaction.reply({ content: "You're already in a match.", flags: MessageFlags.Ephemeral });
-            }
-
             const matchId = parseInt(interaction.customId.split('-')[1]);
             const matchData = await getMatchData(matchId);
             const matchUsers = await getTeamsInMatch(matchId);
             const matchUsersArray = matchUsers.flatMap(t => t.users.map(u => u.user_id));
-            if (!matchUsersArray.includes(interaction.user.id)) return await interaction.reply({ content: 'You can only rematch games you played in.', flags: MessageFlags.Ephemeral });
-            const queueChannelId = await pool.query('SELECT channel_id FROM queues WHERE id = $1', [matchData.queue_id]);
-            const resultsEmbed = interaction.message.embeds[0];
-            const resultsEmbedFields = resultsEmbed.data.fields;
-            if (!resultsEmbedFields) return console.error('Unable to find fields');
 
-            if (queueChannelId) {
-                if (resultsEmbedFields.length > 2) {
-                    if (resultsEmbedFields[2].value.includes(`<@${interaction.user.id}>`)) {
-                        await interaction.reply({ content: "You've already voted to rematch!", flags: MessageFlags.Ephemeral });
-                        return;
-                    }
-
-                    const updatedVotes = resultsEmbedFields[2].value.split('\n');
-                    updatedVotes.push(`<@${interaction.user.id}>`);
-                    resultsEmbed.data.fields[2].value = updatedVotes.join('\n');
-
-                    // Check if we enter match
-                    if (resultsEmbedFields[2].value.split('\n').length == matchUsersArray.length) {
-                        queueUsers(matchUsersArray, queueChannelId.rows[0].channel_id);
-                        await interaction.update({ content: 'A Rematch for this matchup has begun!', embeds: [resultsEmbed], components: [] });
-                        return;
-                    }
-                } else {
-                    resultsEmbed.data.fields[2] = { name: "Rematch Votes:", value: `<@${interaction.user.id}>\n`}
+            await handleVoting(interaction, {
+                voteType: "Rematch Votes",
+                embedFieldIndex: 2,
+                participants: matchUsersArray,
+                onComplete: async (interaction, { embed }) => {
+                    const queueChannelId = await pool.query('SELECT channel_id FROM queues WHERE id = $1', [matchData.queue_id]);
+                    await queueUsers(matchUsersArray, queueChannelId.rows[0].channel_id);
+                    await interaction.update({
+                        content: 'A Rematch for this matchup has begun!',
+                        embeds: [embed],
+                        components: []
+                    });
                 }
-                
-                await interaction.update({ embeds: [resultsEmbed] });
-            } else {
-                await interaction.reply({ content: `Failed to rematch.`, flags: MessageFlags.Ephemeral });
-            }
+            });
         }
         // accept party invite
         if (interaction.customId.startsWith('accept-party-invite-')) {
