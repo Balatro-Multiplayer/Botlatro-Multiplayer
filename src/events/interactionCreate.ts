@@ -1,8 +1,10 @@
-import { Events, Interaction, MessageFlags, TextChannel } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Events, Interaction, MessageFlags, TextChannel } from 'discord.js';
 import { pool } from '../db';
-import { updateQueueMessage, matchUpGames, timeSpentInQueue } from '../utils/queueHelpers';
-import { cancelMatch, endMatch } from '../utils/matchHelpers';
-import { partyUtils, userInMatch, userInQueue } from '../utils/queryDB';
+import { updateQueueMessage, matchUpGames, timeSpentInQueue, queueUsers } from '../utils/queueHelpers';
+import { cancelMatch, endMatch, getTeamsInMatch } from '../utils/matchHelpers';
+import { getMatchData, partyUtils, userInMatch, userInQueue } from '../utils/queryDB';
+import { QueryResult } from 'pg';
+import { Queues } from 'psqlDB';
 
 module.exports = {
   name: Events.InteractionCreate,
@@ -55,7 +57,7 @@ module.exports = {
                 await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
                 // Fetch the queue data linked to the channel id
-                const queue = await pool.query(
+                const queue: QueryResult<Queues> = await pool.query(
                     `SELECT * FROM queues WHERE channel_id = $1`, 
                     [interaction.channelId]);
 
@@ -108,7 +110,7 @@ module.exports = {
                     UPDATE queue_users
                     SET queue_join_time = 
                         CASE 
-                            WHEN $1 AND users.match_id IS NULL AND queue_users.queue_join_time IS NULL THEN NOW()
+                            WHEN $1 AND queue_users.queue_join_time IS NULL THEN NOW()
                             ELSE NULL
                         END
                     FROM users
@@ -133,9 +135,9 @@ module.exports = {
                 // Ensure user exists for this queue and create it if not
                 if (user.rows.length < 1) {
                     await pool.query(`
-                        INSERT INTO queue_users (user_id, elo, peak_elo, queue_channel_id, queue_join_time)
-                        VALUES ($1, $2, $2, $3, NOW())
-                        `, [interaction.user.id, queue.rows[0].default_elo, interaction.channelId]);
+                        INSERT INTO queue_users (user_id, elo, peak_elo, queue_channel_id, queue_id, queue_join_time)
+                        VALUES ($1, $2, $2, $3, $4, NOW())
+                        `, [interaction.user.id, queue.rows[0].default_elo, interaction.channelId, queue.rows[0].id]);
                 }
 
                 await updateQueueMessage(interaction.channel as TextChannel, false);
@@ -169,7 +171,49 @@ module.exports = {
             const matchId = parseInt(interaction.customId.split('-')[1]);
             // TODO: Make helpers call stuff
         }
+        if (interaction.customId.startsWith('rematch-')) {
+            // Please don't kill me I know this is janky -jeff
+            const queueMatchCheck = await userInMatch(interaction.user.id);
+            if (queueMatchCheck == true) {
+                return interaction.reply({ content: "You're already in a match.", flags: MessageFlags.Ephemeral });
+            }
 
+            const matchId = parseInt(interaction.customId.split('-')[1]);
+            const matchData = await getMatchData(matchId);
+            const matchUsers = await getTeamsInMatch(matchId);
+            const matchUsersArray = matchUsers.flatMap(t => t.users.map(u => u.user_id));
+            if (!matchUsersArray.includes(interaction.user.id)) return await interaction.reply({ content: 'You can only rematch games you played in.', flags: MessageFlags.Ephemeral });
+            const queueChannelId = await pool.query('SELECT channel_id FROM queues WHERE id = $1', [matchData.queue_id]);
+            const resultsEmbed = interaction.message.embeds[0];
+            const resultsEmbedFields = resultsEmbed.data.fields;
+            if (!resultsEmbedFields) return console.error('Unable to find fields');
+
+            if (queueChannelId) {
+                if (resultsEmbedFields.length > 2) {
+                    if (resultsEmbedFields[2].value.includes(`<@${interaction.user.id}>`)) {
+                        await interaction.reply({ content: "You've already voted to rematch!", flags: MessageFlags.Ephemeral });
+                        return;
+                    }
+
+                    const updatedVotes = resultsEmbedFields[2].value.split('\n');
+                    updatedVotes.push(`<@${interaction.user.id}>`);
+                    resultsEmbed.data.fields[2].value = updatedVotes.join('\n');
+
+                    // Check if we enter match
+                    if (resultsEmbedFields[2].value.split('\n').length == matchUsersArray.length) {
+                        queueUsers(matchUsersArray, queueChannelId.rows[0].channel_id);
+                        await interaction.update({ content: 'A Rematch for this matchup has begun!', embeds: [resultsEmbed], components: [] });
+                        return;
+                    }
+                } else {
+                    resultsEmbed.data.fields[2] = { name: "Rematch Votes:", value: `<@${interaction.user.id}>\n`}
+                }
+                
+                await interaction.update({ embeds: [resultsEmbed] });
+            } else {
+                await interaction.reply({ content: `Failed to rematch.`, flags: MessageFlags.Ephemeral });
+            }
+        }
         // accept party invite
         if (interaction.customId.startsWith('accept-party-invite-')) {
             const memberId = interaction.customId.split('-').pop(); // id of the user who sent the invite

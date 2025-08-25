@@ -2,7 +2,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelec
 import { pool } from '../db';
 import client from '../index';
 import _ from 'lodash-es';
-import { getMatchResultsChannel } from './queryDB';
+import { closeMatch, getMatchResultsChannel } from './queryDB';
 import { Users } from 'psqlDB';
 import dotenv from 'dotenv';
 require('dotenv').config();
@@ -225,7 +225,7 @@ export async function endMatch(winningTeamId: number, matchId: number): Promise<
     { name: lossUserLabels.join(" / "), value: lossUserDescs.join("\n"), inline: true }
   );
 
+  await closeMatch(matchId);
   await resultsChannel.send({ embeds: [resultsEmbed], components: [rematchButtonRow] });
-  await cancelMatch(matchId);
   return true;
 }
