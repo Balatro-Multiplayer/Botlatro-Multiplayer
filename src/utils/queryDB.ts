@@ -2,6 +2,7 @@ import { Channel, TextChannel } from "discord.js";
 import { pool } from "../db";
 import { create } from "node:domain";
 import { remove, update } from "lodash-es";
+import { matchUsers, teamResults } from "psqlDB";
 
 // Get the queue names of all queues that exist
 export async function getQueueNames(): Promise<string[]> {
@@ -219,9 +220,6 @@ export async function getMatchData(matchId: number) {
   return response.rows[0];
 }
 
-
-
-
 // gets player data for a live match to calculate Glicko-2 or openSkill ratings
 export async function getPlayerDataLive(matchId: number) {
 
@@ -307,3 +305,77 @@ export async function getPlayerDataLive(matchId: number) {
   export async function getPlayerDeviation(userId: string): Promise<number | null> {
     return null;
   }
+
+// return whether a queue is glicko or openskill
+export async function isQueueGlicko(queueId: string): Promise<boolean> {
+  const response = await pool.query(`SELECT member_per_team, number_of_teams FROM queues WHERE id = $1`, [queueId]);
+  if (response.rowCount === 0) throw new Error(`Queue with id ${queueId} does not exist.`);
+  let isGlicko: boolean
+  if (response.rows[0].number_of_teams === 2 && response.rows[0].member_per_team === 1) {isGlicko = true}
+  else {isGlicko = false}
+  return isGlicko;
+}
+
+// get queue ID from match ID
+export async function getQueueIdFromMatch(matchId: number): Promise<string> {
+  const response = await pool.query(`SELECT queue_id FROM matches WHERE id = $1`, [matchId]);
+  if (response.rowCount === 0) throw new Error(`Match with id ${matchId} does not exist.`);
+  return response.rows[0].queue_id;
+}
+
+// get winning team from match ID
+export async function getWinningTeamFromMatch(matchId: number): Promise<number | null> {
+  const response = await pool.query(`SELECT winning_team FROM matches WHERE id = $1`, [matchId]);
+  if (response.rowCount === 0) throw new Error(`Match with id ${matchId} does not exist.`);
+  return response.rows[0].winning_team;
+}
+
+
+// update teamResults object with latest data
+export async function updateTeamResults(
+  teamResults: teamResults,
+  fields: (keyof matchUsers)[]
+): Promise<teamResults> {
+
+  const userIds = teamResults.teams.flatMap(team => team.players.map(player => player.user_id));
+  const matchId = teamResults.teams[0].players[0].match_id;
+  if (!matchId) throw new Error("Players do not have a match_id.");
+
+  const winningTeam = await getWinningTeamFromMatch(matchId);
+
+  // Build the SELECT clause dynamically
+  let latestUsers;
+  if (fields.length != 0) {
+    const selectFields = fields.join(", ");
+    latestUsers = await pool.query(
+      `SELECT user_id, ${selectFields} FROM queue_users WHERE user_id = ANY($1)`,
+      [userIds]
+    );
+  }
+  else {
+    latestUsers = await pool.query(
+      `SELECT * FROM queue_users WHERE user_id = ANY($1)`,
+      [userIds]
+    );
+  }
+
+  const latestUserMap = new Map(latestUsers.rows.map(user => [user.user_id, user]));
+
+  for (const team of teamResults.teams) {
+    if (team.id === winningTeam) {
+      team.score = 1;
+    } else {
+      team.score = 0;
+    }
+    for (const player of team.players) {
+      const latest = latestUserMap.get(player.user_id);
+      if (latest) {
+        for (const field of fields) {
+          (player as any)[field] = latest[field];
+        }
+      }
+    }
+  }
+
+  return teamResults;
+}
