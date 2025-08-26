@@ -163,7 +163,7 @@ function getCombinations<T>(arr: T[], k: number): T[][] {
 
 
 // Queues players together and creates a match channel for them
-async function queueUsers(userIds: string[], queueId: string): Promise<void> {
+export async function queueUsers(userIds: string[], queueId: string): Promise<void> {
     const queue = await pool.query('SELECT id, category_id FROM queues WHERE channel_id = $1', [queueId]);
 
     const client = (await import('../index')).default;

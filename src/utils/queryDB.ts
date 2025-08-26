@@ -2,7 +2,7 @@ import { Channel, TextChannel } from "discord.js";
 import { pool } from "../db";
 import { create } from "node:domain";
 import { remove, update } from "lodash-es";
-import { matchUsers, teamResults } from "psqlDB";
+import { matchUsers, teamResults, Matches } from "psqlDB";
 
 // Get the queue names of all queues that exist
 export async function getQueueNames(): Promise<string[]> {
@@ -91,6 +91,13 @@ export async function userInMatch(userId: string): Promise<boolean> {
   return response.length > 0;
 }
 
+export async function closeMatch(matchId: number): Promise<boolean> {
+  const res = await pool.query(`UPDATE matches SET open = false WHERE id = $1`, [matchId]);
+  if (res.rowCount === 0) {
+    return false;
+  } 
+  return true;
+}
 
 // -- Party Functions --
   export const partyUtils = {
@@ -209,7 +216,7 @@ export async function getQueueSettings(queueId: string) {
 }
 
 // gets data from a match 
-export async function getMatchData(matchId: number) {
+export async function getMatchData(matchId: number): Promise<Matches> {
   const response = await pool.query(`
     SELECT * FROM matches WHERE id = $1
   `, [matchId]);

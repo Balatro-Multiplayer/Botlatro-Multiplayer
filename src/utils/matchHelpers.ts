@@ -2,7 +2,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelec
 import { pool } from '../db';
 import client from '../index';
 import _ from 'lodash-es';
-import { getMatchResultsChannel, getQueueIdFromMatch, isQueueGlicko, getWinningTeamFromMatch } from './queryDB';
+import { closeMatch, getMatchResultsChannel, getQueueIdFromMatch, isQueueGlicko, getWinningTeamFromMatch } from './queryDB';
 import { Users } from 'psqlDB';
 import dotenv from 'dotenv';
 import { calculateGlicko2 } from './algorithms/calculateGlicko-2';
@@ -144,7 +144,7 @@ export async function sendMatchInitMessages(matchId: number, textChannel: TextCh
         .setValue(`winmatch_${matchId}_${t.team}`));
 
     teamPingString += 'vs. ';
-    return { name: onePersonTeam ? `${onePersonTeamName}` : `Team ${t.team}`, value: teamString }
+    return { name: onePersonTeam ? `${onePersonTeamName}` : `Team ${t.team}`, value: teamString, inline: true }
   })
 
   teamFields = await Promise.all(teamFields)
@@ -272,6 +272,5 @@ export async function endMatch(matchId: number): Promise<boolean> {
   if (!resultsChannel) { console.error(`No results channel found for match ${matchId}`); return false; }
 
   await resultsChannel.send({ embeds: [resultsEmbed], components: [rematchButtonRow] });
-  await cancelMatch(matchId);
   return true;
 }

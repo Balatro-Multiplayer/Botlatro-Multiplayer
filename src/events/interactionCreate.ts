@@ -1,8 +1,11 @@
-import { Events, Interaction, MessageFlags, TextChannel } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Events, Interaction, MessageFlags, TextChannel } from 'discord.js';
 import { pool } from '../db';
-import { updateQueueMessage, matchUpGames, timeSpentInQueue } from '../utils/queueHelpers';
-import { cancelMatch, endMatch } from '../utils/matchHelpers';
-import { partyUtils, userInMatch, userInQueue } from '../utils/queryDB';
+import { updateQueueMessage, matchUpGames, timeSpentInQueue, queueUsers } from '../utils/queueHelpers';
+import { cancelMatch, endMatch, getTeamsInMatch } from '../utils/matchHelpers';
+import { getMatchData, partyUtils, userInMatch, userInQueue } from '../utils/queryDB';
+import { QueryResult } from 'pg';
+import { Queues } from 'psqlDB';
+import { handleVoting } from '../utils/voteHelpers';
 
 module.exports = {
   name: Events.InteractionCreate,
@@ -55,8 +58,8 @@ module.exports = {
             try {
                 await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-                // Fetch the queue data // TODO: this will get the data for every queue if multiple are in the channel, fine for now but should be fixed later
-                const queue = await pool.query(
+                // Fetch the queue data linked to the channel id
+                const queue: QueryResult<Queues> = await pool.query(
                     `SELECT * FROM queues WHERE channel_id = $1`, 
                     [interaction.channelId]);
 
@@ -109,7 +112,7 @@ module.exports = {
                     UPDATE queue_users
                     SET queue_join_time = 
                         CASE 
-                            WHEN $1 AND $4 AND queue_users.queue_join_time IS NULL THEN NOW()
+                            WHEN $1 AND queue_users.queue_join_time IS NULL THEN NOW()
                             ELSE NULL
                         END
                     FROM users
@@ -162,15 +165,47 @@ module.exports = {
             }
         }
         if (interaction.customId.startsWith('cancel-')) {
-            const matchId = parseInt(interaction.customId.split('-')[1])
-            cancelMatch(matchId)
-            await interaction.update({ content: 'The match has been cancelled.', embeds: [], components: [] });
+            const matchId = parseInt(interaction.customId.split('-')[1]);
+            const matchUsers = await getTeamsInMatch(matchId);
+            const matchUsersArray = matchUsers.flatMap(t => t.users.map(u => u.user_id));
+
+             await handleVoting(interaction, {
+                voteType: "Cancel Match?",
+                embedFieldIndex: 2,
+                participants: matchUsersArray,
+                onComplete: async (interaction) => {
+                    cancelMatch(matchId)
+                    await interaction.update({ content: 'The match has been cancelled.', embeds: [], components: [] });
+                }
+            });
+
+           
         }
         if (interaction.customId.startsWith('call-helpers-')) {
             const matchId = parseInt(interaction.customId.split('-')[1]);
             // TODO: Make helpers call stuff
         }
+        if (interaction.customId.startsWith('rematch-')) {
+            const matchId = parseInt(interaction.customId.split('-')[1]);
+            const matchData = await getMatchData(matchId);
+            const matchUsers = await getTeamsInMatch(matchId);
+            const matchUsersArray = matchUsers.flatMap(t => t.users.map(u => u.user_id));
 
+            await handleVoting(interaction, {
+                voteType: "Rematch Votes",
+                embedFieldIndex: 2,
+                participants: matchUsersArray,
+                onComplete: async (interaction, { embed }) => {
+                    const queueChannelId = await pool.query('SELECT channel_id FROM queues WHERE id = $1', [matchData.queue_id]);
+                    await queueUsers(matchUsersArray, queueChannelId.rows[0].channel_id);
+                    await interaction.update({
+                        content: 'A Rematch for this matchup has begun!',
+                        embeds: [embed],
+                        components: []
+                    });
+                }
+            });
+        }
         // accept party invite
         if (interaction.customId.startsWith('accept-party-invite-')) {
             const memberId = interaction.customId.split('-').pop(); // id of the user who sent the invite
