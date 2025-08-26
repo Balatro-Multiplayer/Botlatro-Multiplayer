@@ -31,10 +31,10 @@ module.exports = {
 			if (queueMessageChannel && queueMessageChannel.isTextBased()) {
 				const messageId = res.rows[0].message_id;
 				const message = await queueMessageChannel.messages.fetch(messageId);
-				await message.delete();
+				await message.delete().catch(err => console.error(err));
 			}
 
-            return interaction.reply(`Successfully deleted ${queueName} from the queues list.`);
+			return interaction.reply(`Successfully deleted ${queueName} from the queues list.`);
 
 		} catch (err: any) {
 			console.error(err);
