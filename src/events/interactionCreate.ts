@@ -130,7 +130,7 @@ module.exports = {
                         AND queue_users.queue_channel_id = $2
                         AND queue_users.user_id = $3
                     RETURNING queue_users.*;
-                    `, [interaction.customId === 'join-queue', interaction.channelId, interaction.user.id]);
+                    `, [interaction.customId === 'join-queue', interaction.channelId, interaction.user.id, !inMatch]);
 
                 // Ensure user exists and create if not
                 const matchUser = await pool.query(

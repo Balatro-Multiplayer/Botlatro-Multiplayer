@@ -2,9 +2,12 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelec
 import { pool } from '../db';
 import client from '../index';
 import _ from 'lodash-es';
-import { closeMatch, getMatchResultsChannel } from './queryDB';
+import { closeMatch, getMatchResultsChannel, getQueueIdFromMatch, isQueueGlicko, getWinningTeamFromMatch } from './queryDB';
 import { Users } from 'psqlDB';
 import dotenv from 'dotenv';
+import { calculateGlicko2 } from './algorithms/calculateGlicko-2';
+import { teamResults, QueueUsers, matchUsers } from 'psqlDB';
+import { get } from 'http';
 require('dotenv').config();
 
 dotenv.config();
@@ -56,28 +59,45 @@ export function getRandomStake(): string {
   return stakes[Math.floor(Math.random() * stakes.length)];
 }
 
-export async function getTeamsInMatch(matchId: number): Promise<{ team: number, users: Users[] }[]> {
-  const userRes = await pool.query(`
+export async function getTeamsInMatch(matchId: number): Promise<{ team: number, users: matchUsers[], winRes: number }[]> {
+  const matchUserRes = await pool.query(`
     SELECT * FROM match_users
     WHERE match_id = $1
   `, [matchId]);
+  const queueUserRes = await Promise.all(matchUserRes.rows.map(async (matchUser: any) => {
+    return await pool.query(`
+      SELECT * FROM queue_users
+      WHERE user_id = $1
+    `, [matchUser.user_id]);
+  }));
+  const userFull: matchUsers[] = matchUserRes.rows.map((matchUser, i) => ({
+    ...queueUserRes[i].rows[0], // properties from queue_users
+    ...matchUser                // properties from match_users 
+  }));
 
-  if (userRes.rowCount === 0) return [];
+  // return winning team id
+  const winningTeamId = await getWinningTeamFromMatch(matchId);
 
-  const teamGroups: { [key: number]: any[] } = {};
+  // if there is no matchUser instance then early return 
+  if (matchUserRes.rowCount === 0) return [];
 
-  for (const user of userRes.rows) {
+  type teamGroupType = { [key: number]: { users: any[]; winRes: number } }
+  const teamGroups: teamGroupType = {};
+
+  for (const user of userFull) {
     if (user.team === null) continue;
 
     if (!teamGroups[user.team]) {
-      teamGroups[user.team] = [];
+      teamGroups[user.team] = { users: [], winRes: 0 };
     }
-    teamGroups[user.team].push(user);
+    teamGroups[user.team].users.push(user);
+    teamGroups[user.team].winRes = (user.team === winningTeamId) ? 1 : 0;
   }
 
-  return Object.entries(teamGroups).map(([team, users]) => ({
+  return Object.entries(teamGroups).map(([team, value]) => ({
     team: Number(team),
-    users,
+    users: value.users as matchUsers[],
+    winRes: value.winRes,
   }));
 }
 
@@ -163,69 +183,94 @@ export async function cancelMatch(matchId: number): Promise<boolean> {
   return true;
 }
 
-export async function endMatch(winningTeamId: number, matchId: number): Promise<boolean> {
+export async function endMatch(matchId: number): Promise<boolean> {
   const rematchButtonRow: ActionRowBuilder<ButtonBuilder> = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder().setCustomId(`rematch-${matchId}`).setLabel('Rematch').setEmoji('⚔️').setStyle(ButtonStyle.Primary)
   )
 
   const matchTeams = await getTeamsInMatch(matchId);
-  const winningTeam = matchTeams.find(t => t.team === winningTeamId);
-  if (!winningTeam) return false;
+  const winningTeamId = await getWinningTeamFromMatch(matchId);
+  console.log('----------', matchTeams, winningTeamId);
+  if (!winningTeamId) { console.error(`No winning team found for match ${matchId}`); return false; }
 
-  const losingTeams = matchTeams.filter(t => t.team !== winningTeamId);
-  const resultsChannel = await getMatchResultsChannel(matchId);
-  if (!resultsChannel) return false;
+  const guild = client.guilds.cache.get(process.env.GUILD_ID!) ?? (await client.guilds.fetch(process.env.GUILD_ID!));
 
-  const guild =
-    client.guilds.cache.get(process.env.GUILD_ID!) ??
-    (await client.guilds.fetch(process.env.GUILD_ID!));
+  const queueId = await getQueueIdFromMatch(matchId);
+  const isGlicko = await isQueueGlicko(queueId);
+
+  let teamResults: teamResults | null = null;
+  if (isGlicko) {
+    // create our teamResults object here
+    const teamResultsData: teamResults = { 
+      teams: matchTeams.map(teamResult => ({
+        id: teamResult.team,
+        score: teamResult.winRes as 0 | 0.5 | 1,
+        players: teamResult.users as matchUsers[]
+      }))
+    }
+    
+    teamResults = await calculateGlicko2(matchId, teamResultsData);
+  }
+
+  const winningTeamIndex = teamResults?.teams.map(t => {
+    t.score === 1
+  });
 
   const resultsEmbed = new EmbedBuilder()
     .setTitle(`🏆 Winner For Match #${matchId} 🏆`)
     .setColor("Gold");
 
-  const [winUserLabels, winUserDescs] = await Promise.all(
-    winningTeam.users.map(async winUser => {
-      const member = await guild.members.fetch(winUser.user_id);
-      return [
-        `__${member.displayName}__`,
-        `<@${winUser.user_id}> +10.0 (250)`, // TODO: Replace placeholder ELO logic
-      ] as const;
-    })
-  ).then(results => results.reduce<[string[], string[]]>(
-    ([labels, descs], [label, desc]) => {
-      labels.push(label);
-      descs.push(desc);
-      return [labels, descs];
-    },
-    [[], []]
-  ));
+  // running for every team then combining at the end
+  const embedFields = await Promise.all(
+    (teamResults?.teams ?? []).map(async team => {
 
-  const [lossUserLabels, lossUserDescs] = await Promise.all(
-    losingTeams.flatMap(team =>
-      team.users.map(async lossUser => {
-        const member = await guild.members.fetch(lossUser.user_id);
-        return [
-          `${member.displayName}`,
-          `<@${lossUser.user_id}> -10.0 (150)`, // TODO: Replace placeholder ELO logic
-        ] as const;
-      })
-    )
-  ).then(results => results.reduce<[string[], string[]]>(
-    ([labels, descs], [label, desc]) => {
-      labels.push(label);
-      descs.push(desc);
-      return [labels, descs];
-    },
-    [[], []]
-  ));
+      const playerList = await Promise.all(team.players.map(player => client.users.fetch(player.user_id)))
+      const playerNameList = playerList.map(user => user.displayName);
+      // const playerIdList = playerList.map(user => user.id);
+
+      // show name for every player in team
+      const label = `__${playerNameList.join('\n')}__`;
+
+      // show id, elo change, new elo for every player in team
+      const description = team.players.map(player => {
+        return `<@${player.id}> ${player.elo_change} (${player._rating})`
+      }).join('\n');
+
+      // return array of objects to embedFields
+      return {
+        isWinningTeam: team.score === 1,
+        label,
+        description
+      }
+    })
+  )
+
+  // initialize arrays to holdd fields
+  const winUserLabels: string[] = [];
+  const winUserDescs: string[] = [];
+  const lossUserLabels: string[] = [];
+  const lossUserDescs: string[] = [];
+
+  // separate winning and losing teams
+  for (const field of embedFields) {
+    if (field.isWinningTeam) {
+      winUserLabels.push(field.label);
+      winUserDescs.push(field.description);
+    }
+    else {
+      lossUserLabels.push(field.label);
+      lossUserDescs.push(field.description);
+    }
+  }
 
   resultsEmbed.addFields(
     { name: winUserLabels.join(" / "), value: winUserDescs.join("\n"), inline: true },
     { name: lossUserLabels.join(" / "), value: lossUserDescs.join("\n"), inline: true }
   );
 
-  await closeMatch(matchId);
+  const resultsChannel = await getMatchResultsChannel(matchId);
+  if (!resultsChannel) { console.error(`No results channel found for match ${matchId}`); return false; }
+
   await resultsChannel.send({ embeds: [resultsEmbed], components: [rematchButtonRow] });
   return true;
 }
