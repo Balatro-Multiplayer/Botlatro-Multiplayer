@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Events, Interaction, MessageFlags, TextChannel } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Events, Interaction, MessageComponentInteraction, MessageFlags, StringSelectMenuComponent, StringSelectMenuInteraction, TextChannel } from 'discord.js';
 import { pool } from '../db';
 import { updateQueueMessage, matchUpGames, timeSpentInQueue, queueUsers } from '../utils/queueHelpers';
 import { cancelMatch, endMatch, getTeamsInMatch } from '../utils/matchHelpers';
@@ -43,11 +43,22 @@ module.exports = {
 
     // Select Menu Interactions
     if (interaction.isAnySelectMenu()) {
-        // winmatch_1_0 as an example, matchId then teamId
         if (interaction.values[0].includes('winmatch_')) {
-            const winMatchData: string[] = interaction.values[0].split('_');
-            await endMatch(parseInt(winMatchData[2]), parseInt(winMatchData[1]));
-            interaction.update({ content: 'The match has ended!', embeds: [], components: [] });
+            const customSelId = interaction.values[0];
+            const matchId = parseInt(customSelId.split('_')[1]);
+            const matchUsers = await getTeamsInMatch(matchId);
+            const matchUsersArray = matchUsers.flatMap(t => t.users.map(u => u.user_id));
+
+            await handleVoting(interaction, {
+                voteType: "Winner Vote",
+                embedFieldIndex: 2,
+                participants: matchUsersArray,
+                onComplete: async (interaction) => {
+                    const winMatchData: string[] = customSelId.split('_');
+                    await endMatch(parseInt(winMatchData[2]), parseInt(winMatchData[1]));
+                    interaction.update({ content: 'The match has ended!', embeds: [], components: [] });
+                }
+            });
         }
     }
 
