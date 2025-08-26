@@ -8,10 +8,8 @@
 - Ability to have queue matches that are more than one game (Bo3 or Bo5)
 
 ## Match Things
-- Vote system for cancel/winning matches
+- Vote system for winning matches
 - Stake banning system
-- Selecting a random team/player to ban or select decks at start of match
-- Rematch system after a game is decided
 - Results embed needs to have information in it when a match is completed.
 - Roles need to be assigned to users based on their MMR
   - Roles need to be assignable from literal MMR scores as well as leaderboard positions
