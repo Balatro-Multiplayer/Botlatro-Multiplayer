@@ -42,8 +42,9 @@ module.exports = {
     if (interaction.isAnySelectMenu()) {
         // winmatch_1_0 as an example, matchId then teamId
         if (interaction.values[0].includes('winmatch_')) {
-            const winMatchData: string[] = interaction.values[0].split('_');
-            await endMatch(parseInt(winMatchData[2]), parseInt(winMatchData[1]));
+            const winMatchData: string[] = interaction.values[0].split('_')
+            const matchId = parseInt(winMatchData[1]);
+            await endMatch(matchId);
             interaction.update({ content: 'The match has ended!', embeds: [], components: [] });
         }
     }
@@ -54,7 +55,7 @@ module.exports = {
             try {
                 await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-                // Fetch the queue data linked to the channel id
+                // Fetch the queue data // TODO: this will get the data for every queue if multiple are in the channel, fine for now but should be fixed later
                 const queue = await pool.query(
                     `SELECT * FROM queues WHERE channel_id = $1`, 
                     [interaction.channelId]);
@@ -108,7 +109,7 @@ module.exports = {
                     UPDATE queue_users
                     SET queue_join_time = 
                         CASE 
-                            WHEN $1 AND users.match_id IS NULL AND queue_users.queue_join_time IS NULL THEN NOW()
+                            WHEN $1 AND $4 AND queue_users.queue_join_time IS NULL THEN NOW()
                             ELSE NULL
                         END
                     FROM users
@@ -116,7 +117,7 @@ module.exports = {
                         AND queue_users.queue_channel_id = $2
                         AND queue_users.user_id = $3
                     RETURNING queue_users.*;
-                    `, [interaction.customId === 'join-queue', interaction.channelId, interaction.user.id]);
+                    `, [interaction.customId === 'join-queue', interaction.channelId, interaction.user.id, !inMatch]);
 
                 // Ensure user exists and create if not
                 const matchUser = await pool.query(
@@ -133,9 +134,9 @@ module.exports = {
                 // Ensure user exists for this queue and create it if not
                 if (user.rows.length < 1) {
                     await pool.query(`
-                        INSERT INTO queue_users (user_id, elo, peak_elo, queue_channel_id, queue_join_time)
-                        VALUES ($1, $2, $2, $3, NOW())
-                        `, [interaction.user.id, queue.rows[0].default_elo, interaction.channelId]);
+                        INSERT INTO queue_users (user_id, elo, peak_elo, queue_channel_id, queue_id, queue_join_time)
+                        VALUES ($1, $2, $2, $3, $4, NOW())
+                        `, [interaction.user.id, queue.rows[0].default_elo, interaction.channelId, queue.rows[0].id]);
                 }
 
                 await updateQueueMessage(interaction.channel as TextChannel, false);

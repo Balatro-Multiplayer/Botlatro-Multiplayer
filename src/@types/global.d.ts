@@ -29,8 +29,6 @@ declare module 'psqlDB' {
   export interface Users {
     id: number;
     user_id: string;
-    team?: number | null;
-    match_id?: number | null;
     joined_party_id?: string | null;
   }
 
@@ -53,6 +51,15 @@ declare module 'psqlDB' {
     queue_join_time?: Date | null;
   }
 
+  export interface matchUsers extends QueueUsers {
+    id: number;
+    user_id: string;
+    match_id: number | null;
+    team: number | null;
+    elo_change?: number | null;
+  }
+
+
   export interface Bans {
     id: number;
     user_id: string;
@@ -64,8 +71,7 @@ declare module 'psqlDB' {
       teams: { 
         id: number; 
         score: 0 | 0.5 | 1; 
-        players: QueueUsers[];
+        players: matchUsers[];
       } []
     }
-  
 }
