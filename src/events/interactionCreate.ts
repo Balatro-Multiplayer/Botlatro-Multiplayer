@@ -1,8 +1,8 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Events, Interaction, MessageComponentInteraction, MessageFlags, StringSelectMenuComponent, StringSelectMenuInteraction, TextChannel } from 'discord.js';
 import { pool } from '../db';
 import { updateQueueMessage, matchUpGames, timeSpentInQueue, queueUsers } from '../utils/queueHelpers';
-import { cancelMatch, endMatch, getTeamsInMatch } from '../utils/matchHelpers';
-import { getMatchData, partyUtils, userInMatch, userInQueue } from '../utils/queryDB';
+import { endMatch, getTeamsInMatch } from '../utils/matchHelpers';
+import { closeMatch, getMatchData, partyUtils, userInMatch, userInQueue } from '../utils/queryDB';
 import { QueryResult } from 'pg';
 import { Queues } from 'psqlDB';
 import { handleVoting } from '../utils/voteHelpers';
@@ -154,7 +154,7 @@ module.exports = {
                 if (user.rows.length < 1) {
                     await pool.query(`
                         INSERT INTO queue_users (user_id, elo, peak_elo, queue_channel_id, queue_id, queue_join_time)
-                        VALUES ($1, $2, $2, $3, $4, NOW())
+                        VALUES ($1, $2::real, $2::real, $3, $4, NOW())
                         `, [interaction.user.id, queue.rows[0].default_elo, interaction.channelId, queue.rows[0].id]);
                 }
 
@@ -190,7 +190,7 @@ module.exports = {
                 embedFieldIndex: 2,
                 participants: matchUsersArray,
                 onComplete: async (interaction) => {
-                    cancelMatch(matchId)
+                    await closeMatch(matchId)
                     await interaction.update({ content: 'The match has been cancelled.', embeds: [], components: [] });
                 }
             });

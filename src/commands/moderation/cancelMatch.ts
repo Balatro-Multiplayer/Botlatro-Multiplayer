@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags, PermissionFlagsBits } from 'discord.js';
-import { cancelMatch } from '../../utils/matchHelpers';
+import { closeMatch } from '../../utils/queryDB';
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -19,7 +19,7 @@ module.exports = {
 				return;
 			}
 
-			const matchCancelCheck = await cancelMatch(matchId);
+			const matchCancelCheck = await closeMatch(matchId);
             
 			if (matchCancelCheck) {
 					interaction.reply({ content: `Successfully cancelled match ${matchId}` });

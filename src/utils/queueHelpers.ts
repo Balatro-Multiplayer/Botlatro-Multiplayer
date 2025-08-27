@@ -125,6 +125,8 @@ export async function matchUpGames(): Promise<void> {
 
         possibleMatches.sort((a, b) => a.eloDifference - b.eloDifference);
 
+        console.log(possibleMatches);
+
         const usedUsers: Set<string> = new Set();
         for (const match of possibleMatches) {
             const { users, queueId } = match;

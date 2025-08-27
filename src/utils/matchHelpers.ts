@@ -174,14 +174,6 @@ export async function sendMatchInitMessages(matchId: number, textChannel: TextCh
   await textChannel.send({ content: `# ${teamPingString}`, embeds: [eloEmbed, deckEmbed], components: queueGameComponents });
 }
 
-export async function cancelMatch(matchId: number): Promise<boolean> {
-  const res = await pool.query('DELETE FROM matches WHERE id = $1 RETURNING id', [matchId]);
-  if (res.rowCount === 0) {
-    return false;
-  } 
-  return true;
-}
-
 export async function endMatch(matchId: number): Promise<boolean> {
   const rematchButtonRow: ActionRowBuilder<ButtonBuilder> = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder().setCustomId(`rematch-${matchId}`).setLabel('Rematch').setEmoji('⚔️').setStyle(ButtonStyle.Primary)
@@ -219,14 +211,13 @@ export async function endMatch(matchId: number): Promise<boolean> {
 
       const playerList = await Promise.all(team.players.map(player => client.users.fetch(player.user_id)))
       const playerNameList = playerList.map(user => user.displayName);
-      // const playerIdList = playerList.map(user => user.id);
 
       // show name for every player in team
-      const label = `__${playerNameList.join('\n')}__`;
+      const label = team.score === 1 ? `__${playerNameList.join('\n')}__` : `${playerNameList.join('\n')}`;
 
       // show id, elo change, new elo for every player in team
       const description = team.players.map(player => {
-        return `<@${player.id}> ${player.elo_change} (${player._rating})`
+        return `<@${player.user_id}> ${player.elo_change} (${player.elo})`
       }).join('\n');
 
       // return array of objects to embedFields
@@ -263,6 +254,8 @@ export async function endMatch(matchId: number): Promise<boolean> {
 
   const resultsChannel = await getMatchResultsChannel(matchId);
   if (!resultsChannel) { console.error(`No results channel found for match ${matchId}`); return false; }
+
+  await closeMatch(matchId)
 
   await resultsChannel.send({ embeds: [resultsEmbed], components: [rematchButtonRow] });
   return true;
