@@ -9,24 +9,24 @@ export async function calculateGlicko2(matchId: number, teamResults: teamResults
     const matchData = await getMatchData(matchId);
     const settings = await getQueueSettings(matchData.queue_id);
 
-    // Initialize the Glicko-2 system
     const glick = new Glicko2({
-        tau: 0.5,
-        rating: settings.default_elo,
-        rd: 200,
-        vol: 0.06
-    })
+        tau: 0.35, 
+        rating: settings.default_elo, 
+        rd: 100, 
+        vol: 0.08 
+    });
+
 
     // Create Glicko-2 players for each participant using stored data
     const Player1 = glick.makePlayer(
         teamResults.teams[0].players[0].elo ?? settings.default_elo,
-        teamResults.teams[0].players[0].rating_deviation ?? 200,
-        teamResults.teams[0].players[0].volatility ?? 0.06
+        teamResults.teams[0].players[0].rating_deviation ?? 100,
+        teamResults.teams[0].players[0].volatility ?? 0.08
     )
     const Player2 = glick.makePlayer(
         teamResults.teams[1].players[0].elo ?? settings.default_elo,
-        teamResults.teams[1].players[0].rating_deviation ?? 200,
-        teamResults.teams[1].players[0].volatility ?? 0.06
+        teamResults.teams[1].players[0].rating_deviation ?? 100,
+        teamResults.teams[1].players[0].volatility ?? 0.08
     )
 
     const match: [Player, Player, number][] = [
