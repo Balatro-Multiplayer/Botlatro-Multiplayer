@@ -5,7 +5,7 @@ import { endMatch, getTeamsInMatch } from '../utils/matchHelpers';
 import { closeMatch, getMatchData, partyUtils, userInMatch, userInQueue } from '../utils/queryDB';
 import { QueryResult } from 'pg';
 import { Queues } from 'psqlDB';
-import { handleVoting } from '../utils/voteHelpers';
+import { handleTwoPlayerMatchVoting, handleVoting } from '../utils/voteHelpers';
 
 module.exports = {
   name: Events.InteractionCreate,
@@ -42,29 +42,27 @@ module.exports = {
     }
 
     // Select Menu Interactions
-    if (interaction.isAnySelectMenu()) {
+    if (interaction.isStringSelectMenu()) {
         if (interaction.values[0].includes('winmatch_')) {
             const customSelId = interaction.values[0];
             const matchId = parseInt(customSelId.split('_')[1]);
             const matchUsers = await getTeamsInMatch(matchId);
             const matchUsersArray = matchUsers.flatMap(t => t.users.map(u => u.user_id));
 
-            await handleVoting(interaction, {
-                voteType: "Winner Vote",
-                embedFieldIndex: 2,
+            await handleTwoPlayerMatchVoting(interaction, {
                 participants: matchUsersArray,
-                onComplete: async (interaction) => {
-                    const winMatchData: string[] = customSelId.split('_');
-                    const matchId = winMatchData[1];
-                    const winMatchTeamId = winMatchData[2];
+                onComplete: async (interaction, winner) => {
+                    const customSelId = interaction.values[0];
+                    const matchData: string[] = customSelId.split('_');
+                    const matchId = matchData[1];
                     pool.query(
                         `UPDATE matches SET winning_team = $1 WHERE id = $2`,
-                        [winMatchTeamId, matchId]
+                        [winner, matchId]
                     );
                     await endMatch(parseInt(matchId));
                     interaction.update({ content: 'The match has ended!', embeds: [], components: [] });
                 }
-            });
+            })
         }
     }
 

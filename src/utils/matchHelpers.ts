@@ -36,7 +36,7 @@ export function getRandomDeck(includeCustomDecks: boolean): string {
     "<:cocktail_deck:1407823448729976862> Cocktail Deck",
     "<:gradient_deck:1407823575158882495> Gradient Deck",
     "<:sybil_deck:1407823470967918655> Sibyl Deck",
-    "<:indigo_deck:1407823516967112795> Indigo Deck",
+    // "<:indigo_deck:1407823516967112795> Indigo Deck",
     ] : []),
   ]
 
@@ -185,7 +185,6 @@ export async function endMatch(matchId: number): Promise<boolean> {
 
   const queueId = await getQueueIdFromMatch(matchId);
   const isGlicko = await isQueueGlicko(queueId);
-  console.log(isGlicko);
 
   let teamResults: teamResults | null = null;
   if (isGlicko) {
@@ -217,7 +216,7 @@ export async function endMatch(matchId: number): Promise<boolean> {
 
       // show id, elo change, new elo for every player in team
       const description = team.players.map(player => {
-        return `<@${player.user_id}> ${player.elo_change} (${player.elo})`
+        return `<@${player.user_id}> *${player.elo_change && player.elo_change > 0 ? `+` : ``}${player.elo_change}* **(${player.elo})**`
       }).join('\n');
 
       // return array of objects to embedFields

@@ -378,6 +378,7 @@ export async function updateTeamResults(
       const latest = latestUserMap.get(player.user_id);
       if (latest) {
         for (const field of fields) {
+          console.log(field, player);
           (player as any)[field] = latest[field];
         }
       }
