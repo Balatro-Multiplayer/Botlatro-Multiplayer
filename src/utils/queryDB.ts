@@ -203,7 +203,7 @@ export async function userInQueue(userId: string, textChannel: TextChannel): Pro
 }
 
 // gets all settings for a specific queue
-export async function getQueueSettings(queueId: string) {
+export async function getQueueSettings(queueId: number) {
   const response = await pool.query(`
     SELECT * FROM queues WHERE id = $1
   `, [queueId]);
@@ -272,7 +272,8 @@ export async function getPlayerDataLive(matchId: number) {
 
   // updates all of a player's glicko values at once
   export async function updatePlayerGlickoAll(queue_user_id: number, newElo: number, newDeviation: number, newVolatility: number): Promise<void> {
-    await pool.query(`UPDATE queue_users SET elo = $1, rating_deviation = $2, volatility = $3 WHERE id = $4`, [newElo, newDeviation, newVolatility, queue_user_id]);
+    console.log(newElo, newDeviation, newVolatility);
+    await pool.query(`UPDATE queue_users SET elo = $1, rating_deviation = $2, volatility = $3 WHERE id = $4`, [Math.round(newElo), Math.round(newDeviation), newVolatility, queue_user_id]);
   }
 
   // updates a player's ELO
@@ -315,10 +316,10 @@ export async function getPlayerDataLive(matchId: number) {
 
 // return whether a queue is glicko or openskill
 export async function isQueueGlicko(queueId: string): Promise<boolean> {
-  const response = await pool.query(`SELECT member_per_team, number_of_teams FROM queues WHERE id = $1`, [queueId]);
+  const response = await pool.query(`SELECT members_per_team, number_of_teams FROM queues WHERE id = $1`, [queueId]);
   if (response.rowCount === 0) throw new Error(`Queue with id ${queueId} does not exist.`);
   let isGlicko: boolean
-  if (response.rows[0].number_of_teams === 2 && response.rows[0].member_per_team === 1) {isGlicko = true}
+  if (response.rows[0].number_of_teams === 2 && response.rows[0].members_per_team === 1) {isGlicko = true}
   else {isGlicko = false}
   return isGlicko;
 }
@@ -336,7 +337,6 @@ export async function getWinningTeamFromMatch(matchId: number): Promise<number |
   if (response.rowCount === 0) throw new Error(`Match with id ${matchId} does not exist.`);
   return response.rows[0].winning_team;
 }
-
 
 // update teamResults object with latest data
 export async function updateTeamResults(
