@@ -273,12 +273,12 @@ export async function getPlayerDataLive(matchId: number) {
   // updates all of a player's glicko values at once
   export async function updatePlayerGlickoAll(queue_user_id: number, newElo: number, newDeviation: number, newVolatility: number): Promise<void> {
     console.log(newElo, newDeviation, newVolatility);
-    await pool.query(`UPDATE queue_users SET elo = $1, rating_deviation = $2, volatility = $3 WHERE id = $4`, [Math.round(newElo), Math.round(newDeviation), newVolatility, queue_user_id]);
+    await pool.query(`UPDATE queue_users SET elo = $1, rating_deviation = $2, volatility = $3 WHERE id = $4`, [newElo, newDeviation, newVolatility, queue_user_id]);
   }
 
   // updates a player's ELO
   export async function updatePlayerElo(queue_user_id: number, newElo: number): Promise<void> {
-    await pool.query(`UPDATE queue_users SET elo = $1 WHERE id = $2`, [newElo, queue_user_id]);
+    await pool.query(`UPDATE queue_users SET elo = $1 WHERE id = $2`, [Math.round(newElo), queue_user_id]);
   }
 
   // updates a player's volatility
@@ -288,7 +288,7 @@ export async function getPlayerDataLive(matchId: number) {
 
   // updates a player's rating deviation
   export async function updatePlayerDeviation(queue_user_id: string, newDeviation: number): Promise<void> {
-    await pool.query(`UPDATE queue_users SET rating_deviation = $1 WHERE user_id = $2`, [newDeviation, queue_user_id]);
+    await pool.query(`UPDATE queue_users SET rating_deviation = $1 WHERE user_id = $2`, [Math.round(newDeviation), queue_user_id]);
   }
 
   // resets a player's ELO to default

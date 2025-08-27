@@ -34,9 +34,9 @@ declare module 'psqlDB' {
 
   export interface QueueUsers {
     // glicko2 fields
-    _rating: number | undefined; // rating
-    _rd: number | undefined; // rating deviation
-    _vol: number | undefined; // rating change volatility
+    elo: number | undefined; // rating
+    rating_deviation: number | undefined; // rating deviation
+    volatility: number | undefined; // rating change volatility
 
     // our fields
     id: number;
@@ -58,7 +58,6 @@ declare module 'psqlDB' {
     team: number | null;
     elo_change?: number | null;
   }
-
 
   export interface Bans {
     id: number;
