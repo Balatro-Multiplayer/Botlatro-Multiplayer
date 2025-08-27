@@ -49,9 +49,13 @@ export async function calculateGlicko2(matchId: number, teamResults: teamResults
     // update TeamResults object with new ratings and changes
     teamResults.teams[0].players[0].elo = newRating1;
     teamResults.teams[0].players[0].elo_change = ratingChange1;
+    teamResults.teams[0].players[0].volatility = Player1.getVol();
+    teamResults.teams[0].players[0].rating_deviation = Player1.getRd();
     teamResults.teams[1].players[0].elo = newRating2;
     teamResults.teams[1].players[0].elo_change = ratingChange2;
+    teamResults.teams[1].players[0].volatility = Player2.getVol();
+    teamResults.teams[1].players[0].rating_deviation = Player2.getRd();
 
-    const teamResultsReturn = await updateTeamResults(teamResults, ['elo', 'rating_deviation', 'volatility']);
-    return teamResultsReturn
+    // const teamResultsReturn = await updateTeamResults(teamResults, ['elo', 'rating_deviation', 'volatility']);
+    return teamResults;
 }
