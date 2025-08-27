@@ -42,7 +42,6 @@ export async function calculateGlicko2(matchId: number, teamResults: teamResults
     const ratingChange1 = newRating1 - oldRating1;
     const ratingChange2 = newRating2 - oldRating2;
 
-
     // Update the database with new ratings for both players
     await ratingUtils.updatePlayerGlickoAll(teamResults.teams[0].players[0].id, newRating1, Player1.getRd(), Player1.getVol());
     await ratingUtils.updatePlayerGlickoAll(teamResults.teams[1].players[0].id, newRating2, Player2.getRd(), Player2.getVol());

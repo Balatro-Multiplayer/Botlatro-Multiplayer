@@ -125,7 +125,6 @@ export async function sendMatchInitMessages(matchId: number, textChannel: TextCh
     if (teamQueueUsersData.rowCount == 1) onePersonTeam = true;
 
     for (const user of teamQueueUsersData.rows) {
-      console.log(teamQueueUsersData.rows);
       let userDiscordInfo = await client.users.fetch(user.user_id);
       teamPingString += `<@${user.user_id}> `;
 
@@ -190,13 +189,11 @@ export async function endMatch(matchId: number): Promise<boolean> {
 
   const matchTeams = await getTeamsInMatch(matchId);
   const winningTeamId = await getWinningTeamFromMatch(matchId);
-  console.log('----------', matchTeams, winningTeamId);
   if (!winningTeamId) { console.error(`No winning team found for match ${matchId}`); return false; }
-
-  const guild = client.guilds.cache.get(process.env.GUILD_ID!) ?? (await client.guilds.fetch(process.env.GUILD_ID!));
 
   const queueId = await getQueueIdFromMatch(matchId);
   const isGlicko = await isQueueGlicko(queueId);
+  console.log(isGlicko);
 
   let teamResults: teamResults | null = null;
   if (isGlicko) {
@@ -211,10 +208,6 @@ export async function endMatch(matchId: number): Promise<boolean> {
     
     teamResults = await calculateGlicko2(matchId, teamResultsData);
   }
-
-  const winningTeamIndex = teamResults?.teams.map(t => {
-    t.score === 1
-  });
 
   const resultsEmbed = new EmbedBuilder()
     .setTitle(`🏆 Winner For Match #${matchId} 🏆`)
@@ -245,7 +238,7 @@ export async function endMatch(matchId: number): Promise<boolean> {
     })
   )
 
-  // initialize arrays to holdd fields
+  // initialize arrays to hold fields
   const winUserLabels: string[] = [];
   const winUserDescs: string[] = [];
   const lossUserLabels: string[] = [];

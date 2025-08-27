@@ -55,7 +55,13 @@ module.exports = {
                 participants: matchUsersArray,
                 onComplete: async (interaction) => {
                     const winMatchData: string[] = customSelId.split('_');
-                    await endMatch(parseInt(winMatchData[2]), parseInt(winMatchData[1]));
+                    const matchId = winMatchData[1];
+                    const winMatchTeamId = winMatchData[2];
+                    pool.query(
+                        `UPDATE matches SET winning_team = $1 WHERE id = $2`,
+                        [winMatchTeamId, matchId]
+                    );
+                    await endMatch(parseInt(matchId));
                     interaction.update({ content: 'The match has ended!', embeds: [], components: [] });
                 }
             });
@@ -130,7 +136,7 @@ module.exports = {
                         AND queue_users.queue_channel_id = $2
                         AND queue_users.user_id = $3
                     RETURNING queue_users.*;
-                    `, [interaction.customId === 'join-queue', interaction.channelId, interaction.user.id, !inMatch]);
+                    `, [interaction.customId === 'join-queue', interaction.channelId, interaction.user.id]);
 
                 // Ensure user exists and create if not
                 const matchUser = await pool.query(
