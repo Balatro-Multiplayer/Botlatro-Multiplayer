@@ -13,7 +13,7 @@ module.exports = {
 
 			await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-			await updateQueueMessage(textChannel, true);
+			await updateQueueMessage(textChannel);
 			
 			await interaction.deleteReply();
 		} catch (err: any) {
