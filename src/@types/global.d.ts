@@ -20,10 +20,26 @@ declare module 'psqlDB' {
     locked: boolean;
   }
 
+  export interface Parties {
+    id: number;
+    name: string;
+    created_at: Date;
+  }
+
+  export interface PartyUsers {
+    id: number;
+    user_id: string;
+    party_id: number;
+    is_leader: boolean;
+    joined_at: Date;
+  }
+
   export interface Matches {
     id: number;
     queue_id: number;
     channel_id: string;
+    open: boolean;
+    winning_team: number | null;
   }
 
   export interface Users {
@@ -39,6 +55,7 @@ declare module 'psqlDB' {
     volatility: number | undefined; // rating change volatility
 
     // our fields
+    queue_id: number;
     id: number;
     user_id: string;
     peak_rating: number;

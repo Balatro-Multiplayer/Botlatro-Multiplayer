@@ -1,4 +1,5 @@
 import { partyUtils } from "./queryDB";
+import { getQueueSettings } from "./queryDB";
 
 // delete old parties every 5 minutes
 export async function partyDeleteCronJob() {
@@ -30,4 +31,15 @@ export async function partyDeleteCronJob() {
 
 
     }, 5 * 60 * 1000); // 5 minutes in milliseconds
+}
+
+
+// increment elo search for a specific queue
+export async function incrementElo(queueId: number) {
+    const queueSettings = await getQueueSettings(queueId, ['elo_search_increment', 'elo_search_speed', 'elo_search_start'] );
+    const increment = queueSettings.elo_search_increment || 1;
+    const speed = queueSettings.elo_search_speed || 2;
+    const start = queueSettings.elo_search_start || 0;
+
+    
 }

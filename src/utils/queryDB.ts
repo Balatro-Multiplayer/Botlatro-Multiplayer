@@ -2,7 +2,7 @@ import { Channel, TextChannel } from "discord.js";
 import { pool } from "../db";
 import { create } from "node:domain";
 import { remove, update } from "lodash-es";
-import { matchUsers, teamResults, Matches } from "psqlDB";
+import { matchUsers, teamResults, Matches, Queues } from "psqlDB";
 
 // Get the queue names of all queues that exist
 export async function getQueueNames(): Promise<string[]> {
@@ -203,9 +203,10 @@ export async function userInQueue(userId: string, textChannel: TextChannel): Pro
 }
 
 // gets all settings for a specific queue
-export async function getQueueSettings(queueId: number) {
+export async function getQueueSettings(queueId: number, fields: (keyof Queues)[] = []): Promise<any> {
+  const selectFields = fields.length > 0 ? fields.join(", ") : "*";
   const response = await pool.query(`
-    SELECT * FROM queues WHERE id = $1
+    SELECT ${selectFields} FROM queues WHERE id = $1
   `, [queueId]);
 
   if (response.rowCount === 0) {
@@ -351,20 +352,11 @@ export async function updateTeamResults(
   const winningTeam = await getWinningTeamFromMatch(matchId);
 
   // Build the SELECT clause dynamically
-  let latestUsers;
-  if (fields.length != 0) {
-    const selectFields = fields.join(", ");
-    latestUsers = await pool.query(
-      `SELECT user_id, ${selectFields} FROM queue_users WHERE user_id = ANY($1)`,
-      [userIds]
-    );
-  }
-  else {
-    latestUsers = await pool.query(
-      `SELECT * FROM queue_users WHERE user_id = ANY($1)`,
-      [userIds]
-    );
-  }
+  const selectFields = fields.length > 0 ? fields.join(", ") : '*'
+  const latestUsers = await pool.query(
+    `SELECT user_id, ${selectFields} FROM queue_users WHERE user_id = ANY($1)`,
+    [userIds]
+  );
 
   const latestUserMap = new Map(latestUsers.rows.map(user => [user.user_id, user]));
 
