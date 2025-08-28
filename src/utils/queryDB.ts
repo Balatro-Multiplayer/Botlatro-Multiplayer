@@ -297,6 +297,10 @@ export async function getPlayerDataLive(matchId: number) {
     await pool.query(`UPDATE queue_users SET elo = $1 WHERE id = $2`, [Math.round(newElo), queue_user_id]);
   }
 
+  export async function updatePlayerEloDiscordId(queueId: number, userId: string, newElo: number): Promise<void> {
+    const res = await pool.query(`UPDATE queue_users SET elo = $1 WHERE user_id = $2 AND queue_id = $3 RETURNING id`, [Math.round(newElo), userId, queueId]);
+  }
+
   // updates a player's volatility
   export async function updatePlayerVolatility(queue_user_id: string, newVolatility: number): Promise<void> {
     await pool.query(`UPDATE queue_users SET volatility = $1 WHERE user_id = $2`, [newVolatility, queue_user_id]);

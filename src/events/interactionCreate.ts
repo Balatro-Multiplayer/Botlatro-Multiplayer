@@ -68,7 +68,7 @@ module.exports = {
 
     // Button interactions
     if (interaction.isButton()) {
-        if (interaction.customId === 'join-queue' || interaction.customId === 'leave-queue') {
+        if (interaction.customId.includes('join-queue-') || interaction.customId.includes('leave-queue-')) {
             try {
                 await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
@@ -131,10 +131,10 @@ module.exports = {
                         END
                     FROM users
                     WHERE queue_users.user_id = users.user_id
-                        AND queue_users.queue_channel_id = $2
+                        AND queue_users.queue_id = $2
                         AND queue_users.user_id = $3
                     RETURNING queue_users.*;
-                    `, [interaction.customId === 'join-queue', interaction.channelId, interaction.user.id]);
+                    `, [interaction.customId.includes('join-queue-'), interaction.channelId, interaction.user.id]);
 
                 // Ensure user exists and create if not
                 const matchUser = await pool.query(
@@ -156,7 +156,7 @@ module.exports = {
                         `, [interaction.user.id, queue.rows[0].default_elo, interaction.channelId, queue.rows[0].id]);
                 }
 
-                await updateQueueMessage(interaction.channel as TextChannel, false);
+                await updateQueueMessage(interaction.channel as TextChannel);
                 await matchUpGames();
                 await interaction.followUp({ content: `You ${user.rows[0]?.queue_join_time === null ? "left" : "joined"} the ${queue.rows[0].queue_name} Queue!`, flags: MessageFlags.Ephemeral });
             } catch (err) {
