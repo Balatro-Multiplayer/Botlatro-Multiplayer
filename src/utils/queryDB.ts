@@ -56,15 +56,30 @@ export async function getMatchResultsChannel(matchId: number): Promise<TextChann
   throw new Error(`Channel is not a TextChannel for match ID ${matchId}`);
 }
 
-// whats the point of this function? - casjb
-// Get users in a specified queue channel
-export async function getUsersInQueue(textChannel: TextChannel): Promise<string[]> {
-  const response = await pool.query(`
-      SELECT u.user_id FROM queue_users u
-      JOIN queues q ON u.queue_channel_id = q.channel_id
-      WHERE q.channel_id = $1 AND u.queue_join_time IS NOT NULL`,
-      [textChannel.id]
-  );
+// left old version, but also added new version in same function 
+// Get users in a specified queue channel (returns user IDs only)
+export async function getUsersInQueue(queueId: number | null, textChannel?: TextChannel): Promise<string[]> {
+
+  let response
+  if (textChannel != undefined) {
+    response = await pool.query(`
+        SELECT u.user_id FROM queue_users u
+        JOIN queues q ON u.queue_channel_id = q.channel_id
+        WHERE q.channel_id = $1 AND u.queue_join_time IS NOT NULL`,
+        [textChannel.id]
+    );
+  }
+
+  else if (queueId != -1){
+    response = await pool.query(`
+      SELECT user_id FROM queue_users
+      WHERE queue_id = $1 AND queue_join_time IS NOT NULL
+    `, [queueId]);
+  }
+
+  else {
+    throw new Error("Either queueId or textChannel must be provided.");
+  }
 
   return response.rows.map(row => row.user_id);
 }
@@ -301,8 +316,10 @@ export async function getPlayerDataLive(matchId: number) {
   }
 
   // gets a player's current ELO
-  export async function getPlayerElo(userId: string): Promise<number | null> {
-    return null;
+  export async function getPlayerElo(userId: string, queueId: number): Promise<number | null> {
+    const response = await pool.query(`SELECT elo FROM queue_users WHERE user_id = $1 AND queue_id = $2`, [userId, queueId]);
+    if (response.rowCount === 0) return null;
+    return response.rows[0].elo;
   }
 
   // gets a player's current volatility
@@ -378,4 +395,33 @@ export async function updateTeamResults(
   }
 
   return teamResults;
+}
+
+// IMPORTANT: you must already have checked that they are in the queue
+// get the current elo range for a user in a specific queue 
+export async function getCurrentEloRangeForUser(userId: string, queueId: number): Promise<number> {
+  const response = await pool.query(
+    `SELECT current_elo_range FROM queue_users WHERE user_id = $1 AND queue_id = $2`, 
+    [userId, queueId]
+  );
+
+  return response.rows[0].current_elo_range || 0;
+}
+
+// update the current elo range for a user in a specific queue
+export async function updateCurrentEloRangeForUser(userId: string, queueId: number, newRange: number): Promise<void> {
+  await pool.query(
+    `UPDATE queue_users SET current_elo_range = $1 WHERE user_id = $2 AND queue_id = $3`, 
+    [newRange, userId, queueId]
+  );
+}
+
+// get queue channel ID from queue ID
+export async function getQueueChannelId(queueId: number): Promise<string> {
+  const response = await pool.query(
+    `SELECT channel_id FROM queues WHERE id = $1`, 
+    [queueId]
+  );
+  if (response.rowCount === 0) throw new Error(`Queue with id ${queueId} does not exist.`);
+  return response.rows[0].channel_id;
 }
