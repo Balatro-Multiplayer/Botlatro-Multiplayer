@@ -2,9 +2,10 @@ import { pool } from '../db';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, EmbedBuilder, TextChannel, PermissionFlagsBits, Message } from 'discord.js';
 import { sendMatchInitMessages } from './matchHelpers';
 import { userInQueue } from './queryDB';
+import client from '../index';
 
 // Updates or sends a new queue message for the specified text channel  
-export async function updateQueueMessage(textChannel: TextChannel): Promise<Message> {
+export async function updateQueueMessage(): Promise<Message> {
     const response = await pool.query(
         'SELECT queue_channel_id, queue_message_id FROM settings',
     )
@@ -32,16 +33,19 @@ export async function updateQueueMessage(textChannel: TextChannel): Promise<Mess
     const row = new ActionRowBuilder<ButtonBuilder>()
         .addComponents(leaveQueue, checkQueued);
 
-    let msg = await queueChannelId.messages.fetch(queueMessageId).then(async () => {
+    let msg;
+    if (queueMessageId && queueMessageId != 'null') {
+        msg = await queueChannelId.messages.fetch(queueMessageId);
         await msg.edit({ embeds: [embed], components: [row] });
-    }).catch(async () => { 
-        msg = await textChannel.send({ embeds: [embed], components: [row] });
-        await pool.query(
-            'UPDATE settings SET message_id = $1 WHERE channel_id = $2',
-            [msg.id, textChannel.id]
-        );
-    });
+        return msg;
+    } 
 
+    const queueChannel = (await client.channels.fetch(queueChannelId)) as TextChannel;
+    msg = await queueChannel.send({ embeds: [embed], components: [row] });
+    await pool.query(
+        'UPDATE settings SET queue_message_id = $1',
+        [msg.id]
+    );
     return msg;
 }
 
@@ -202,7 +206,7 @@ export async function queueUsers(userIds: string[], queueId: string): Promise<vo
         } catch (err) {}
     }
 
-    updateQueueMessage((client.guilds.cache.get(queueId) ?? await client.channels.fetch(queueId)) as TextChannel);
+    updateQueueMessage();
 
     // Send queue start messages
     await sendMatchInitMessages(matchId, channel)
