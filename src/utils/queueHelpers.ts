@@ -1,69 +1,48 @@
 import { pool } from '../db';
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, EmbedBuilder, TextChannel, PermissionFlagsBits } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, EmbedBuilder, TextChannel, PermissionFlagsBits, Message } from 'discord.js';
 import { sendMatchInitMessages } from './matchHelpers';
-import { getUsersInQueue, userInQueue } from './queryDB';
+import { userInQueue } from './queryDB';
 
 // Updates or sends a new queue message for the specified text channel  
-export async function updateQueueMessage(textChannel: TextChannel, newMessage: boolean): Promise<void> {
+export async function updateQueueMessage(textChannel: TextChannel): Promise<Message> {
     const response = await pool.query(
-        'SELECT message_id, queue_name, number_of_teams, members_per_team FROM queues WHERE channel_id = $1',
-        [textChannel.id]
+        'SELECT queue_channel_id, queue_message_id FROM settings',
     )
 
-    if (response.rows.length < 1) throw new Error('Queue not found for this channel');
-
     const { 
-        message_id: messageId,
-        queue_name: queueName, 
-        number_of_teams: numberOfTeams, 
-        members_per_team: membersPerTeam
+        queue_channel_id: queueChannelId,
+        queue_message_id: queueMessageId,
     } = response.rows[0];
 
-    let msg;
-    
-    const lastMessage = (await textChannel.messages.fetch({ limit: 1 })).first();
-    if (lastMessage && messageId !== lastMessage.id) newMessage = true;
-
-    try {
-        msg = await textChannel.messages.fetch(messageId);
-        if (newMessage) await msg.delete();
-    } catch (err) {}
-    
-    const matchType = `${membersPerTeam}v`.repeat(numberOfTeams).slice(0, -1);
-    const playerCount = (await getUsersInQueue(textChannel)).length;
-
-    const embed = new EmbedBuilder()
-        .setTitle(`${queueName} Queue (${matchType})`)
-        .setDescription(`${playerCount} player${playerCount !== 1 ? 's' : ''} in queue`)
-        .setColor(0xFF0000);
-
-    const joinQueue = new ButtonBuilder()
-        .setCustomId('join-queue')
-        .setLabel('Join Queue')
-        .setStyle(ButtonStyle.Primary);
+     const embed = new EmbedBuilder()
+        .setTitle(`Balatro Multiplayer Matchmaking Queue`)
+        .setDescription(`Use the Select Menu to join the queue!`)
+        .setColor('#ff0000');
 
     const leaveQueue = new ButtonBuilder()
-        .setCustomId('leave-queue')
+        .setCustomId(`leave-queue`)
         .setLabel('Leave Queue')
         .setStyle(ButtonStyle.Danger);
 
     const checkQueued = new ButtonBuilder()
-        .setCustomId('check-queued')
+        .setCustomId(`check-queued`)
         .setLabel('Check Queued State')
         .setStyle(ButtonStyle.Secondary);
 
     const row = new ActionRowBuilder<ButtonBuilder>()
-        .addComponents(joinQueue, leaveQueue, checkQueued);
+        .addComponents(leaveQueue, checkQueued);
 
-    if (newMessage || !msg) {
-        const newMsg = await textChannel.send({ embeds: [embed], components: [row] });
-        await pool.query(
-            'UPDATE queues SET message_id = $1 WHERE channel_id = $2',
-            [newMsg.id, textChannel.id]
-        );
-    } else {
+    let msg = await queueChannelId.messages.fetch(queueMessageId).then(async () => {
         await msg.edit({ embeds: [embed], components: [row] });
-    }
+    }).catch(async () => { 
+        msg = await textChannel.send({ embeds: [embed], components: [row] });
+        await pool.query(
+            'UPDATE settings SET message_id = $1 WHERE channel_id = $2',
+            [msg.id, textChannel.id]
+        );
+    });
+
+    return msg;
 }
 
 
@@ -74,9 +53,10 @@ export async function matchUpGames(): Promise<void> {
         const response = await pool.query(`
             SELECT u.*, q.number_of_teams, q.members_per_team, q.elo_search_start, q.elo_search_speed, q.elo_search_increment
             FROM queue_users u
-            JOIN queues q ON u.queue_channel_id = q.channel_id
+            JOIN queues q
+                ON u.queue_id = q.id
             WHERE u.queue_join_time IS NOT NULL
-            AND q.locked = false
+                AND q.locked = false;
         `);
 
         // Group users by queue
@@ -222,7 +202,7 @@ export async function queueUsers(userIds: string[], queueId: string): Promise<vo
         } catch (err) {}
     }
 
-    updateQueueMessage((client.guilds.cache.get(queueId) ?? await client.channels.fetch(queueId)) as TextChannel, true);
+    updateQueueMessage((client.guilds.cache.get(queueId) ?? await client.channels.fetch(queueId)) as TextChannel);
 
     // Send queue start messages
     await sendMatchInitMessages(matchId, channel)
