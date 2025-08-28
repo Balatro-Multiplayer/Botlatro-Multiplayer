@@ -9,11 +9,9 @@ module.exports = {
 	async execute(interaction: ChatInputCommandInteraction) {
 
 		try {
-			const textChannel = interaction.channel as TextChannel;
-
 			await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-			await updateQueueMessage(textChannel);
+			await updateQueueMessage();
 			
 			await interaction.deleteReply();
 		} catch (err: any) {
