@@ -64,7 +64,6 @@ declare module 'psqlDB' {
     games_played: number;
     win_streak: number;
     peak_win_streak: number;
-    queue_channel_id: string;
     queue_join_time?: Date | null;
   }
 
@@ -84,10 +83,16 @@ declare module 'psqlDB' {
   }
 
   export type teamResults = {
-      teams: { 
-        id: number; 
-        score: 0 | 0.5 | 1; 
-        players: matchUsers[];
-      } []
-    }
+    teams: { 
+      id: number; 
+      score: 0 | 0.5 | 1; 
+      players: matchUsers[];
+    } []
+  }
+
+  export type Settings = {
+    singleton: boolean;
+    queue_channel_id: string;
+    helper_role_id: string;
+  }
 }

@@ -60,10 +60,10 @@ export async function getMatchResultsChannel(matchId: number): Promise<TextChann
 // Get users in a specified queue channel
 export async function getUsersInQueue(textChannel: TextChannel): Promise<string[]> {
   const response = await pool.query(`
-      SELECT u.user_id FROM queue_users u
-      JOIN queues q ON u.queue_channel_id = q.channel_id
-      WHERE q.channel_id = $1 AND u.queue_join_time IS NOT NULL`,
-      [textChannel.id]
+    SELECT u.user_id FROM queue_users u
+        JOIN queues q ON u.queue_channel_id = q.channel_id
+        WHERE q.channel_id = $1 AND u.queue_join_time IS NOT NULL`,
+    [textChannel.id]
   );
 
   return response.rows.map(row => row.user_id);
@@ -280,6 +280,10 @@ export async function getPlayerDataLive(matchId: number) {
   // updates a player's ELO
   export async function updatePlayerElo(queue_user_id: number, newElo: number): Promise<void> {
     await pool.query(`UPDATE queue_users SET elo = $1 WHERE id = $2`, [Math.round(newElo), queue_user_id]);
+  }
+
+  export async function updatePlayerEloDiscordId(queueId: number, userId: string, newElo: number): Promise<void> {
+    const res = await pool.query(`UPDATE queue_users SET elo = $1 WHERE user_id = $2 AND queue_id = $3 RETURNING id`, [Math.round(newElo), userId, queueId]);
   }
 
   // updates a player's volatility

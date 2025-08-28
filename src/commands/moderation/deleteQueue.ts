@@ -16,11 +16,11 @@ module.exports = {
 	async execute(interaction: ChatInputCommandInteraction) {
 		try {
 			// delete the queue from the database
-            let queueName = interaction.options.getString('queue-name');
+			let queueName = interaction.options.getString('queue-name');
 			const res = await pool.query('DELETE FROM queues WHERE queue_name = $1 RETURNING queue_name, channel_id, results_channel_id, message_id', [queueName]);
-            if (res.rowCount === 0) {
-                return interaction.reply(`Failed to delete queue ${queueName}.`)
-            } 
+			if (res.rowCount === 0) {
+					return interaction.reply(`Failed to delete queue ${queueName}.`)
+			} 
 			
 			// delete the results channel
 			const resultsChannel = await interaction.client.channels.fetch(res.rows[0].results_channel_id).catch( err => console.error(err));
