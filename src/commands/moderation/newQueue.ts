@@ -96,7 +96,7 @@ module.exports = {
 			);
 
 			await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-			await updateQueueMessage(textChannel);
+			await updateQueueMessage();
 			await interaction.deleteReply();
 		} catch (err: any) {
 			console.error(err);

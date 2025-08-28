@@ -156,7 +156,7 @@ module.exports = {
                         `, [interaction.user.id, queue.rows[0].default_elo, interaction.channelId, queue.rows[0].id]);
                 }
 
-                await updateQueueMessage(interaction.channel as TextChannel);
+                await updateQueueMessage();
                 await matchUpGames();
                 await interaction.followUp({ content: `You ${user.rows[0]?.queue_join_time === null ? "left" : "joined"} the ${queue.rows[0].queue_name} Queue!`, flags: MessageFlags.Ephemeral });
             } catch (err) {

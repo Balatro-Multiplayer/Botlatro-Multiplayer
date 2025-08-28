@@ -60,7 +60,7 @@ module.exports = {
                 `, [helperRole.id, 'null', queueChannel.id, resultsChannel.id, category.id]
 			);
 
-			await updateQueueMessage(queueChannel);
+			await updateQueueMessage();
 
 			await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 			await interaction.deleteReply();
