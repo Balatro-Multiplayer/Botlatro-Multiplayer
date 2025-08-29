@@ -1,5 +1,5 @@
 import { set, update } from "lodash-es";
-import { partyUtils, getUsersInQueue, getCurrentEloRangeForUser, updateCurrentEloRangeForUser, ratingUtils, getQueueChannelId } from "./queryDB";
+import { partyUtils, getUsersInQueue, getCurrentEloRangeForUser, updateCurrentEloRangeForUser, ratingUtils } from "./queryDB";
 import { getQueueSettings } from "./queryDB";
 import { queueUsers } from "./queueHelpers";
 import { get } from "http";
@@ -7,8 +7,6 @@ import { get } from "http";
 // delete old parties every 5 minutes
 export async function partyDeleteCronJob() {
     setInterval(async () =>{
-        console.log('-- running partyDeleteCronJob --');
-
         const parties = await partyUtils.listAllParties();
         const now = new Date();
 
@@ -41,12 +39,14 @@ export async function partyDeleteCronJob() {
 export async function incrementEloCronJob(queueId: number) {
     const queueSettings = await getQueueSettings(queueId, ['elo_search_speed'] );
     const speed = queueSettings.elo_search_speed || 2;
-    setInterval(async () =>{
+    setInterval(async () => {
 
         const queueSettings = await getQueueSettings(queueId, ['elo_search_increment', 'elo_search_speed', 'elo_search_start'] );
         const increment = queueSettings.elo_search_increment || 1;
         const start = queueSettings.elo_search_start || 0;
         const usersInQueue = await getUsersInQueue(queueId);
+
+        if (usersInQueue.length <= 1) return;
 
         let bestMatch: { range: number, userId: string, elo: number }[] = [];
 
@@ -104,7 +104,6 @@ export async function incrementEloCronJob(queueId: number) {
         }
 
         const matchupUsers = (bestMatch.length === 2) ? bestMatch.map(user => user.userId) : [];
-        const queueChannelId = await getQueueChannelId(queueId);
-        queueUsers(matchupUsers, queueChannelId);
+        queueUsers(matchupUsers, queueId);
     }), speed * 1000;
 }

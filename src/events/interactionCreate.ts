@@ -68,7 +68,7 @@ module.exports = {
 
     // Button interactions
     if (interaction.isButton()) {
-        if (interaction.customId.includes('join-queue-') || interaction.customId.includes('leave-queue-')) {
+        if (interaction.customId.includes('leave-queue-')) {
             try {
                 await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
@@ -111,13 +111,9 @@ module.exports = {
                     return;
                 }
 
-                const inQueue = await userInQueue(interaction.user.id, interaction.channel as TextChannel);
+                const inQueue = await userInQueue(interaction.user.id);
                 if (interaction.customId === 'leave-queue' && !inQueue) {
-                    await interaction.followUp({ content: `You're not in this queue.`, flags: MessageFlags.Ephemeral });
-                    return;
-                }
-                if (interaction.customId === 'join-queue' && inQueue) {
-                    await interaction.followUp({ content: `You're already in this queue.`, flags: MessageFlags.Ephemeral });
+                    await interaction.followUp({ content: `You're not in the queue.`, flags: MessageFlags.Ephemeral });
                     return;
                 }
 
@@ -157,7 +153,6 @@ module.exports = {
                 }
 
                 await updateQueueMessage();
-                await matchUpGames();
                 await interaction.followUp({ content: `You ${user.rows[0]?.queue_join_time === null ? "left" : "joined"} the ${queue.rows[0].queue_name} Queue!`, flags: MessageFlags.Ephemeral });
             } catch (err) {
                 console.error(err);
@@ -169,13 +164,13 @@ module.exports = {
             }
         }
         if (interaction.customId === 'check-queued') {
-            const inQueue = await userInQueue(interaction.user.id, interaction.channel as TextChannel);
+            const inQueue = await userInQueue(interaction.user.id);
 
             if (inQueue) {
-                const timeSpent = await timeSpentInQueue(interaction.user.id, interaction.channel as TextChannel)
-                await interaction.reply({ content: `You **are** in the queue!\nJoined queue ${timeSpent}.`, flags: MessageFlags.Ephemeral });
+                const timeSpent = await timeSpentInQueue(interaction.user.id)
+                await interaction.reply({ content: `You are in the queue!\nJoined queue ${timeSpent}.`, flags: MessageFlags.Ephemeral });
             } else {
-                await interaction.reply({ content: `You're **not** currently in this queue.`, flags: MessageFlags.Ephemeral });
+                await interaction.reply({ content: `You are not currently in the queue.`, flags: MessageFlags.Ephemeral });
             }
         }
         if (interaction.customId.startsWith('cancel-')) {

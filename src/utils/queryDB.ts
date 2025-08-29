@@ -195,12 +195,12 @@ export async function closeMatch(matchId: number): Promise<boolean> {
   }
 
 
-// Checks if a user is currently in a specific queue
-export async function userInQueue(userId: string, textChannel: TextChannel): Promise<boolean> {
+// Checks if a user is currently in a queue
+export async function userInQueue(userId: string): Promise<boolean> {
     const response = await pool.query(`
         SELECT * FROM queue_users
-        WHERE user_id = $1 AND queue_channel_id = $2 AND queue_join_time IS NOT NULL
-        `, [userId, textChannel.id]
+        WHERE user_id = $1 AND queue_join_time IS NOT NULL
+        `, [userId]
     );
 
     return response.rows.length > 0;
@@ -407,14 +407,4 @@ export async function updateCurrentEloRangeForUser(userId: string, queueId: numb
     `UPDATE queue_users SET current_elo_range = $1 WHERE user_id = $2 AND queue_id = $3`, 
     [newRange, userId, queueId]
   );
-}
-
-// get queue channel ID from queue ID
-export async function getQueueChannelId(queueId: number): Promise<string> {
-  const response = await pool.query(
-    `SELECT channel_id FROM queues WHERE id = $1`, 
-    [queueId]
-  );
-  if (response.rowCount === 0) throw new Error(`Queue with id ${queueId} does not exist.`);
-  return response.rows[0].channel_id;
 }
