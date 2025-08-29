@@ -58,7 +58,7 @@ export async function updateQueueMessage(): Promise<Message | undefined> {
 
     const selectRow = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
         new StringSelectMenuBuilder()
-            .setCustomId('select_queue')
+            .setCustomId('join_queue')
             .setPlaceholder('Join Queue')
             .addOptions(options)
             .setMinValues(1)
