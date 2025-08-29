@@ -55,15 +55,12 @@ module.exports = {
 			// Yes I know I should just use null directly here for the msg id I'll fix it tomorrow - jeff at midnight
 			await pool.query(`
                 INSERT INTO settings
-				(helper_role_id, queue_message_id, queue_channel_id, queue_results_channel_id, queue_category_id)
-				VALUES ($1,$2,$3,$4,$5)
-                `, [helperRole.id, 'null', queueChannel.id, resultsChannel.id, category.id]
+				(helper_role_id, queue_channel_id, queue_results_channel_id, queue_category_id)
+				VALUES ($1,$2,$3,$4)
+                `, [helperRole.id, queueChannel.id, resultsChannel.id, category.id]
 			);
 
-			await updateQueueMessage();
-
-			await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-			await interaction.deleteReply();
+			await interaction.reply({ content: 'Successfully setup queue bot! Use /new-queue to setup a queue and queue message.', flags: MessageFlags.Ephemeral });
 		} catch (err: any) {
 			console.error(err);
 			const errorMsg = err.detail || err.message || 'Unknown';

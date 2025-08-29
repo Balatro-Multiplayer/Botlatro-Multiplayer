@@ -4,10 +4,7 @@ declare module 'psqlDB' {
   export interface Queues {
     id: number;
     queue_name: string;
-    category_id: string;
-    channel_id: string;
-    results_channel_id: string;
-    message_id?: string | null;
+    queue_desc: string;
     members_per_team: number;
     number_of_teams: number;
     elo_search_start: number;

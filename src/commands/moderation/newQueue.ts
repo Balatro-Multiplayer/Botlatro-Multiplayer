@@ -13,6 +13,11 @@ module.exports = {
 				.setDescription('Name of the queue')
 				.setRequired(true)
 				.setMaxLength(255))
+		.addStringOption(option =>
+			option.setName('queue-desc')
+				.setDescription('A description for the queue')
+				.setRequired(true)
+				.setMaxLength(100))
 		.addIntegerOption(option =>
 			option.setName('default-elo')
 				.setDescription('Default ELO for new players')
@@ -63,6 +68,7 @@ module.exports = {
 	async execute(interaction: ChatInputCommandInteraction) {
 		// required 
 		const queueName = interaction.options.getString('queue-name', true);
+		const queueDesc = interaction.options.getString('queue-desc', true);
 		const defaultElo = interaction.options.getInteger('default-elo', true);
 		// optional
 		const membersPerTeam = interaction.options.getInteger('members-per-team', false) ?? 1;
@@ -75,14 +81,13 @@ module.exports = {
 		const maxPartyEloDifference = interaction.options.getInteger('max-party-elo-difference', false) ?? Math.floor(defaultElo / 2);
 
 		try {
-			const textChannel = interaction.channel as TextChannel;
-
 			await pool.query(`
                 INSERT INTO queues
-				(queue_name, members_per_team, number_of_teams, elo_search_start, elo_search_increment, elo_search_speed, default_elo, minimum_elo, maximum_elo, max_party_elo_difference)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+				(queue_name, queue_desc, members_per_team, number_of_teams, elo_search_start, elo_search_increment, elo_search_speed, default_elo, minimum_elo, maximum_elo, max_party_elo_difference, locked)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
                 `, [
 					queueName,
+					queueDesc,
 					membersPerTeam,
 					numberOfTeams,
 					eloSearchStart,
@@ -91,7 +96,8 @@ module.exports = {
 					defaultElo,
 					minimumElo ?? null,
 					maximumElo ?? null,
-                    maxPartyEloDifference ?? null
+                    maxPartyEloDifference ?? null,
+					false
 				]
 			);
 
