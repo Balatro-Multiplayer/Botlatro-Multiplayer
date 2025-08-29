@@ -309,8 +309,10 @@ export async function getPlayerDataLive(matchId: number) {
   }
 
   // gets a player's current ELO
-  export async function getPlayerElo(userId: string): Promise<number | null> {
-    return null;
+  export async function getPlayerElo(userId: string, queueId: number): Promise<number | null> {
+    const response = await pool.query(`SELECT elo FROM queue_users WHERE user_id = $1 AND queue_id = $2`, [userId, queueId]);
+    if (response.rowCount === 0) return null;
+    return response.rows[0].elo;
   }
 
   // gets a player's current volatility
@@ -386,4 +388,33 @@ export async function updateTeamResults(
   }
 
   return teamResults;
+}
+
+// IMPORTANT: you must already have checked that they are in the queue
+// get the current elo range for a user in a specific queue 
+export async function getCurrentEloRangeForUser(userId: string, queueId: number): Promise<number> {
+  const response = await pool.query(
+    `SELECT current_elo_range FROM queue_users WHERE user_id = $1 AND queue_id = $2`, 
+    [userId, queueId]
+  );
+
+  return response.rows[0].current_elo_range || 0;
+}
+
+// update the current elo range for a user in a specific queue
+export async function updateCurrentEloRangeForUser(userId: string, queueId: number, newRange: number): Promise<void> {
+  await pool.query(
+    `UPDATE queue_users SET current_elo_range = $1 WHERE user_id = $2 AND queue_id = $3`, 
+    [newRange, userId, queueId]
+  );
+}
+
+// get queue channel ID from queue ID
+export async function getQueueChannelId(queueId: number): Promise<string> {
+  const response = await pool.query(
+    `SELECT channel_id FROM queues WHERE id = $1`, 
+    [queueId]
+  );
+  if (response.rowCount === 0) throw new Error(`Queue with id ${queueId} does not exist.`);
+  return response.rows[0].channel_id;
 }
