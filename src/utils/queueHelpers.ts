@@ -181,6 +181,9 @@ function getCombinations<T>(arr: T[], k: number): T[][] {
 
 // Queues players together and creates a match channel for them
 export async function queueUsers(userIds: string[], queueId: string): Promise<void> {
+    if (userIds.length === 0 || !queueId) {
+        throw new Error('Wrong parameters provided for creating a match');
+    };
     const queue = await pool.query('SELECT id, category_id FROM queues WHERE channel_id = $1', [queueId]);
 
     const client = (await import('../index')).default;

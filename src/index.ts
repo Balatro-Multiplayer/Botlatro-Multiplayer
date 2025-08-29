@@ -79,4 +79,5 @@ client.login(process.env.DISCORD_TOKEN);
 import { partyDeleteCronJob } from './utils/cronJobs';
 partyDeleteCronJob();
 
+
 export default client;
