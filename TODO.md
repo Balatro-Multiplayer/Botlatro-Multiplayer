@@ -4,13 +4,10 @@
 - 2v2/FFA Queue System
   - Teams should be balanced by MMR, without splitting pre-queues teams up
   - Ability to have queues for FFA (1v1v1v1), this queue should be able to create a match for anywhere between a min and max number of players (where they are put into a game after the min is fufilled and a certain amount of time has passed, or instantly when max is filled)
-- Party System
 - Ability to have queue matches that are more than one game (Bo3 or Bo5)
 
 ## Match Things
-- Vote system for winning matches
 - Stake banning system
-- Results embed needs to have information in it when a match is completed.
 - Roles need to be assigned to users based on their MMR
   - Roles need to be assignable from literal MMR scores as well as leaderboard positions
 - A button available to players in queue that calls a helper to the queue (the button is there but doesn't work yet)

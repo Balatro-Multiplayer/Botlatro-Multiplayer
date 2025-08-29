@@ -10,9 +10,7 @@ module.exports = {
 
 		try {
 			await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
 			await updateQueueMessage();
-			
 			await interaction.deleteReply();
 		} catch (err: any) {
 			console.error(err);

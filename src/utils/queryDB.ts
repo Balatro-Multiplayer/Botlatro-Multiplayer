@@ -56,18 +56,22 @@ export async function getMatchResultsChannel(matchId: number): Promise<TextChann
   throw new Error(`Channel is not a TextChannel for match ID ${matchId}`);
 }
 
-// whats the point of this function? - casjb
-// Get users in a specified queue channel
-export async function getUsersInQueue(textChannel: TextChannel): Promise<string[]> {
-  const response = await pool.query(`
-    SELECT u.user_id FROM queue_users u
-        JOIN queues q ON u.queue_channel_id = q.channel_id
-        WHERE q.channel_id = $1 AND u.queue_join_time IS NOT NULL`,
-    [textChannel.id]
+// Get users in a specified queue
+export async function getUsersInQueue(queueId: number): Promise<string[]> {
+  const response = await pool.query(
+    `
+    SELECT u.user_id 
+    FROM queue_users u
+    JOIN queues q ON u.queue_id = q.id
+    WHERE u.queue_join_time IS NOT NULL
+      AND q.id = $1
+    `,
+    [queueId]
   );
 
   return response.rows.map(row => row.user_id);
 }
+
 
 // Checks if a user is in a match
 export async function userInMatch(userId: string): Promise<boolean> {

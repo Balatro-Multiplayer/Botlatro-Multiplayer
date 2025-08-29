@@ -1,11 +1,12 @@
 import { pool } from '../db';
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, EmbedBuilder, TextChannel, PermissionFlagsBits, Message } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, EmbedBuilder, TextChannel, PermissionFlagsBits, Message, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, APIEmbedField } from 'discord.js';
 import { sendMatchInitMessages } from './matchHelpers';
-import { userInQueue } from './queryDB';
+import { getUsersInQueue, userInQueue } from './queryDB';
 import client from '../index';
+import { Queues } from 'psqlDB';
 
 // Updates or sends a new queue message for the specified text channel  
-export async function updateQueueMessage(): Promise<Message> {
+export async function updateQueueMessage(): Promise<Message | undefined> {
     const response = await pool.query(
         'SELECT queue_channel_id, queue_message_id FROM settings',
     )
@@ -15,10 +16,42 @@ export async function updateQueueMessage(): Promise<Message> {
         queue_message_id: queueMessageId,
     } = response.rows[0];
 
-     const embed = new EmbedBuilder()
+    const client = (await import('../index')).default;
+
+    const queueListResponse = await pool.query(`SELECT * from queues`);
+
+    if (queueListResponse.rowCount == 0) return;
+    let queueList: Queues[] = queueListResponse.rows;
+    queueList = queueList.filter((queue) => !queue.locked);
+    const queueFields: APIEmbedField[] = await Promise.all(queueList.map(async (queue) => {
+        console.log(queue);
+        const usersInQueue = await getUsersInQueue(queue.id);
+        return { name: queue.queue_name, value: `${usersInQueue.length}`, inline: true };
+    }));
+
+    const embed = new EmbedBuilder()
         .setTitle(`Balatro Multiplayer Matchmaking Queue`)
-        .setDescription(`Use the Select Menu to join the queue!`)
+        .setDescription(`Use the Select Menu to join the queue!\n\n**Current Players In Queue**`)
+        .addFields(queueFields)
         .setColor('#ff0000');
+
+    const options: StringSelectMenuOptionBuilder[] = queueList.map((queue) => {
+        return new StringSelectMenuOptionBuilder()
+            .setLabel(queue.queue_name.slice(0, 100))
+            .setDescription((queue.queue_desc || '').slice(0, 100))
+            .setValue(queue.id.toString())
+    });
+
+    if (options.length == 0) return;
+
+    const selectRow = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
+        new StringSelectMenuBuilder()
+            .setCustomId('select_queue')
+            .setPlaceholder('Join Queue')
+            .addOptions(options)
+            .setMinValues(1)
+            .setMaxValues(queueList.length)
+    );
 
     const leaveQueue = new ButtonBuilder()
         .setCustomId(`leave-queue`)
@@ -30,18 +63,18 @@ export async function updateQueueMessage(): Promise<Message> {
         .setLabel('Check Queued State')
         .setStyle(ButtonStyle.Secondary);
 
-    const row = new ActionRowBuilder<ButtonBuilder>()
+    const buttonRow = new ActionRowBuilder<ButtonBuilder>()
         .addComponents(leaveQueue, checkQueued);
 
     let msg;
-    if (queueMessageId && queueMessageId != 'null') {
-        msg = await queueChannelId.messages.fetch(queueMessageId);
-        await msg.edit({ embeds: [embed], components: [row] });
+    const queueChannel = (await client.channels.fetch(queueChannelId)) as TextChannel;
+    if (queueMessageId) {
+        msg = await queueChannel.messages.fetch(queueMessageId);
+        await msg.edit({ embeds: [embed], components: [selectRow, buttonRow] });
         return msg;
     } 
 
-    const queueChannel = (await client.channels.fetch(queueChannelId)) as TextChannel;
-    msg = await queueChannel.send({ embeds: [embed], components: [row] });
+    msg = await queueChannel.send({ embeds: [embed], components: [selectRow, buttonRow]  });
     await pool.query(
         'UPDATE settings SET queue_message_id = $1',
         [msg.id]
@@ -108,8 +141,6 @@ export async function matchUpGames(): Promise<void> {
         }
 
         possibleMatches.sort((a, b) => a.eloDifference - b.eloDifference);
-
-        console.log(possibleMatches);
 
         const usedUsers: Set<string> = new Set();
         for (const match of possibleMatches) {
