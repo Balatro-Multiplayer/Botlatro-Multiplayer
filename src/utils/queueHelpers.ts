@@ -2,8 +2,21 @@ import { pool } from '../db';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, EmbedBuilder, TextChannel, PermissionFlagsBits, Message, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, APIEmbedField } from 'discord.js';
 import { sendMatchInitMessages } from './matchHelpers';
 import { getUsersInQueue, userInQueue } from './queryDB';
-import client from '../index';
 import { Queues } from 'psqlDB';
+import { incrementEloCronJob } from './cronJobs';
+
+export async function startUpQueues(): Promise<void> {
+    const queueListResponse = await pool.query(`SELECT * from queues`);
+    if (queueListResponse.rowCount == 0) return;
+
+    let queueList: Queues[] = queueListResponse.rows;
+    queueList = queueList.filter((queue) => !queue.locked);
+    
+    for (let queue of queueList) {
+        await incrementEloCronJob(queue.id);
+        console.log(`Started queue ${queue.queue_name}`);
+    }
+}
 
 // Updates or sends a new queue message for the specified text channel  
 export async function updateQueueMessage(): Promise<Message | undefined> {
@@ -19,7 +32,6 @@ export async function updateQueueMessage(): Promise<Message | undefined> {
     const client = (await import('../index')).default;
 
     const queueListResponse = await pool.query(`SELECT * from queues`);
-
     if (queueListResponse.rowCount == 0) return;
     let queueList: Queues[] = queueListResponse.rows;
     queueList = queueList.filter((queue) => !queue.locked);
@@ -180,11 +192,14 @@ function getCombinations<T>(arr: T[], k: number): T[][] {
 
 
 // Queues players together and creates a match channel for them
-export async function queueUsers(userIds: string[], queueId: string): Promise<void> {
+export async function queueUsers(userIds: string[], queueId: number): Promise<void> {
     if (userIds.length === 0 || !queueId) {
         throw new Error('Wrong parameters provided for creating a match');
     };
-    const queue = await pool.query('SELECT id, category_id FROM queues WHERE channel_id = $1', [queueId]);
+    const queue = await pool.query('SELECT id FROM queues WHERE id = $1', [queueId]);
+    const settings = await pool.query('SELECT * FROM settings');
+    if (!settings) return;
+    const categoryId = settings.rows[0].queue_category_id;
 
     const client = (await import('../index')).default;
     const guild = client.guilds.cache.get(process.env.GUILD_ID!) 
@@ -193,7 +208,7 @@ export async function queueUsers(userIds: string[], queueId: string): Promise<vo
     const channel = await guild.channels.create({
         name: "reserved-match-channel",
         type: ChannelType.GuildText,
-        parent: queue.rows[0].category_id,
+        parent: categoryId,
         permissionOverwrites: [
             {
                 id: guild.roles.everyone,
@@ -246,12 +261,12 @@ export async function queueUsers(userIds: string[], queueId: string): Promise<vo
     await sendMatchInitMessages(matchId, channel)
 }
 
-export async function timeSpentInQueue(userId: string, textChannel: TextChannel): Promise<string | null> {
-    if (!(await userInQueue(userId, textChannel))) return null;
+export async function timeSpentInQueue(userId: string): Promise<string | null> {
+    if (!(await userInQueue(userId))) return null;
 
     const response = await pool.query(
-        `SELECT queue_join_time FROM queue_users WHERE user_id = $1 AND queue_channel_id = $2`,
-        [userId, textChannel.id]
+        `SELECT queue_join_time FROM queue_users WHERE user_id = $1`,
+        [userId]
     );
 
     if (response.rows.length === 0) return null;
