@@ -15,7 +15,6 @@ export async function calculateGlicko2(queueId: number, matchId: number, teamRes
         vol: 0.08 
     });
 
-
     // Create Glicko-2 players for each participant using stored data
     const Player1 = glick.makePlayer(
         teamResults.teams[0].players[0].elo ?? settings.default_elo,
