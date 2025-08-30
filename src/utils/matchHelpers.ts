@@ -102,7 +102,7 @@ export async function getTeamsInMatch(matchId: number): Promise<{ team: number, 
 }
 
 
-export async function sendMatchInitMessages(matchId: number, textChannel: TextChannel) {
+export async function sendMatchInitMessages(queueId: number, matchId: number, textChannel: TextChannel) {
 
   const teamData = await getTeamsInMatch(matchId);
   // This is just for testing the layout, ^ the above does it properly
@@ -114,8 +114,8 @@ export async function sendMatchInitMessages(matchId: number, textChannel: TextCh
 
     let teamQueueUsersData = await pool.query(
       `SELECT * FROM queue_users
-      WHERE user_id = ANY($1)`,
-      [t.users.map((u: any) => u.user_id)])
+      WHERE user_id = ANY($1) AND queue_id = $2`,
+      [t.users.map((u: any) => u.user_id), queueId])
 
     let teamString = ``;
     let onePersonTeam = false;
@@ -165,6 +165,7 @@ export async function sendMatchInitMessages(matchId: number, textChannel: TextCh
         .setColor(0xFF0000);
      
   const randomTeams = _.shuffle(teamFields);
+  console.log(randomTeams);
 
   const deckEmbed = new EmbedBuilder()
         .setTitle(`Deck`)
@@ -197,7 +198,7 @@ export async function endMatch(matchId: number): Promise<boolean> {
       }))
     }
     
-    teamResults = await calculateGlicko2(matchId, teamResultsData);
+    teamResults = await calculateGlicko2(parseInt(queueId), matchId, teamResultsData);
   }
 
   const resultsEmbed = new EmbedBuilder()
@@ -251,7 +252,7 @@ export async function endMatch(matchId: number): Promise<boolean> {
     { name: lossUserLabels.join(" / "), value: lossUserDescs.join("\n"), inline: true }
   );
 
-  const resultsChannel = await getMatchResultsChannel(matchId);
+  const resultsChannel = await getMatchResultsChannel();
   if (!resultsChannel) { console.error(`No results channel found for match ${matchId}`); return false; }
 
   await closeMatch(matchId)

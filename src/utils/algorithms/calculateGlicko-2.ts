@@ -1,10 +1,9 @@
 import { Player, Glicko2 } from 'glicko2'
-import { getQueueSettings, getMatchData, getPlayerDataLive, partyUtils, ratingUtils, updateTeamResults } from '.././queryDB'
-import { pool } from '../../db'
+import { getQueueSettings, getMatchData, ratingUtils, getWinningTeamFromMatch } from '.././queryDB'
 import type { teamResults } from 'psqlDB';
 
 // ONLY 1v1 games use this function - team and ffa games use openSkill
-export async function calculateGlicko2(matchId: number, teamResults: teamResults): Promise<teamResults> {
+export async function calculateGlicko2(queueId: number, matchId: number, teamResults: teamResults): Promise<teamResults> {
 
     const matchData = await getMatchData(matchId);
     const settings = await getQueueSettings(matchData.queue_id);
@@ -43,8 +42,8 @@ export async function calculateGlicko2(matchId: number, teamResults: teamResults
     const ratingChange2 = parseFloat((newRating2 - oldRating2).toFixed(1))
 
     // Update the database with new ratings for both players
-    await ratingUtils.updatePlayerGlickoAll(teamResults.teams[0].players[0].id, newRating1, Player1.getRd(), Player1.getVol());
-    await ratingUtils.updatePlayerGlickoAll(teamResults.teams[1].players[0].id, newRating2, Player2.getRd(), Player2.getVol());
+    await ratingUtils.updatePlayerGlickoAll(queueId, teamResults.teams[0].players[0].user_id, newRating1, Player1.getRd(), Player1.getVol());
+    await ratingUtils.updatePlayerGlickoAll(queueId, teamResults.teams[1].players[0].user_id, newRating2, Player2.getRd(), Player2.getVol());
 
     // update TeamResults object with new ratings and changes
     teamResults.teams[0].players[0].elo = newRating1;
@@ -56,6 +55,14 @@ export async function calculateGlicko2(matchId: number, teamResults: teamResults
     teamResults.teams[1].players[0].volatility = Player2.getVol();
     teamResults.teams[1].players[0].rating_deviation = Player2.getRd();
 
-    // const teamResultsReturn = await updateTeamResults(teamResults, ['elo', 'rating_deviation', 'volatility']);
+    const winningTeam = await getWinningTeamFromMatch(matchId);
+    for (const team of teamResults.teams) {
+        if (team.id === winningTeam) {
+            team.score = 1;
+        } else {
+            team.score = 0;
+        }
+    }
+
     return teamResults;
 }
