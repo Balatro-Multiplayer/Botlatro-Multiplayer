@@ -216,7 +216,7 @@ export async function userInQueue(userId: string): Promise<boolean> {
 }
 
 // gets all settings for a specific queue
-export async function getQueueSettings(queueId: number, fields: (keyof Queues)[] = []): Promise<any> {
+export async function getQueueSettings(queueId: number, fields: (keyof Queues)[] = []): Promise<Queues> {
   const selectFields = fields.length > 0 ? fields.join(", ") : "*";
   const response = await pool.query(`
     SELECT ${selectFields} FROM queues WHERE id = $1

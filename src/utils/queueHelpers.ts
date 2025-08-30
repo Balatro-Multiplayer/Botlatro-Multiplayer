@@ -4,6 +4,7 @@ import { sendMatchInitMessages } from './matchHelpers';
 import { getUsersInQueue, userInQueue } from './queryDB';
 import { Queues } from 'psqlDB';
 import { incrementEloCronJob } from './cronJobs';
+import { QueryResult } from 'pg';
 
 export async function startUpQueues(): Promise<void> {
     const queueListResponse = await pool.query(`SELECT * from queues`);
@@ -195,7 +196,7 @@ export async function queueUsers(userIds: string[], queueId: number): Promise<vo
     if (userIds.length === 0 || !queueId) {
         throw new Error('Wrong parameters provided for creating a match');
     };
-    const queue = await pool.query('SELECT id FROM queues WHERE id = $1', [queueId]);
+    const queue: QueryResult<Queues> = await pool.query('SELECT id FROM queues WHERE id = $1', [queueId]);
     const settings = await pool.query('SELECT * FROM settings');
     if (!settings) return;
     const categoryId = settings.rows[0].queue_category_id;

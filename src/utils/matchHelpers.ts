@@ -2,12 +2,13 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelec
 import { pool } from '../db';
 import client from '../index';
 import _ from 'lodash-es';
-import { closeMatch, getMatchResultsChannel, getQueueIdFromMatch, isQueueGlicko, getWinningTeamFromMatch } from './queryDB';
+import { closeMatch, getMatchResultsChannel, getQueueIdFromMatch, isQueueGlicko, getWinningTeamFromMatch, getQueueSettings } from './queryDB';
 import { Users } from 'psqlDB';
 import dotenv from 'dotenv';
 import { calculateGlicko2 } from './algorithms/calculateGlicko-2';
 import { teamResults, QueueUsers, matchUsers } from 'psqlDB';
 import { get } from 'http';
+import { QueryResult } from 'pg';
 require('dotenv').config();
 
 dotenv.config();
@@ -60,16 +61,22 @@ export function getRandomStake(): string {
 }
 
 export async function getTeamsInMatch(matchId: number): Promise<{ team: number, users: matchUsers[], winRes: number }[]> {
-  const matchUserRes = await pool.query(`
+  const matchUserRes: QueryResult<matchUsers> = await pool.query(`
     SELECT * FROM match_users
     WHERE match_id = $1
   `, [matchId]);
-  const queueUserRes = await Promise.all(matchUserRes.rows.map(async (matchUser: any) => {
+
+  const queueId = await getQueueIdFromMatch(matchId);
+
+  const queueUserRes = await Promise.all(matchUserRes.rows.map(async (matchUser: matchUsers) => {
     return await pool.query(`
       SELECT * FROM queue_users
-      WHERE user_id = $1
-    `, [matchUser.user_id]);
+      WHERE user_id = $1 AND queue_id = $2
+    `, [matchUser.user_id, queueId]);
   }));
+
+  console.log(queueUserRes[0].rows[0]);
+
   const userFull: matchUsers[] = matchUserRes.rows.map((matchUser, i) => ({
     ...queueUserRes[i].rows[0], // properties from queue_users
     ...matchUser                // properties from match_users 
@@ -109,6 +116,7 @@ export async function sendMatchInitMessages(queueId: number, matchId: number, te
   // const teamData = [{ team: 1, users: [{user_id: '122568101995872256', elo: 250}] }, {team: 2, users: [{user_id: '122568101995872256', elo: 500}] }];
   const queueTeamSelectOptions: any[] = [];
   let teamPingString = ``;
+  const queueName = await getQueueSettings(queueId, ['queue_name']);
 
   let teamFields: any[] = teamData.map(async (t: any) => {
 
@@ -160,7 +168,7 @@ export async function sendMatchInitMessages(queueId: number, matchId: number, te
   )
 
   const eloEmbed = new EmbedBuilder()
-        .setTitle(`Match #${matchId}`)
+        .setTitle(`${queueName.queue_name} Match #${matchId}`)
         .setFields(teamFields)
         .setColor(0xFF0000);
      
@@ -185,6 +193,7 @@ export async function endMatch(matchId: number): Promise<boolean> {
   if (!winningTeamId) { console.error(`No winning team found for match ${matchId}`); return false; }
 
   const queueId = await getQueueIdFromMatch(matchId);
+  const queueName = await getQueueSettings(parseInt(queueId), ['queue_name']);
   const isGlicko = await isQueueGlicko(queueId);
 
   let teamResults: teamResults | null = null;
@@ -202,7 +211,7 @@ export async function endMatch(matchId: number): Promise<boolean> {
   }
 
   const resultsEmbed = new EmbedBuilder()
-    .setTitle(`🏆 Winner For Match #${matchId} 🏆`)
+    .setTitle(`🏆 Winner For ${queueName.queue_name} Match #${matchId} 🏆`)
     .setColor("Gold");
 
   // running for every team then combining at the end
