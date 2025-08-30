@@ -3,21 +3,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, EmbedBuilder
 import { sendMatchInitMessages } from './matchHelpers';
 import { getUsersInQueue, userInQueue } from './queryDB';
 import { Queues } from 'psqlDB';
-import { incrementEloCronJob } from './cronJobs';
 import { QueryResult } from 'pg';
-
-export async function startUpQueues(): Promise<void> {
-    const queueListResponse = await pool.query(`SELECT * from queues`);
-    if (queueListResponse.rowCount == 0) return;
-
-    let queueList: Queues[] = queueListResponse.rows;
-    queueList = queueList.filter((queue) => !queue.locked);
-    
-    for (let queue of queueList) {
-        await incrementEloCronJob(queue.id);
-        console.log(`Started queue ${queue.queue_name}`);
-    }
-}
 
 // Updates or sends a new queue message for the specified text channel  
 export async function updateQueueMessage(): Promise<Message | undefined> {
@@ -261,12 +247,12 @@ export async function queueUsers(userIds: string[], queueId: number): Promise<vo
     await sendMatchInitMessages(queueId, matchId, channel)
 }
 
-export async function timeSpentInQueue(userId: string): Promise<string | null> {
+export async function timeSpentInQueue(userId: string, queueId: number): Promise<string | null> {
     if (!(await userInQueue(userId))) return null;
 
     const response = await pool.query(
-        `SELECT queue_join_time FROM queue_users WHERE user_id = $1`,
-        [userId]
+        `SELECT queue_join_time FROM queue_users WHERE user_id = $1 AND queue_id = $2`,
+        [userId, queueId]
     );
 
     if (response.rows.length === 0) return null;

@@ -10,6 +10,65 @@ export async function getQueueNames(): Promise<string[]> {
   return res.rows.map(row => row.queue_name);
 }
 
+export async function getQueueIdFromName(queueName: string): Promise<string> {
+  const res = await pool.query(`
+    SELECT id FROM queues WHERE queue_name = $1
+    `, [queueName]);
+
+    return res.rows[0].id;
+}
+
+// Get all queues that are not locked
+export async function getActiveQueues(): Promise<Queues[]> {
+  const res = await pool.query('SELECT * FROM queues WHERE locked = false');
+  return res.rows;
+}
+
+// Get all queues that a user is in
+export async function getUserQueues(userId: string): Promise<Queues[]> {
+  const res = await pool.query(`
+    SELECT q.*
+    FROM queues q
+    JOIN queue_users uq ON uq.queue_id = q.id
+    WHERE uq.user_id = $1 AND uq.queue_join_time IS NOT NULL
+  `, [userId]);
+
+  return res.rows;
+}
+
+// Set a priority queue for a user
+export async function setUserPriorityQueue(userId: string, queueId: number): Promise<boolean> {
+  const response = await pool.query(`
+    UPDATE users
+    SET priority_queue_id = $2
+    WHERE user_id = $1
+    RETURNING *
+  `, [userId, queueId]);
+
+  if (response.rows.length < 1) {
+    await pool.query(
+        `INSERT INTO users (user_id, priority_queue_id)
+        VALUES ($1, $2)`,
+        [userId, queueId]
+    );
+  }
+
+  if (response.rowCount === 0) {
+    return false;
+  } 
+  return true;
+}
+
+export async function getUserPriorityQueueId(userId: string): Promise<number | null> {
+  const res = await pool.query(`
+    SELECT priority_queue_id 
+    FROM users
+    WHERE user_id = $1
+  `, [userId]);
+
+  return res.rows[0].priority_queue_id;
+}
+
 // Get the match text channel
 export async function getMatchChannel(matchId: number): Promise<TextChannel | null> {
   const { rows, rowCount } = await pool.query(`

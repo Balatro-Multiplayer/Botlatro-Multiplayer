@@ -42,6 +42,7 @@ declare module 'psqlDB' {
   export interface Users {
     id: number;
     user_id: string;
+    priority_queue_id: number;
     joined_party_id?: string | null;
   }
 
@@ -61,6 +62,7 @@ declare module 'psqlDB' {
     games_played: number;
     win_streak: number;
     peak_win_streak: number;
+    current_elo_range: string[];
     queue_join_time?: Date | null;
   }
 
@@ -90,6 +92,8 @@ declare module 'psqlDB' {
   export type Settings = {
     singleton: boolean;
     queue_channel_id: string;
+    queue_message_id: string;
+    queue_category_id: string;
     helper_role_id: string;
   }
 }
