@@ -43,68 +43,69 @@ module.exports = {
 
     // Select Menu Interactions
     if (interaction.isStringSelectMenu()) {
-        if (interaction.customId == 'join-queue') {
+        console.log(interaction.customId);
+       if (interaction.customId === "join-queue") {
             await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-            // Fetch the queue data linked to the channel id
-            const queue: QueryResult<Queues> = await pool.query(
-                `SELECT * FROM queues WHERE channel_id = $1`, 
-                [interaction.channelId]);
+            const selectedQueueIds = interaction.values;
+            const allQueues: QueryResult<Queues> = await pool.query(`SELECT * FROM queues`);
 
-            // checks that occur if a user is in a party:
+            // party checks
             const partyId = await partyUtils.getUserParty(interaction.user.id);
             if (partyId) {
-                // size of party check
-                const partyList = partyId ? await partyUtils.getPartyUserList(partyId) : null;
-                if (partyList && partyList.length > queue.rows[0].members_per_team) {
-                    await interaction.followUp({ content: `Your party has too many members for this queue.`, flags: MessageFlags.Ephemeral });
-                    return;
+                const partyList = await partyUtils.getPartyUserList(partyId);
+                for (let qId of selectedQueueIds) {
+                    const queueId = parseInt(qId);
+                    const queue = allQueues.rows.find(q => q.id === queueId);
+                    if (queue && partyList && partyList.length > queue.members_per_team) {
+                        await interaction.followUp({
+                            content: `Your party has too many members for the ${queue.queue_name} queue.`,
+                            flags: MessageFlags.Ephemeral,
+                        });
+                        return;
+                    }
                 }
 
-                // party leader check
-                const isLeader = await pool.query(`SELECT is_leader FROM party_users WHERE user_id = $1`, [interaction.user.id]);
+                const isLeader = await pool.query(
+                    `SELECT is_leader FROM party_users WHERE user_id = $1`,
+                    [interaction.user.id]
+                );
                 if (!(isLeader?.rows[0]?.is_leader ?? null)) {
-                    await interaction.followUp({ content: `You're not the party leader.`, flags: MessageFlags.Ephemeral });
+                    await interaction.followUp({
+                        content: `You're not the party leader.`,
+                        flags: MessageFlags.Ephemeral,
+                    });
                     return;
                 }
 
-                //TODO: add ban check for every party member, also add ban check for solo queuers
+                // TODO: check for bans
             }
 
+            // in match check
             const inMatch = await userInMatch(interaction.user.id);
             if (inMatch) {
                 const matchId = await pool.query(
-                `SELECT match_id FROM match_users WHERE user_id = $1`,
-                [interaction.user.id]);
-
+                    `SELECT match_id FROM match_users WHERE user_id = $1`,
+                    [interaction.user.id]
+                );
                 const matchData = await pool.query(
-                `SELECT * FROM matches WHERE id = $1`,
-                [matchId.rows[0].match_id]);
+                    `SELECT * FROM matches WHERE id = $1`,
+                    [matchId.rows[0].match_id]
+                );
 
-                await interaction.followUp({ content: `You're already in a match! <#${matchData.rows[0].channel_id}>`, flags: MessageFlags.Ephemeral });
+                await interaction.followUp({
+                    content: `You're already in a match! <#${matchData.rows[0].channel_id}>`,
+                    flags: MessageFlags.Ephemeral,
+                });
                 return;
             }
 
-            // Update the user's queue status and join with the queues table based on channel id
-            const user = await pool.query(`
-                UPDATE queue_users
-                SET queue_join_time = 
-                    CASE 
-                        WHEN $1 AND queue_users.queue_join_time IS NULL THEN NOW()
-                        ELSE NULL
-                    END
-                FROM users
-                WHERE queue_users.user_id = users.user_id
-                    AND queue_users.queue_id = $2
-                    AND queue_users.user_id = $3
-                RETURNING queue_users.*;
-                `, [interaction.customId.includes('join-queue-'), interaction.channelId, interaction.user.id]);
-
-            // Ensure user exists and create if not
+            // ensure user exists, if it doesn't, create
             const matchUser = await pool.query(
                 "SELECT * FROM users WHERE user_id = $1",
                 [interaction.user.id]
             );
+
             if (matchUser.rows.length < 1) {
                 await pool.query(
                     "INSERT INTO users (user_id) VALUES ($1)",
@@ -112,17 +113,49 @@ module.exports = {
                 );
             }
 
-            // Ensure user exists for this queue and create it if not
-            if (user.rows.length < 1) {
-                await pool.query(`
-                    INSERT INTO queue_users (user_id, elo, peak_elo, queue_channel_id, queue_id, queue_join_time)
-                    VALUES ($1, $2::real, $2::real, $3, $4, NOW())
-                    `, [interaction.user.id, queue.rows[0].default_elo, interaction.channelId, queue.rows[0].id]);
+            await pool.query(`
+                UPDATE queue_users
+                SET queue_join_time = NULL
+                WHERE user_id = $1`,
+                [interaction.user.id]
+            );
+
+            const joinedQueues: string[] = [];
+            for (const qId of selectedQueueIds) {
+                const queueId = parseInt(qId);
+                const queue = allQueues.rows.find(q => q.id === queueId);
+                if (!queue) continue;
+
+                const res = await pool.query(
+                    `UPDATE queue_users
+                    SET queue_join_time = NOW()
+                    WHERE user_id = $1 AND queue_id = $2
+                    RETURNING *;`,
+                    [interaction.user.id, queueId]
+                );
+
+                // if not already in that queue, insert
+                if (res.rows.length < 1) {
+                    await pool.query(
+                        `INSERT INTO queue_users (user_id, elo, peak_elo, queue_id, queue_join_time)
+                        VALUES ($1, $2::real, $2::real, $3, NOW())`,
+                        [interaction.user.id, queue.default_elo, queueId]
+                    );
+                }
+
+                joinedQueues.push(queue.queue_name);
             }
 
             await updateQueueMessage();
-            await interaction.followUp({ content: `You ${user.rows[0]?.queue_join_time === null ? "left" : "joined"} the ${queue.rows[0].queue_name} Queue!`, flags: MessageFlags.Ephemeral });
+
+            await interaction.followUp({
+                content: joinedQueues.length > 0
+                    ? `You joined: ${joinedQueues.join(", ")}`
+                    : "You left the queue.",
+                flags: MessageFlags.Ephemeral,
+            });
         }
+
         if (interaction.values[0].includes('winmatch_')) {
             const customSelId = interaction.values[0];
             const matchId = parseInt(customSelId.split('_')[1]);
@@ -135,7 +168,7 @@ module.exports = {
                     const customSelId = interaction.values[0];
                     const matchData: string[] = customSelId.split('_');
                     const matchId = matchData[1];
-                    pool.query(
+                    await pool.query(
                         `UPDATE matches SET winning_team = $1 WHERE id = $2`,
                         [winner, matchId]
                     );
@@ -218,8 +251,7 @@ module.exports = {
                 embedFieldIndex: 2,
                 participants: matchUsersArray,
                 onComplete: async (interaction, { embed }) => {
-                    const queueChannelId = await pool.query('SELECT channel_id FROM queues WHERE id = $1', [matchData.queue_id]);
-                    await queueUsers(matchUsersArray, queueChannelId.rows[0].channel_id);
+                    await queueUsers(matchUsersArray, matchData.queue_id);
                     await interaction.update({
                         content: 'A Rematch for this matchup has begun!',
                         embeds: [embed],

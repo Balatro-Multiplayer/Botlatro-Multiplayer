@@ -31,29 +31,23 @@ export async function getMatchChannel(matchId: number): Promise<TextChannel | nu
 }
 
 // Get the results channel for a match
-export async function getMatchResultsChannel(matchId: number): Promise<TextChannel | null> {
+export async function getMatchResultsChannel(): Promise<TextChannel | null> {
   const { rows, rowCount } = await pool.query(
-    `
-    SELECT q.results_channel_id
-    FROM matches m
-    JOIN queues q ON m.queue_id = q.id
-    WHERE m.id = $1
-    `,
-    [matchId]
+    `SELECT queue_results_channel_id FROM settings`
   );
 
   if (rowCount == 0) {
-    throw new Error(`No queue found for match ID ${matchId}`);
+    throw new Error(`No queue found.`);
   }
 
   const client = (await import("../index")).default;
-  const channel = await client.channels.fetch(rows[0].results_channel_id);
+  const channel = await client.channels.fetch(rows[0].queue_results_channel_id);
 
   if (channel instanceof TextChannel) {
     return channel;
   }
   
-  throw new Error(`Channel is not a TextChannel for match ID ${matchId}`);
+  throw new Error(`Channel is not a TextChannel.`);
 }
 
 // Get users in a specified queue
@@ -70,6 +64,21 @@ export async function getUsersInQueue(queueId: number): Promise<string[]> {
   );
 
   return response.rows.map(row => row.user_id);
+}
+
+// Remove user from queue
+export async function removeUserFromQueue(queueId: number, userId: string): Promise<boolean> {
+  // Update the user's queue status and join with the queues table based on channel id
+  const response = await pool.query(`
+    UPDATE queue_users
+    SET queue_join_time = NULL
+    WHERE user_id = $1 AND queue_id = $2
+  `, [userId, queueId]);
+
+  if (response.rowCount === 0) {
+    return false;
+  } 
+  return true;
 }
 
 
@@ -265,7 +274,6 @@ export async function getPlayerDataLive(matchId: number) {
 // todo: write these:
 // -- Rating Functions --  
   export const ratingUtils = {
-    updatePlayerElo,
     updatePlayerVolatility,
     updatePlayerDeviation,
     resetPlayerElo,
@@ -276,36 +284,30 @@ export async function getPlayerDataLive(matchId: number) {
   }
 
   // updates all of a player's glicko values at once
-  export async function updatePlayerGlickoAll(queue_user_id: number, newElo: number, newDeviation: number, newVolatility: number): Promise<void> {
-    console.log(newElo, newDeviation, newVolatility);
-    await pool.query(`UPDATE queue_users SET elo = $1, rating_deviation = $2, volatility = $3 WHERE id = $4`, [newElo, newDeviation, newVolatility, queue_user_id]);
+  export async function updatePlayerGlickoAll(queueId: number, userId: string, newElo: number, newDeviation: number, newVolatility: number): Promise<void> {
+    await pool.query(`UPDATE queue_users SET elo = $1, rating_deviation = $2, volatility = $3 WHERE user_id = $4 AND queue_id = $5`, [newElo, newDeviation, newVolatility, userId, queueId]);
   }
 
-  // updates a player's ELO
-  export async function updatePlayerElo(queue_user_id: number, newElo: number): Promise<void> {
-    await pool.query(`UPDATE queue_users SET elo = $1 WHERE id = $2`, [Math.round(newElo), queue_user_id]);
-  }
-
-  export async function updatePlayerEloDiscordId(queueId: number, userId: string, newElo: number): Promise<void> {
+  export async function updatePlayerElo(queueId: number, userId: string, newElo: number): Promise<void> {
     const res = await pool.query(`UPDATE queue_users SET elo = $1 WHERE user_id = $2 AND queue_id = $3 RETURNING id`, [Math.round(newElo), userId, queueId]);
   }
 
   // updates a player's volatility
-  export async function updatePlayerVolatility(queue_user_id: string, newVolatility: number): Promise<void> {
-    await pool.query(`UPDATE queue_users SET volatility = $1 WHERE user_id = $2`, [newVolatility, queue_user_id]);
+  export async function updatePlayerVolatility(userId: string, newVolatility: number): Promise<void> {
+    await pool.query(`UPDATE queue_users SET volatility = $1 WHERE user_id = $2`, [newVolatility, userId]);
   }
 
   // updates a player's rating deviation
-  export async function updatePlayerDeviation(queue_user_id: string, newDeviation: number): Promise<void> {
-    await pool.query(`UPDATE queue_users SET rating_deviation = $1 WHERE user_id = $2`, [Math.round(newDeviation), queue_user_id]);
+  export async function updatePlayerDeviation(userId: string, newDeviation: number): Promise<void> {
+    await pool.query(`UPDATE queue_users SET rating_deviation = $1 WHERE user_id = $2`, [Math.round(newDeviation), userId]);
   }
 
   // resets a player's ELO to default
-  export async function resetPlayerElo(queue_user_id: string): Promise<void> {
-    const defaultEloRes = await pool.query(`SELECT default_elo FROM queues WHERE id = (SELECT queue_id FROM queue_users WHERE id = $1)`, [queue_user_id]);
+  export async function resetPlayerElo(userId: string): Promise<void> {
+    const defaultEloRes = await pool.query(`SELECT default_elo FROM queues WHERE id = (SELECT queue_id FROM queue_users WHERE user_id = $1)`, [userId]);
     if (defaultEloRes.rowCount === 0) throw new Error('No default elo founf.');
     const defaultElo = defaultEloRes.rows[0].default_elo;
-    await pool.query(`UPDATE queue_users SET elo = $1 WHERE id = $2`, [defaultElo, queue_user_id]);
+    await pool.query(`UPDATE queue_users SET elo = $1 WHERE user_id = $2`, [defaultElo, userId]);
   }
 
   // gets a player's current ELO
@@ -351,8 +353,9 @@ export async function getWinningTeamFromMatch(matchId: number): Promise<number |
 
 // update teamResults object with latest data
 export async function updateTeamResults(
+  queueId: number,
   teamResults: teamResults,
-  fields: (keyof matchUsers)[]
+  fields: (keyof matchUsers)[],
 ): Promise<teamResults> {
 
   const userIds = teamResults.teams.flatMap(team => team.players.map(player => player.user_id));
@@ -364,8 +367,8 @@ export async function updateTeamResults(
   // Build the SELECT clause dynamically
   const selectFields = fields.length > 0 ? fields.join(", ") : '*'
   const latestUsers = await pool.query(
-    `SELECT user_id, ${selectFields} FROM queue_users WHERE user_id = ANY($1)`,
-    [userIds]
+    `SELECT user_id, ${selectFields} FROM queue_users WHERE user_id = ANY($1) AND queue_id = $2`,
+    [userIds, queueId]
   );
 
   const latestUserMap = new Map(latestUsers.rows.map(user => [user.user_id, user]));
@@ -380,7 +383,6 @@ export async function updateTeamResults(
       const latest = latestUserMap.get(player.user_id);
       if (latest) {
         for (const field of fields) {
-          console.log(field, player);
           (player as any)[field] = latest[field];
         }
       }

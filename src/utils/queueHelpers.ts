@@ -36,7 +36,6 @@ export async function updateQueueMessage(): Promise<Message | undefined> {
     let queueList: Queues[] = queueListResponse.rows;
     queueList = queueList.filter((queue) => !queue.locked);
     const queueFields: APIEmbedField[] = await Promise.all(queueList.map(async (queue) => {
-        console.log(queue);
         const usersInQueue = await getUsersInQueue(queue.id);
         return { name: queue.queue_name, value: `${usersInQueue.length}`, inline: true };
     }));
@@ -58,7 +57,7 @@ export async function updateQueueMessage(): Promise<Message | undefined> {
 
     const selectRow = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
         new StringSelectMenuBuilder()
-            .setCustomId('join_queue')
+            .setCustomId('join-queue')
             .setPlaceholder('Join Queue')
             .addOptions(options)
             .setMinValues(1)
@@ -258,7 +257,7 @@ export async function queueUsers(userIds: string[], queueId: number): Promise<vo
     updateQueueMessage();
 
     // Send queue start messages
-    await sendMatchInitMessages(matchId, channel)
+    await sendMatchInitMessages(queueId, matchId, channel)
 }
 
 export async function timeSpentInQueue(userId: string): Promise<string | null> {

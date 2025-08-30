@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags, PermissionFlagsBits, AutocompleteInteraction } from 'discord.js';
-import { closeMatch, getQueueNames, updatePlayerEloDiscordId } from '../../utils/queryDB';
+import { closeMatch, getQueueNames, updatePlayerElo } from '../../utils/queryDB';
 import { pool } from '../../db';
 
 module.exports = {
@@ -35,7 +35,7 @@ module.exports = {
             const member = await guild.members.fetch(user.id);
 
             if (queueRes && queueRes.rowCount != 0) {
-                await updatePlayerEloDiscordId(queueRes.rows[0].id, user.id, newElo);
+                await updatePlayerElo(queueRes.rows[0].id, user.id, newElo);
                 interaction.reply(`Set **${member.displayName}**'s MMR in **${queueName}** to **${newElo}**.`);
             } else {
                 return interaction.reply('Failed to change MMR.');
