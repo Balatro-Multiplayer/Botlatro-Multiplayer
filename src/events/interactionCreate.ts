@@ -2,7 +2,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Events, Interaction, Mess
 import { pool } from '../db';
 import { updateQueueMessage, matchUpGames, timeSpentInQueue, queueUsers } from '../utils/queueHelpers';
 import { endMatch, getTeamsInMatch } from '../utils/matchHelpers';
-import { closeMatch, getMatchData, partyUtils, userInMatch, userInQueue } from '../utils/queryDB';
+import { closeMatch, getActiveQueues, getMatchData, getQueueSettings, getUserPriorityQueueId, getUserQueues, partyUtils, userInMatch, userInQueue } from '../utils/queryDB';
 import { QueryResult } from 'pg';
 import { Queues } from 'psqlDB';
 import { handleTwoPlayerMatchVoting, handleVoting } from '../utils/voteHelpers';
@@ -210,13 +210,18 @@ module.exports = {
             }
         }
         if (interaction.customId === 'check-queued') {
-            const inQueue = await userInQueue(interaction.user.id);
+            const userQueueList = await getUserQueues(interaction.user.id);
+            const priorityQueueId = await getUserPriorityQueueId(interaction.user.id);
 
-            if (inQueue) {
-                const timeSpent = await timeSpentInQueue(interaction.user.id)
-                await interaction.reply({ content: `You are in the queue!\nJoined queue ${timeSpent}.`, flags: MessageFlags.Ephemeral });
+            if (userQueueList.length > 0) {
+                const timeSpent = await timeSpentInQueue(interaction.user.id, userQueueList[0].id);
+                await interaction.reply({ content: `
+                    You are in queue for **${userQueueList.map(queue => `${queue.queue_name}`).join(', ')}**!` + 
+                    `${priorityQueueId ? `\nYour priority queue is **${(await getQueueSettings(priorityQueueId, ['queue_name'])).queue_name}**!` : ``}` + 
+                    `\nJoined queue ${timeSpent}.`,
+                    flags: MessageFlags.Ephemeral });
             } else {
-                await interaction.reply({ content: `You are not currently in the queue.`, flags: MessageFlags.Ephemeral });
+                await interaction.reply({ content: `You are not currently in any queues.`, flags: MessageFlags.Ephemeral });
             }
         }
         if (interaction.customId.startsWith('cancel-')) {

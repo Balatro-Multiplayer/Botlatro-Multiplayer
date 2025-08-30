@@ -1,8 +1,10 @@
 import { set, update } from "lodash-es";
-import { partyUtils, getUsersInQueue, getCurrentEloRangeForUser, updateCurrentEloRangeForUser, ratingUtils, removeUserFromQueue } from "./queryDB";
+import { partyUtils, getUsersInQueue, getCurrentEloRangeForUser, updateCurrentEloRangeForUser, ratingUtils, removeUserFromQueue, getActiveQueues, getUserQueues } from "./queryDB";
 import { getQueueSettings } from "./queryDB";
 import { matchUpGames, queueUsers } from "./queueHelpers";
 import { get } from "http";
+
+const lockedUsers = new Set<string>();
 
 // delete old parties every 5 minutes
 export async function partyDeleteCronJob() {
@@ -35,73 +37,76 @@ export async function partyDeleteCronJob() {
 }
 
 
-// increment elo search for a specific queue
-export async function incrementEloCronJob(queueId: number) {
-    const queueSettings = await getQueueSettings(queueId, ["elo_search_speed"]);
-    const speed = queueSettings.elo_search_speed || 2;
+// increment elo search globally across all queues
+// TODO: Make this work with the priority_queue_id in the users table
+export async function incrementEloCronJobAllQueues() {
+    const speedDefault = 2;
 
     setInterval(async () => {
         try {
-            const queueSettings = await getQueueSettings(queueId, [
-                "elo_search_increment",
-                "elo_search_speed",
-                "elo_search_start",
-            ]);
+            // get all active queues
+            const activeQueues = await getActiveQueues();
 
-            const increment = queueSettings.elo_search_increment || 1;
-            const start = queueSettings.elo_search_start || 0;
-            const usersInQueue = await getUsersInQueue(queueId);
+            for (const queue of activeQueues) {
+                const queueSettings = await getQueueSettings(queue.id, [
+                    "elo_search_increment",
+                    "elo_search_speed",
+                    "elo_search_start",
+                ]);
+                const increment = queueSettings.elo_search_increment || 1;
+                const start = queueSettings.elo_search_start || 0;
 
-            if (usersInQueue.length <= 1) return;
+                let usersInQueue = await getUsersInQueue(queue.id);
+                if (usersInQueue.length <= 1) continue;
 
-            const candidates: { range: number; userId: string; elo: number }[] = [];
+                const candidates: { range: number; userId: string; elo: number; queueId: number }[] = [];
 
-            for (const userId of usersInQueue) {
-                const elo = await ratingUtils.getPlayerElo(userId, queueId);
-                if (!elo) {
-                    throw new Error(
-                        `User ${userId} does not have an ELO rating in queue ${queueId}`
-                    );
+                for (const userId of usersInQueue) {
+                    const elo = await ratingUtils.getPlayerElo(userId, queue.id);
+                    if (!elo) continue;
+
+                    const currentRange = await getCurrentEloRangeForUser(userId, queue.id);
+                    const newRange = (currentRange ?? start) + increment;
+                    await updateCurrentEloRangeForUser(userId, queue.id, newRange);
+
+                    candidates.push({ range: newRange, userId, elo, queueId: queue.id });
                 }
 
-                const currentRange = await getCurrentEloRangeForUser(userId, queueId);
-                const newRange = (currentRange ?? start) + increment;
+                // find best pair within this queue
+                let bestPair: { userId: string; elo: number; queueId: number }[] = [];
+                let minDiff = Infinity;
 
-                await updateCurrentEloRangeForUser(userId, queueId, newRange);
+                for (let i = 0; i < candidates.length; i++) {
+                    for (let j = i + 1; j < candidates.length; j++) {
+                        const diff = Math.abs(candidates[i].elo - candidates[j].elo);
+                        const inRange =
+                            diff < candidates[i].range && diff < candidates[j].range;
 
-                candidates.push({ range: newRange, userId, elo });
-            }
-
-            // find the best two candidates with the smallest elo difference
-            let bestPair: { userId: string; elo: number }[] = [];
-            let minDiff = Infinity;
-
-            for (let i = 0; i < candidates.length; i++) {
-                for (let j = i + 1; j < candidates.length; j++) {
-                    const diff = Math.abs(candidates[i].elo - candidates[j].elo);
-
-                    const inRange =
-                        diff < candidates[i].range && diff < candidates[j].range;
-
-                    if (inRange && diff < minDiff) {
-                        minDiff = diff;
-                        bestPair = [candidates[i], candidates[j]];
+                        if (inRange && diff < minDiff) {
+                            minDiff = diff;
+                            bestPair = [candidates[i], candidates[j]];
+                        }
                     }
                 }
-            }
 
-            if (bestPair.length === 2) {
-                const matchupUsers = bestPair.map(u => u.userId);
+                if (bestPair.length === 2) {
+                    const matchupUsers = bestPair.map(u => u.userId);
 
-                for (const userId of matchupUsers) {
-                    await removeUserFromQueue(queueId, userId); 
+                    // remove users from all queues they are in
+                    for (const userId of matchupUsers) {
+                        const userQueues = await getUserQueues(userId); 
+                        for (const queue of userQueues) {
+                            await removeUserFromQueue(queue.id, userId);
+                        }
+                    }
+
+                    // queue them for the match
+                    await queueUsers(matchupUsers, bestPair[0].queueId);
                 }
-
-                await queueUsers(matchupUsers, queueId);
             }
-
         } catch (err) {
-            console.error("Error with matchmaking:", err);
+            console.error("Error in global matchmaking:", err);
         }
-    }, speed * 1000);
+    }, speedDefault * 1000);
 }
+
