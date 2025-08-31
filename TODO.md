@@ -9,7 +9,8 @@
 
 ## Match Things
 
-- Stake banning system
+- Stake banning system (with a random button to choose a random stake if both players vote on it)
+- Deck banning system with select menu (I can add this - Jeff)
 - Roles need to be assigned to users based on their MMR
   - Roles need to be assignable from literal MMR scores as well as leaderboard positions
 - A button available to players in queue that calls a helper to the queue (the button is there but doesn't work yet)
@@ -26,7 +27,8 @@
 
 - All matches need to be able to be modified by staff, including canceling matches or giving the win to someone
 - Players need to be able to be banned (temporarily and permanently) from queuing, this needs to be tied to their userID in case they leave the server and join back
-- Queues need to be able to locked so that people can't queue until we unlock them
+- Command to lock/unlock a queue (the code handles this, just need something to change the db entry)
+- Button on results embed after a match to contest a match/send a ticket?
 - All queues need their transcripts saved to somewhere were staff can access them at any point forever (maybe a time limit is reasonable but it would have to be large)
 - Staff need to be able to edit player stats, such as add/remove mmr, win streaks, wins/losses, etc.
 
