@@ -80,7 +80,7 @@ export async function handleTwoPlayerMatchVoting(
         const lines = fields[i].value?.split("\n") || [];
 
         const mmrLine = lines.find(l => l.includes("MMR")) || "";
-        const voteLines = lines.filter(l => l.trim() !== "" && !l.includes("MMR"));
+        const voteLines = lines.filter(l => l.trim() !== "" && !l.includes("MMR") && !l.includes("Win Votes"));
 
         const idx = voteLines.indexOf(userTag);
         if (idx !== -1) voteLines.splice(idx, 1);
@@ -89,6 +89,7 @@ export async function handleTwoPlayerMatchVoting(
         if (winMatchTeamId == i+1) voteLines.push(userTag);
 
         let newValue = mmrLine;
+        newValue += `\nWin Votes`;
         if (voteLines.length > 0) newValue += "\n" + voteLines.join("\n");
 
         fields[i].value = newValue || "\u200b";

@@ -61,8 +61,13 @@ export async function updateQueueMessage(): Promise<Message | undefined> {
         .setLabel('Check Queued State')
         .setStyle(ButtonStyle.Secondary);
 
+    const setPriorityQueue = new ButtonBuilder()
+        .setCustomId(`set-priority-queue`)
+        .setLabel('Set Priority Queue')
+        .setStyle(ButtonStyle.Primary);
+
     const buttonRow = new ActionRowBuilder<ButtonBuilder>()
-        .addComponents(leaveQueue, checkQueued);
+        .addComponents(leaveQueue, setPriorityQueue, checkQueued);
 
     let msg;
     const queueChannel = (await client.channels.fetch(queueChannelId)) as TextChannel;

@@ -1,8 +1,8 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Events, Interaction, MessageComponentInteraction, MessageFlags, StringSelectMenuComponent, StringSelectMenuInteraction, TextChannel } from 'discord.js';
+import { ActionRowBuilder, APIEmbedField, ButtonBuilder, ButtonStyle, Events, Interaction, MessageComponentInteraction, MessageFlags, StringSelectMenuBuilder, StringSelectMenuComponent, StringSelectMenuInteraction, StringSelectMenuOptionBuilder, TextChannel } from 'discord.js';
 import { pool } from '../db';
 import { updateQueueMessage, matchUpGames, timeSpentInQueue, queueUsers } from '../utils/queueHelpers';
 import { endMatch, getTeamsInMatch } from '../utils/matchHelpers';
-import { closeMatch, getActiveQueues, getMatchData, getQueueSettings, getUserPriorityQueueId, getUserQueues, partyUtils, userInMatch, userInQueue } from '../utils/queryDB';
+import { closeMatch, getActiveQueues, getMatchData, getQueueSettings, getUserPriorityQueueId, getUserQueues, getUsersInQueue, partyUtils, setUserPriorityQueue, userInMatch, userInQueue } from '../utils/queryDB';
 import { QueryResult } from 'pg';
 import { Queues } from 'psqlDB';
 import { handleTwoPlayerMatchVoting, handleVoting } from '../utils/voteHelpers';
@@ -43,7 +43,6 @@ module.exports = {
 
     // Select Menu Interactions
     if (interaction.isStringSelectMenu()) {
-        console.log(interaction.customId);
        if (interaction.customId === "join-queue") {
             await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
@@ -156,6 +155,13 @@ module.exports = {
             });
         }
 
+        if (interaction.customId === 'priority-queue-sel') {
+            const queueSelId = parseInt(interaction.values[0]);
+            await setUserPriorityQueue(interaction.user.id, queueSelId);
+            const queueData = await getQueueSettings(queueSelId, ["queue_name"]);
+            interaction.update({ content: `Successfully set priority queue to **${queueData.queue_name}**!`, components: [] });
+        }
+
         if (interaction.values[0].includes('winmatch_')) {
             const customSelId = interaction.values[0];
             const matchId = parseInt(customSelId.split('_')[1]);
@@ -223,6 +229,32 @@ module.exports = {
             } else {
                 await interaction.reply({ content: `You are not currently in any queues.`, flags: MessageFlags.Ephemeral });
             }
+        }
+        if (interaction.customId === 'set-priority-queue') {
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+            const queueList = await getActiveQueues();
+        
+            const options: StringSelectMenuOptionBuilder[] = queueList.map((queue) => {
+                return new StringSelectMenuOptionBuilder()
+                    .setLabel(queue.queue_name.slice(0, 100))
+                    .setDescription((queue.queue_desc || '').slice(0, 100))
+                    .setValue(queue.id.toString())
+            });
+        
+            if (options.length == 0) return;
+        
+            const selectRow = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
+                new StringSelectMenuBuilder()
+                    .setCustomId(`priority-queue-sel`)
+                    .setPlaceholder('Select a priority queue!')
+                    .addOptions(options)
+            );
+
+            await interaction.editReply({ 
+                content: `Please select the queue you would like to mark as priority.` +
+                `\nThis will make the matcmaking queue prioritize a match with this queue when joining more than one queue.`,
+                components: [selectRow] 
+            });
         }
         if (interaction.customId.startsWith('cancel-')) {
             const matchId = parseInt(interaction.customId.split('-')[1]);
