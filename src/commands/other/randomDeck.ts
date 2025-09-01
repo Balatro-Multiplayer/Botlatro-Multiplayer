@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags } from 'discord.js';
-import { getRandomDeck } from '../../utils/matchHelpers';
+import { getRandomDeck, setupDeckSelect } from '../../utils/matchHelpers';
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -13,10 +13,11 @@ module.exports = {
 	async execute(interaction: ChatInputCommandInteraction) {
 		const customDecks = interaction.options.getString('custom-decks') || null;
 		let customDecksBoolean = false;
-		if (customDecks == 'yes') { customDecksBoolean = true }
-
+		if (customDecks == 'yes') customDecksBoolean = true;
 		try {
-      interaction.reply({ content: getRandomDeck(customDecksBoolean) });
+			const deckChoice = getRandomDeck(customDecksBoolean);
+			const deckStr = `${deckChoice.deck_emote} ${deckChoice.deck_name}`;
+      		interaction.reply({ content: deckStr });
 		} catch (err: any) {
 			console.error(err);
 			const errorMsg = err.detail || err.message || 'Unknown';
