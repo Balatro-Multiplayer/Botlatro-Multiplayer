@@ -1,4 +1,5 @@
-## Quick Setup Steps
+# Quick Setup Steps
+
 - Clone the repo
 - npm install (though the repo currently has all of the node modules in it, going to fix that to take them out today)
 - Download postgresql and set it all up on your PC properly

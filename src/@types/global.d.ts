@@ -96,4 +96,18 @@ declare module 'psqlDB' {
     queue_category_id: string;
     helper_role_id: string;
   }
+
+  export type Deck = {
+    deck_name: string;
+    deck_emote: string;
+    deck_value: string;
+    deck_desc: string;
+  }
+
+  export type Stake = {
+    stake_name: string;
+    stake_emote: string;
+    stake_value: string;
+    stake_desc: string;
+  }
 }

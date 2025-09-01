@@ -1,11 +1,12 @@
-import { ActionRowBuilder, APIEmbedField, ButtonBuilder, ButtonStyle, Events, Interaction, MessageComponentInteraction, MessageFlags, StringSelectMenuBuilder, StringSelectMenuComponent, StringSelectMenuInteraction, StringSelectMenuOptionBuilder, TextChannel } from 'discord.js';
+import { ActionRowBuilder, APIActionRowComponent, APIEmbedField, APIStringSelectComponent, ButtonBuilder, ButtonStyle, Events, Interaction, MessageComponentInteraction, MessageFlags, StringSelectMenuBuilder, StringSelectMenuComponent, StringSelectMenuInteraction, StringSelectMenuOptionBuilder, TextChannel } from 'discord.js';
 import { pool } from '../db';
 import { updateQueueMessage, matchUpGames, timeSpentInQueue, queueUsers } from '../utils/queueHelpers';
-import { endMatch, getTeamsInMatch } from '../utils/matchHelpers';
+import { decks, endMatch, getTeamsInMatch, setupDeckSelect } from '../utils/matchHelpers';
 import { closeMatch, getActiveQueues, getMatchData, getQueueSettings, getUserPriorityQueueId, getUserQueues, getUsersInQueue, partyUtils, setUserPriorityQueue, userInMatch, userInQueue } from '../utils/queryDB';
 import { QueryResult } from 'pg';
 import { Queues } from 'psqlDB';
 import { handleTwoPlayerMatchVoting, handleVoting } from '../utils/voteHelpers';
+import client from '../index';
 
 module.exports = {
   name: Events.InteractionCreate,
@@ -183,6 +184,63 @@ module.exports = {
                 }
             });
         }
+
+        if (interaction.customId.includes('deck-bans-')) {
+            const parts = interaction.customId.split('-');
+            const step = parseInt(parts[2]);  
+            const matchId = parseInt(parts[3]);
+            const startingTeamId = parseInt(parts[4]);
+            const matchTeams = await getTeamsInMatch(matchId);
+
+            // Determine which team is active for this step
+            const activeTeamId = (startingTeamId + step) % 2;
+
+            if (interaction.user.id !== matchTeams[activeTeamId].users[0].user_id) {
+                return interaction.reply({
+                content: `It's not your turn to vote for the decks!`,
+                flags: MessageFlags.Ephemeral,
+                });
+            }
+
+            if (step === 3) {
+                const finalDeckPick = decks.find(deck => deck.deck_value === interaction.values[0]);
+
+                await interaction.update({ components: [] });
+                await interaction.deleteReply();
+
+                if (finalDeckPick) {
+                await interaction.followUp({
+                    content: `## Selected Deck: ${finalDeckPick.deck_emote} ${finalDeckPick.deck_name}`,
+                });
+                }
+                return;
+            }
+
+            // Prepare next step
+            const nextStep = step + 1;
+            const nextTeamId = (startingTeamId + nextStep) % 2;
+            const nextMember = await client.guilds.fetch(process.env.GUILD_ID!).then(g => g.members.fetch(matchTeams[nextTeamId].users[0].user_id));
+
+            const deckSelMenu = setupDeckSelect(
+                `deck-bans-${nextStep}-${matchId}-${startingTeamId}`,
+                matchTeams[nextTeamId].users.length > 1
+                ? `Team ${matchTeams[nextTeamId].team}: Select ${nextStep === 2 ? 3 : 1} decks to play.`
+                : `${nextMember.displayName}: Select ${nextStep === 2 ? 3 : 1} decks to play.`,
+                nextStep === 2 ? 3 : 1,
+                nextStep === 2 ? 3 : 1,
+                true,
+                interaction.values,
+                nextStep === 3 ? interaction.values : []
+            );
+
+            await interaction.update({ components: [deckSelMenu] });
+
+            const deckPicks = decks.filter(deck => interaction.values.includes(deck.deck_value)).map(deck => `${deck.deck_emote} - ${deck.deck_name}`);
+
+            await interaction.followUp({
+                content: `### ${step == 1 ? `Banned Decks:` : `Decks Picked:`} ${deckPicks.join(', ')}`,
+            });
+        }
     }
 
     // Button interactions
@@ -270,8 +328,6 @@ module.exports = {
                     await interaction.update({ content: 'The match has been cancelled.', embeds: [], components: [] });
                 }
             });
-
-           
         }
         if (interaction.customId.startsWith('call-helpers-')) {
             const matchId = parseInt(interaction.customId.split('-')[1]);
