@@ -69,20 +69,27 @@ export async function updateQueueMessage(): Promise<Message | undefined> {
     const buttonRow = new ActionRowBuilder<ButtonBuilder>()
         .addComponents(leaveQueue, setPriorityQueue, checkQueued);
 
-    let msg;
+    let queueMsg;
     const queueChannel = (await client.channels.fetch(queueChannelId)) as TextChannel;
     if (queueMessageId) {
-        msg = await queueChannel.messages.fetch(queueMessageId);
-        await msg.edit({ embeds: [embed], components: [selectRow, buttonRow] });
-        return msg;
-    } 
+        await queueChannel.messages.fetch(queueMessageId).then(async (msg) => {
+            if (msg.author.id == client.user?.id) {
+                queueMsg = await msg.edit({ embeds: [embed], components: [selectRow, buttonRow] });
+            } else {
+                await msg.delete();
+            }
+        }).catch((err) => { console.error(err) });
+    }
 
-    msg = await queueChannel.send({ embeds: [embed], components: [selectRow, buttonRow]  });
-    await pool.query(
-        'UPDATE settings SET queue_message_id = $1',
-        [msg.id]
-    );
-    return msg;
+    if (!queueMsg) {
+        queueMsg = await queueChannel.send({ embeds: [embed], components: [selectRow, buttonRow]  });
+        await pool.query(
+            'UPDATE settings SET queue_message_id = $1',
+            [queueMsg.id]
+        );
+    }
+    
+    return queueMsg;
 }
 
 
