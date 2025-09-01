@@ -224,7 +224,7 @@ export function setupDeckSelect(
     deckChoices = deckChoices.filter(deck => !bannedDecks.includes(deck.deck_value));
     
     if (overrideDecks.length > 0) {
-        deckChoices = decks.filter(deck => overrideDecks.includes(deck.deck_value));
+      deckChoices = deckChoices.filter(deck => overrideDecks.includes(deck.deck_value));
     }
 
     const options: StringSelectMenuOptionBuilder[] = deckChoices.map((deck: Deck) => {

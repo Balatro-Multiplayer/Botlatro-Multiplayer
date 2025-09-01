@@ -1,7 +1,7 @@
 import { ActionRowBuilder, APIActionRowComponent, APIEmbedField, APIStringSelectComponent, ButtonBuilder, ButtonStyle, Events, Interaction, MessageComponentInteraction, MessageFlags, StringSelectMenuBuilder, StringSelectMenuComponent, StringSelectMenuInteraction, StringSelectMenuOptionBuilder, TextChannel } from 'discord.js';
 import { pool } from '../db';
 import { updateQueueMessage, matchUpGames, timeSpentInQueue, queueUsers } from '../utils/queueHelpers';
-import { decks, endMatch, getTeamsInMatch, setupDeckSelect } from '../utils/matchHelpers';
+import { customDecks, decks, endMatch, getTeamsInMatch, setupDeckSelect } from '../utils/matchHelpers';
 import { closeMatch, getActiveQueues, getMatchData, getQueueSettings, getUserPriorityQueueId, getUserQueues, getUsersInQueue, partyUtils, setUserPriorityQueue, userInMatch, userInQueue } from '../utils/queryDB';
 import { QueryResult } from 'pg';
 import { Queues } from 'psqlDB';
@@ -191,6 +191,7 @@ module.exports = {
             const matchId = parseInt(parts[3]);
             const startingTeamId = parseInt(parts[4]);
             const matchTeams = await getTeamsInMatch(matchId);
+            const deckOptions = [decks, customDecks].flat(1)
 
             // Determine which team is active for this step
             const activeTeamId = (startingTeamId + step) % 2;
@@ -203,7 +204,7 @@ module.exports = {
             }
 
             if (step === 3) {
-                const finalDeckPick = decks.find(deck => deck.deck_value === interaction.values[0]);
+                const finalDeckPick = deckOptions.find(deck => deck.deck_value === interaction.values[0]);
 
                 await interaction.update({ components: [] });
                 await interaction.deleteReply();
@@ -235,10 +236,10 @@ module.exports = {
 
             await interaction.update({ components: [deckSelMenu] });
 
-            const deckPicks = decks.filter(deck => interaction.values.includes(deck.deck_value)).map(deck => `${deck.deck_emote} - ${deck.deck_name}`);
+            const deckPicks = deckOptions.filter(deck => interaction.values.includes(deck.deck_value)).map(deck => `${deck.deck_emote} - ${deck.deck_name}`);
 
             await interaction.followUp({
-                content: `### ${step == 1 ? `Banned Decks:` : `Decks Picked:`} ${deckPicks.join(', ')}`,
+                content: `### ${step == 1 ? `Banned Decks:\n` : `Decks Picked:\n`}${deckPicks.join('\n')}`,
             });
         }
     }
