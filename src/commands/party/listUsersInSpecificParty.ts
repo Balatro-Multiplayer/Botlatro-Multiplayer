@@ -3,16 +3,6 @@ import { pool } from '../../db';
 import { partyUtils } from '../../utils/queryDB';
 
 module.exports = {
-	data: new SlashCommandBuilder()
-		.setName('admin-party-list')
-		.setDescription('Lists all users in any party')
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-        .addStringOption(option => option
-            .setName('party-to-check')
-            .setDescription('Only available for admins: lists users in the specified party')
-            .setAutocomplete(true)
-            .setRequired(true)),
-
 	async execute(interaction: ChatInputCommandInteraction) {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 

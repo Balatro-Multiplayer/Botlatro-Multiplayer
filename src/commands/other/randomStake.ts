@@ -2,9 +2,6 @@ import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags } from '
 import { getRandomStake } from '../../utils/matchHelpers';
 
 module.exports = {
-	data: new SlashCommandBuilder()
-		.setName('random-stake')
-		.setDescription('Get a random stake'),
 	async execute(interaction: ChatInputCommandInteraction) {
 		try {
 			const stakeChoice = getRandomStake()
