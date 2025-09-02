@@ -135,5 +135,5 @@ export async function deleteOldTranscriptsCronJob() {
             }
         });
 
-    }, 30 * 60 * 1000); // every 30 mins
+    }, 5 * 60 * 1000); // every 5 mins
 }
