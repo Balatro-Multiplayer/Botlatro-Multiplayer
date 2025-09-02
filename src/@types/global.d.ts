@@ -66,7 +66,7 @@ declare module 'psqlDB' {
     queue_join_time?: Date | null;
   }
 
-  export interface matchUsers extends QueueUsers {
+  export interface MatchUsers extends QueueUsers {
     id: number;
     user_id: string;
     match_id: number | null;
@@ -81,11 +81,20 @@ declare module 'psqlDB' {
     expires_at?: Date | null;
   }
 
+  export interface Settings {
+    singleton: boolean;
+    queue_channel_id: string;
+    queue_category_id: string;
+    queue_results_channel_id: string;
+    helper_role_id: string;
+    queue_message_id: string;
+  }
+
   export type teamResults = {
     teams: { 
       id: number; 
       score: 0 | 0.5 | 1; 
-      players: matchUsers[];
+      players: MatchUsers[];
     } []
   }
 
