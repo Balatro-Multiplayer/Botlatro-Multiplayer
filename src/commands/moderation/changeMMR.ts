@@ -18,7 +18,7 @@ module.exports = {
 
             if (queueRes && queueRes.rowCount != 0) {
                 await updatePlayerElo(queueRes.rows[0].id, user.id, newElo);
-                interaction.reply(`Set **${member.displayName}**'s MMR in **${queueName}** to **${newElo}**.`);
+                interaction.reply({content: `Set **${member.displayName}**'s MMR in **${queueName}** to **${newElo}**.`, flags: MessageFlags.Ephemeral});
             } else {
                 return interaction.reply('Failed to change MMR.');
             }
