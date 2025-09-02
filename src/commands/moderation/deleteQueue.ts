@@ -17,22 +17,10 @@ module.exports = {
 		try {
 			// delete the queue from the database
 			let queueName = interaction.options.getString('queue-name');
-			const res = await pool.query('DELETE FROM queues WHERE queue_name = $1 RETURNING queue_name, channel_id, results_channel_id, message_id', [queueName]);
+			const res = await pool.query('DELETE FROM queues WHERE queue_name = $1 RETURNING queue_name', [queueName]);
 			if (res.rowCount === 0) {
 					return interaction.reply(`Failed to delete queue ${queueName}.`)
 			} 
-			
-			// delete the results channel
-			const resultsChannel = await interaction.client.channels.fetch(res.rows[0].results_channel_id).catch( err => console.error(err));
-			if (resultsChannel) await resultsChannel.delete();
-
-			// delete the queue message
-			const queueMessageChannel = await interaction.client.channels.fetch(res.rows[0].channel_id).catch( err => console.error(err));
-			if (queueMessageChannel && queueMessageChannel.isTextBased()) {
-				const messageId = res.rows[0].message_id;
-				const message = await queueMessageChannel.messages.fetch(messageId);
-				await message.delete().catch(err => console.error(err));
-			}
 
 			return interaction.reply(`Successfully deleted ${queueName} from the queues list.`);
 
@@ -42,7 +30,7 @@ module.exports = {
 			if (interaction.deferred || interaction.replied) {
 				await interaction.editReply({ content: `Failed to delete queue. Reason: ${errorMsg}` });
 			} else {
-				await interaction.reply({ content: `Failed to cancel match. Reason: ${errorMsg}`, flags: MessageFlags.Ephemeral });
+				await interaction.reply({ content: `Failed to delete queue. Reason: ${errorMsg}`, flags: MessageFlags.Ephemeral });
 			}
 		}
 	},

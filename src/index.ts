@@ -13,7 +13,9 @@ const guildId = process.env.GUILD_ID || '';
 
 const client = new Client({
     intents: [
-        GatewayIntentBits.Guilds
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
     ],
 });
 client.commands = new Collection();
@@ -78,5 +80,9 @@ client.login(process.env.DISCORD_TOKEN);
 // cronjob for deleting old parties every 5 minutes
 import { partyDeleteCronJob } from './utils/cronJobs';
 partyDeleteCronJob();
+
+// cronjob for deleting old transcript files every 30 minutes
+import { deleteOldTranscriptsCronJob } from './utils/cronJobs';
+deleteOldTranscriptsCronJob();
 
 export default client;

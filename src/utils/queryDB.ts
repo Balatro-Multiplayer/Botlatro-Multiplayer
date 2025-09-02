@@ -2,7 +2,7 @@ import { Channel, TextChannel } from "discord.js";
 import { pool } from "../db";
 import { create } from "node:domain";
 import { remove, update } from "lodash-es";
-import { matchUsers, teamResults, Matches, Queues } from "psqlDB";
+import { MatchUsers, teamResults, Matches, Queues, Settings } from "psqlDB";
 
 // Get the queue names of all queues that exist
 export async function getQueueNames(): Promise<string[]> {
@@ -59,6 +59,7 @@ export async function setUserPriorityQueue(userId: string, queueId: number): Pro
   return true;
 }
 
+// get the queue id that the user has set as their priority queue
 export async function getUserPriorityQueueId(userId: string): Promise<number | null> {
   const res = await pool.query(`
     SELECT priority_queue_id 
@@ -67,6 +68,15 @@ export async function getUserPriorityQueueId(userId: string): Promise<number | n
   `, [userId]);
 
   return res.rows[0].priority_queue_id;
+}
+
+//  get the match id from the match channel id
+export async function getMatchIdFromChannel(channelId: string): Promise<number | null> {
+  const res = await pool.query(`
+    SELECT id FROM matches WHERE channel_id = $1 AND open = true
+  `, [channelId]);
+  if (res.rowCount === 0) return null;
+  return res.rows[0].id;
 }
 
 // Get the match text channel
@@ -414,7 +424,7 @@ export async function getWinningTeamFromMatch(matchId: number): Promise<number |
 export async function updateTeamResults(
   queueId: number,
   teamResults: teamResults,
-  fields: (keyof matchUsers)[],
+  fields: (keyof MatchUsers)[],
 ): Promise<teamResults> {
 
   const userIds = teamResults.teams.flatMap(team => team.players.map(player => player.user_id));
@@ -468,4 +478,32 @@ export async function updateCurrentEloRangeForUser(userId: string, queueId: numb
     `UPDATE queue_users SET current_elo_range = $1 WHERE user_id = $2 AND queue_id = $3`, 
     [newRange, userId, queueId]
   );
+}
+
+// get the users in a specific match
+export async function getUsersInMatch(matchId: number): Promise<string[]> {
+  const response = await pool.query(
+    `SELECT user_id FROM match_users WHERE match_id = $1`, 
+    [matchId]
+  );
+  return response.rows.map(row => row.user_id);
+}
+
+// get the team of a user in a specific match
+export async function getUserTeam(userId: string, matchId: number): Promise<number | null> {
+  const response = await pool.query(
+    `SELECT team FROM match_users mu 
+    JOIN users u ON mu.user_id = u.user_id
+    WHERE u.user_id = $1 AND mu.match_id = $2`, 
+    [userId, matchId]
+  );
+  if (response.rowCount === 0) return null;
+  return response.rows[0].team;
+}
+
+// get the contents of the settings table
+export async function getSettings(): Promise<Settings> {
+  const response = await pool.query(`SELECT * FROM settings`);
+  if (response.rowCount === 0) throw new Error('No settings found.');
+  return response.rows[0];
 }
