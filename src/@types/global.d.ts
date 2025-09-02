@@ -88,6 +88,8 @@ declare module 'psqlDB' {
     queue_results_channel_id: string;
     helper_role_id: string;
     queue_message_id: string;
+    logs_channel_id: string;
+    queue_logs_channel_id: string;
   }
 
   export type teamResults = {

@@ -27,7 +27,12 @@ module.exports = {
             if (interaction.replied || interaction.deferred) {
                 await interaction.followUp({ content: 'There was an error.', flags: MessageFlags.Ephemeral });
             } else {
-                await interaction.reply({ content: 'There was an error.', flags: MessageFlags.Ephemeral });
+                if (interaction) {
+                    await interaction.reply({ content: 'There was an error.', flags: MessageFlags.Ephemeral });
+                }
+                else {
+                    console.error('Interaction is undefined', err);
+                }
             }
         }
     }

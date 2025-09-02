@@ -3,24 +3,6 @@ import { closeMatch, getQueueNames, updatePlayerElo } from '../../utils/queryDB'
 import { pool } from '../../db';
 
 module.exports = {
-	data: new SlashCommandBuilder()
-		.setName('change-mmr')
-		.setDescription('[ADMIN ONLY] Change a users MMR.')
-		.setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .addUserOption(option =>
-        option.setName('user')
-            .setDescription('The user whose MMR you want to change.')
-            .setRequired(true))
-    .addStringOption(option =>
-        option.setName('queue-name')
-            .setDescription('The queue name you would like to cancel.')
-            .setRequired(true)
-            .setAutocomplete(true))
-    .addNumberOption(option =>
-        option.setName('new-elo')
-            .setDescription('The new elo to set the user to.')
-            .setRequired(true)),
-        
 	async execute(interaction: ChatInputCommandInteraction) {
 		try {
             const user = interaction.options.getUser('user', true);
