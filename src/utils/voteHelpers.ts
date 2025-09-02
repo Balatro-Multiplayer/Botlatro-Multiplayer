@@ -6,6 +6,7 @@ export async function handleVoting(interaction: MessageComponentInteraction, {
     participants = [] as string[],         // list of user IDs who are allowed to vote
     onComplete = async (interaction: MessageComponentInteraction, extra: { embed: Embed, votes?: string[] }) => {} // callback when all participants vote
 }) {
+    if (!interaction.message) return console.error('No message found in interaction');
     const embed = interaction.message.embeds[0];
     const fields = embed.data.fields;
     if (!fields) return console.error('No fields found in embed');
@@ -40,7 +41,9 @@ export async function handleVoting(interaction: MessageComponentInteraction, {
 
     // Check if voting is complete
     if (participants.length > 0 && votes.length === participants.length) {
-        await onComplete(interaction, { votes, embed });
+        if (interaction.message) {
+            await onComplete(interaction, { votes, embed });
+        }
         return;
     }
 

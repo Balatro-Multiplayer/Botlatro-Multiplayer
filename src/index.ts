@@ -35,7 +35,7 @@ for (const folder of commandFolders) {
         if ('data' in command && 'execute' in command) {
             commands.push(command.data.toJSON());
             client.commands.set(command.data.name, command);
-        } else {
+        } else if (!filePath.includes('commands')) {
             console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
         }
     }

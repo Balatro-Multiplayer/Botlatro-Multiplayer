@@ -3,13 +3,6 @@ import { pool } from '../../db';
 import { partyUtils } from '../../utils/queryDB';
 
 module.exports = {
-	data: new SlashCommandBuilder()
-		.setName('party-invite')
-		.setDescription('Invites users to your party')
-        .addUserOption(option =>
-			option.setName('member')
-				.setDescription('The member you would like to invite to your party')
-				.setRequired(true)),
 	async execute(interaction: ChatInputCommandInteraction) {
 
 		try {

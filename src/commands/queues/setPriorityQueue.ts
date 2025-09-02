@@ -2,15 +2,6 @@ import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags, Permiss
 import { getQueueIdFromName, getQueueNames, setUserPriorityQueue } from '../../utils/queryDB'
 
 module.exports = {
-	data: new SlashCommandBuilder()
-		.setName('set-priority-queue')
-		.setDescription('Set a priority queue for when you queue in multiple queues')
-        .addStringOption(option =>
-			option.setName('queue-name')
-				.setDescription('The queue you would like to prioritize')
-				.setRequired(true)
-				.setAutocomplete(true)
-		),
 	async execute(interaction: ChatInputCommandInteraction) {
 		try {
             await interaction.deferReply({ flags: MessageFlags.Ephemeral });

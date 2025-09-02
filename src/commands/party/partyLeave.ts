@@ -3,12 +3,7 @@ import { pool } from '../../db';
 import { partyUtils } from '../../utils/queryDB';
 
 module.exports = {
-	data: new SlashCommandBuilder()
-		.setName('party-leave')
-		.setDescription('Leave your current party'),
-
 	async execute(interaction: ChatInputCommandInteraction) {
-
 		try {
             await interaction.deferReply({ flags: MessageFlags.Ephemeral });
             const userId = interaction.user.id;
