@@ -81,6 +81,12 @@ module.exports = {
 		const maxPartyEloDifference = interaction.options.getInteger('max-party-elo-difference', false) ?? Math.floor(defaultElo / 2);
 
 		try {
+			const nameCheck = await pool.query('SELECT 1 FROM queues WHERE queue_name = $1', [queueName]);
+			const nameIsAvailable = nameCheck.rows.length === 0;
+			if (!nameIsAvailable) {
+			  await interaction.reply({ content: 'A queue with that name already exists.', flags: MessageFlags.Ephemeral });
+			  return;
+			}
 			await pool.query(`
                 INSERT INTO queues
 				(queue_name, queue_desc, members_per_team, number_of_teams, elo_search_start, elo_search_increment, elo_search_speed, default_elo, minimum_elo, maximum_elo, max_party_elo_difference, locked)
@@ -101,9 +107,8 @@ module.exports = {
 				]
 			);
 
-			await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 			await updateQueueMessage();
-			await interaction.deleteReply();
+			await interaction.reply(`Successfully created queue ${queueName}.`);
 		} catch (err: any) {
 			console.error(err);
 			const errorMsg = err.detail || err.message || 'Unknown';

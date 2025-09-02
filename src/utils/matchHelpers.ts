@@ -2,12 +2,16 @@ import { ActionRowBuilder, APIEmbedField, ButtonBuilder, ButtonStyle, EmbedBuild
 import { pool } from '../db';
 import client from '../index';
 import _, { random } from 'lodash-es';
-import { closeMatch, getMatchResultsChannel, getQueueIdFromMatch, isQueueGlicko, getWinningTeamFromMatch, getQueueSettings } from './queryDB';
+import { closeMatch, getMatchResultsChannel, getQueueIdFromMatch, isQueueGlicko, getWinningTeamFromMatch, getQueueSettings, getMatchChannel } from './queryDB';
 import { Deck, Stake } from 'psqlDB';
 import dotenv from 'dotenv';
 import { calculateGlicko2 } from './algorithms/calculateGlicko-2';
-import { teamResults, matchUsers } from 'psqlDB';
+import { teamResults, MatchUsers } from 'psqlDB';
 import { QueryResult } from 'pg';
+import * as fs from 'fs';
+import * as path from 'path';
+import { glob } from 'glob';
+import { parseLogLines } from './transcriptHelpers';
 require('dotenv').config();
 
 dotenv.config();
@@ -248,22 +252,22 @@ export function setupDeckSelect(
     return selectRow;
 }
 
-export async function getTeamsInMatch(matchId: number): Promise<{ team: number, users: matchUsers[], winRes: number }[]> {
-  const matchUserRes: QueryResult<matchUsers> = await pool.query(`
+export async function getTeamsInMatch(matchId: number): Promise<{ team: number, users: MatchUsers[], winRes: number }[]> {
+  const matchUserRes: QueryResult<MatchUsers> = await pool.query(`
     SELECT * FROM match_users
     WHERE match_id = $1
   `, [matchId]);
 
   const queueId = await getQueueIdFromMatch(matchId);
 
-  const queueUserRes = await Promise.all(matchUserRes.rows.map(async (matchUser: matchUsers) => {
+  const queueUserRes = await Promise.all(matchUserRes.rows.map(async (matchUser: MatchUsers) => {
     return await pool.query(`
       SELECT * FROM queue_users
       WHERE user_id = $1 AND queue_id = $2
     `, [matchUser.user_id, queueId]);
   }));
 
-  const userFull: matchUsers[] = matchUserRes.rows.map((matchUser, i) => ({
+  const userFull: MatchUsers[] = matchUserRes.rows.map((matchUser, i) => ({
     ...queueUserRes[i].rows[0], // properties from queue_users
     ...matchUser                // properties from match_users 
   }));
@@ -289,7 +293,7 @@ export async function getTeamsInMatch(matchId: number): Promise<{ team: number, 
 
   return Object.entries(teamGroups).map(([team, value]) => ({
     team: Number(team),
-    users: value.users as matchUsers[],
+    users: value.users as MatchUsers[],
     winRes: value.winRes,
   }));
 }
@@ -372,6 +376,36 @@ export async function sendMatchInitMessages(queueId: number, matchId: number, te
 }
 
 export async function endMatch(matchId: number): Promise<boolean> {
+
+  // close match in DB
+  await closeMatch(matchId);
+
+  console.log('being closed')
+
+  // delete match channel (faliure results in early return)
+  const wasSuccessfullyDeleted = await deleteMatchChannel(matchId);
+  if (!wasSuccessfullyDeleted) return false;
+
+  // get log file using glob library 
+  const pattern = path.join(__dirname, '..', 'logs', `match-${matchId}_*.log`).replace(/\\/g, '/');;
+  const files = await glob(pattern)
+  const file: string | null = files[0] ?? null;
+
+  
+  if (file) {
+    // format and send transcript
+    const logContent = fs.readFileSync(file, 'utf8');
+    const logLines = logContent.split('\n').filter(line => line.trim() !== '');
+    const parsedLogLines = await parseLogLines(logLines);
+    console.log(parsedLogLines); // json body
+
+    // delete the log file after transcript is sent 
+    fs.unlinkSync(file);
+  }
+  
+
+
+  // build rematch button row
   const rematchButtonRow: ActionRowBuilder<ButtonBuilder> = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder().setCustomId(`rematch-${matchId}`).setLabel('Rematch').setEmoji('⚔️').setStyle(ButtonStyle.Primary)
   )
@@ -391,13 +425,14 @@ export async function endMatch(matchId: number): Promise<boolean> {
       teams: matchTeams.map(teamResult => ({
         id: teamResult.team,
         score: teamResult.winRes as 0 | 0.5 | 1,
-        players: teamResult.users as matchUsers[]
+        players: teamResult.users as MatchUsers[]
       }))
     }
     
     teamResults = await calculateGlicko2(parseInt(queueId), matchId, teamResultsData);
   }
 
+  // build results embed
   const resultsEmbed = new EmbedBuilder()
     .setTitle(`🏆 Winner For ${queueName.queue_name} Match #${matchId} 🏆`)
     .setColor("Gold");
@@ -452,8 +487,20 @@ export async function endMatch(matchId: number): Promise<boolean> {
   const resultsChannel = await getMatchResultsChannel();
   if (!resultsChannel) { console.error(`No results channel found for match ${matchId}`); return false; }
 
-  await closeMatch(matchId)
-
   await resultsChannel.send({ embeds: [resultsEmbed], components: [rematchButtonRow] });
   return true;
+}
+
+// delete match channel
+export async function deleteMatchChannel(matchId: number): Promise<boolean> {
+  const textChannel = await getMatchChannel(matchId);
+  if (!textChannel) { 
+    console.error(`No text channel found for match ${matchId}`); 
+    return false;
+  }
+  await textChannel.delete().catch(err => {
+    console.error(`Failed to delete text channel for match ${matchId}: ${err}`);
+    return false;
+  })
+  return true
 }
