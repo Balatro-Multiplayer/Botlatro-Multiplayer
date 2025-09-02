@@ -4,7 +4,7 @@ import { updateQueueMessage } from '../../utils/queueHelpers';
 module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('resend-queue-message')
-		.setDescription('Resends the queue message in the current channel')
+		.setDescription('[ADMIN] Resends the queue message in the current channel')
 		.setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 	async execute(interaction: ChatInputCommandInteraction) {
 

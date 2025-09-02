@@ -20,7 +20,7 @@ module.exports = {
 				return;
 			}
 
-			const matchCancelCheck = await endMatch(matchId);
+			const matchCancelCheck = await endMatch(matchId, true);
             
 			if (matchCancelCheck) {
 					interaction.reply({ content: `Successfully cancelled match ${matchId}` });

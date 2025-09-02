@@ -3,14 +3,6 @@ import { pool } from '../../db';
 import { partyUtils } from '../../utils/queryDB';
 
 module.exports = {
-	data: new SlashCommandBuilder()
-		.setName('party-create')
-		.setDescription('Create a new party')
-        .addStringOption(option =>
-            option.setName('party-name')
-                .setDescription('Name your party')
-                .setRequired(false)),
-
 	async execute(interaction: ChatInputCommandInteraction) {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 

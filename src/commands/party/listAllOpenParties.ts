@@ -3,11 +3,6 @@ import { pool } from '../../db';
 import { partyUtils } from '../../utils/queryDB';
 
 module.exports = {
-	data: new SlashCommandBuilder()
-		.setName('party-list-all')
-		.setDescription('Lists all parties')
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-
 	async execute(interaction: ChatInputCommandInteraction) {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 

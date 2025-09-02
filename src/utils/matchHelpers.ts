@@ -375,35 +375,38 @@ export async function sendMatchInitMessages(queueId: number, matchId: number, te
   await textChannel.send({ embeds: [deckEmbed], components: [deckSelMenu] });
 }
 
-export async function endMatch(matchId: number): Promise<boolean> {
+export async function endMatch(matchId: number, cancelled = false): Promise<boolean> {
 
-  // close match in DB
-  await closeMatch(matchId);
+  try {
+    // close match in DB
+    console.log('being closed')
+    await closeMatch(matchId);
 
-  console.log('being closed')
+    // get log file using glob library 
+    const pattern = path.join(__dirname, '..', 'logs', `match-${matchId}_*.log`).replace(/\\/g, '/');;
+    const files = await glob(pattern)
+    const file: string | null = files[0] ?? null;
 
-  // delete match channel (faliure results in early return)
-  const wasSuccessfullyDeleted = await deleteMatchChannel(matchId);
-  if (!wasSuccessfullyDeleted) return false;
+    if (file) {
+      // format and send transcript
+      const logContent = fs.readFileSync(file, 'utf8');
+      const logLines = logContent.split('\n').filter(line => line.trim() !== '');
+      const parsedLogLines = await parseLogLines(logLines);
+      console.log(parsedLogLines); // json body
 
-  // get log file using glob library 
-  const pattern = path.join(__dirname, '..', 'logs', `match-${matchId}_*.log`).replace(/\\/g, '/');;
-  const files = await glob(pattern)
-  const file: string | null = files[0] ?? null;
+      // delete the log file after transcript is sent 
+      fs.unlinkSync(file);
+    }
 
-  
-  if (file) {
-    // format and send transcript
-    const logContent = fs.readFileSync(file, 'utf8');
-    const logLines = logContent.split('\n').filter(line => line.trim() !== '');
-    const parsedLogLines = await parseLogLines(logLines);
-    console.log(parsedLogLines); // json body
+    // delete match channel (faliure results in early return)
+    const wasSuccessfullyDeleted = await deleteMatchChannel(matchId);
+    if (!wasSuccessfullyDeleted) { console.error(`Failed to delete match channel for match ${matchId}`); return false}
 
-    // delete the log file after transcript is sent 
-    fs.unlinkSync(file);
+    if (cancelled) return true;
+  } catch (err) {
+    console.error(`Error in file formatting or channel deletion for match ${matchId}:`, err);
+    return false;
   }
-  
-
 
   // build rematch button row
   const rematchButtonRow: ActionRowBuilder<ButtonBuilder> = new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -498,9 +501,11 @@ export async function deleteMatchChannel(matchId: number): Promise<boolean> {
     console.error(`No text channel found for match ${matchId}`); 
     return false;
   }
-  await textChannel.delete().catch(err => {
-    console.error(`Failed to delete text channel for match ${matchId}: ${err}`);
-    return false;
-  })
+  setTimeout(async () => {
+    await textChannel.delete().catch(err => {
+      console.error(`Failed to delete text channel for match ${matchId}: ${err}`);
+      return false;
+    })
+  }, 1000);
   return true
 }

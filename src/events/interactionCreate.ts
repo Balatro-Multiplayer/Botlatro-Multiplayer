@@ -27,7 +27,12 @@ module.exports = {
             if (interaction.replied || interaction.deferred) {
                 await interaction.followUp({ content: 'There was an error.', flags: MessageFlags.Ephemeral });
             } else {
-                await interaction.reply({ content: 'There was an error.', flags: MessageFlags.Ephemeral });
+                if (interaction) {
+                    await interaction.reply({ content: 'There was an error.', flags: MessageFlags.Ephemeral });
+                }
+                else {
+                    console.error('Interaction is undefined', err);
+                }
             }
         }
     }
@@ -274,112 +279,136 @@ module.exports = {
                 }
             }
         }
-        if (interaction.customId === 'check-queued') {
-            const userQueueList = await getUserQueues(interaction.user.id);
-            const priorityQueueId = await getUserPriorityQueueId(interaction.user.id);
+        try {
+            if (interaction.customId === 'check-queued') {
+                const userQueueList = await getUserQueues(interaction.user.id);
+                const priorityQueueId = await getUserPriorityQueueId(interaction.user.id);
 
-            if (userQueueList.length > 0) {
-                const timeSpent = await timeSpentInQueue(interaction.user.id, userQueueList[0].id);
-                await interaction.reply({ content: `
-                    You are in queue for **${userQueueList.map(queue => `${queue.queue_name}`).join(', ')}**!` + 
-                    `${priorityQueueId ? `\nYour priority queue is **${(await getQueueSettings(priorityQueueId, ['queue_name'])).queue_name}**!` : ``}` + 
-                    `\nJoined queue ${timeSpent}.`,
-                    flags: MessageFlags.Ephemeral });
-            } else {
-                await interaction.reply({ content: `You are not currently in any queues.`, flags: MessageFlags.Ephemeral });
-            }
-        }
-        if (interaction.customId === 'set-priority-queue') {
-            await interaction.deferReply({ flags: MessageFlags.Ephemeral })
-            const queueList = await getActiveQueues();
-        
-            const options: StringSelectMenuOptionBuilder[] = queueList.map((queue) => {
-                return new StringSelectMenuOptionBuilder()
-                    .setLabel(queue.queue_name.slice(0, 100))
-                    .setDescription((queue.queue_desc || '').slice(0, 100))
-                    .setValue(queue.id.toString())
-            });
-        
-            if (options.length == 0) return;
-        
-            const selectRow = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
-                new StringSelectMenuBuilder()
-                    .setCustomId(`priority-queue-sel`)
-                    .setPlaceholder('Select a priority queue!')
-                    .addOptions(options)
-            );
-
-            await interaction.editReply({ 
-                content: `Please select the queue you would like to mark as priority.` +
-                `\nThis will make the matcmaking queue prioritize a match with this queue when joining more than one queue.`,
-                components: [selectRow] 
-            });
-        }
-        if (interaction.customId.startsWith('cancel-')) {
-            const matchId = parseInt(interaction.customId.split('-')[1]);
-            const matchUsers = await getTeamsInMatch(matchId);
-            const matchUsersArray = matchUsers.flatMap(t => t.users.map(u => u.user_id));
-
-             await handleVoting(interaction, {
-                voteType: "Cancel Match?",
-                embedFieldIndex: 2,
-                participants: matchUsersArray,
-                onComplete: async (interaction) => {
-                    await closeMatch(matchId)
-                    await interaction.update({ content: 'The match has been cancelled.', embeds: [], components: [] });
+                if (userQueueList.length > 0) {
+                    const timeSpent = await timeSpentInQueue(interaction.user.id, userQueueList[0].id);
+                    await interaction.reply({ content: `
+                        You are in queue for **${userQueueList.map(queue => `${queue.queue_name}`).join(', ')}**!` + 
+                        `${priorityQueueId ? `\nYour priority queue is **${(await getQueueSettings(priorityQueueId, ['queue_name'])).queue_name}**!` : ``}` + 
+                        `\nJoined queue ${timeSpent}.`,
+                        flags: MessageFlags.Ephemeral });
+                } else {
+                    await interaction.reply({ content: `You are not currently in any queues.`, flags: MessageFlags.Ephemeral });
                 }
-            });
-        }
-        if (interaction.customId.startsWith('call-helpers-')) {
-            const matchId = parseInt(interaction.customId.split('-')[1]);
-            // TODO: Make helpers call stuff
-        }
-        if (interaction.customId.startsWith('rematch-')) {
-            const matchId = parseInt(interaction.customId.split('-')[1]);
-            const matchData = await getMatchData(matchId);
-            const matchUsers = await getTeamsInMatch(matchId);
-            const matchUsersArray = matchUsers.flatMap(t => t.users.map(u => u.user_id));
+            }
+            if (interaction.customId === 'set-priority-queue') {
+                await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+                const queueList = await getActiveQueues();
+            
+                const options: StringSelectMenuOptionBuilder[] = queueList.map((queue) => {
+                    return new StringSelectMenuOptionBuilder()
+                        .setLabel(queue.queue_name.slice(0, 100))
+                        .setDescription((queue.queue_desc || '').slice(0, 100))
+                        .setValue(queue.id.toString())
+                });
+            
+                if (options.length == 0) return;
+            
+                const selectRow = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
+                    new StringSelectMenuBuilder()
+                        .setCustomId(`priority-queue-sel`)
+                        .setPlaceholder('Select a priority queue!')
+                        .addOptions(options)
+                );
 
-            await handleVoting(interaction, {
-                voteType: "Rematch Votes",
-                embedFieldIndex: 2,
-                participants: matchUsersArray,
-                onComplete: async (interaction, { embed }) => {
-                    await createMatch(matchUsersArray, matchData.queue_id);
-                    await interaction.update({
-                        content: 'A Rematch for this matchup has begun!',
-                        embeds: [embed],
-                        components: []
+                await interaction.editReply({ 
+                    content: `Please select the queue you would like to mark as priority.` +
+                    `\nThis will make the matcmaking queue prioritize a match with this queue when joining more than one queue.`,
+                    components: [selectRow] 
+                });
+            }
+            if (interaction.customId.startsWith('cancel-')) {
+                const matchId = parseInt(interaction.customId.split('-')[1]);
+                const matchUsers = await getTeamsInMatch(matchId);
+                const matchUsersArray = matchUsers.flatMap(t => t.users.map(u => u.user_id));
+
+                try {
+                    await handleVoting(interaction, {
+                        voteType: "Cancel Match?",
+                        embedFieldIndex: 2,
+                        participants: matchUsersArray,
+                        onComplete: async (interaction) => {
+                            try {
+                                await endMatch(matchId, true)
+                                if (interaction.message) {
+                                    await interaction.update({ content: 'The match has been cancelled.', embeds: [], components: [] });
+                                }
+                            } catch (err) {
+                                console.error('Error in onComplete:', err);
+                            }
+                        }
                     });
+                } catch (err) {
+                    console.error(err);
                 }
-            });
+            }
+            
+            if (interaction.customId.startsWith('call-helpers-')) {
+                const matchId = parseInt(interaction.customId.split('-')[1]);
+                // TODO: Make helpers call stuff
+            }
+            if (interaction.customId.startsWith('rematch-')) {
+                const matchId = parseInt(interaction.customId.split('-')[1]);
+                const matchData = await getMatchData(matchId);
+                const matchUsers = await getTeamsInMatch(matchId);
+                const matchUsersArray = matchUsers.flatMap(t => t.users.map(u => u.user_id));
+
+                await handleVoting(interaction, {
+                    voteType: "Rematch Votes",
+                    embedFieldIndex: 2,
+                    participants: matchUsersArray,
+                    onComplete: async (interaction, { embed }) => {
+                        await createMatch(matchUsersArray, matchData.queue_id);
+                        await interaction.update({
+                            content: 'A Rematch for this matchup has begun!',
+                            embeds: [embed],
+                            components: []
+                        });
+                    }
+                });
+            }
+        } catch (err) {
+            console.error(err);
+            if (interaction.replied || interaction.deferred) {
+                await interaction.followUp({ content: 'There was an error.', flags: MessageFlags.Ephemeral });
+            } else if (interaction.channel) {
+                await interaction.reply({ content: 'There was an error.', flags: MessageFlags.Ephemeral });
+            }
         }
-        // accept party invite
-        if (interaction.customId.startsWith('accept-party-invite-')) {
-            const memberId = interaction.customId.split('-').pop(); // id of the user who sent the invite
-            if (!memberId) { // should never happen
-                await interaction.reply({ content: 'Invalid invite.', flags: MessageFlags.Ephemeral });
-                return;
-            }
+            
+            // accept party invite
+            if (interaction.customId.startsWith('accept-party-invite-')) {
+                const memberId = interaction.customId.split('-').pop(); // id of the user who sent the invite
+                if (!memberId) { // should never happen
+                    await interaction.reply({ content: 'Invalid invite.', flags: MessageFlags.Ephemeral });
+                    return;
+                }
+                
 
-            const client = (await import('../index')).default; 
-            const guild = client.guilds.cache.get(process.env.GUILD_ID!) 
-                ?? await client.guilds.fetch(process.env.GUILD_ID!);
+                const client = (await import('../index')).default; 
+                const guild = client.guilds.cache.get(process.env.GUILD_ID!) 
+                    ?? await client.guilds.fetch(process.env.GUILD_ID!);
 
-            const member = await guild.members.fetch(memberId);
-            if (!member) { // should never happen
-                await interaction.reply({ content: 'Member not found.', flags: MessageFlags.Ephemeral });
-                return;
-            }
+                const member = await guild.members.fetch(memberId);
+                if (!member) { // should never happen
+                    await interaction.reply({ content: 'Member not found.', flags: MessageFlags.Ephemeral });
+                    return;
+                }
+                
 
-            const partyId = await partyUtils.getUserParty(member.user.id); // get party id
-            const sendTime = interaction.message.createdTimestamp;
-            const currentTime = Date.now();
-            if (currentTime - sendTime > 5 * 60 * 1000 // greater than 5 minutes
-            || !partyId) { // if party no longer exists
-                await interaction.reply({ content: 'This invite has expired.', flags: MessageFlags.Ephemeral });
-                return;
-            }
+                const partyId = await partyUtils.getUserParty(member.user.id); // get party id
+                const sendTime = interaction.message.createdTimestamp;
+                const currentTime = Date.now();
+                if (currentTime - sendTime > 5 * 60 * 1000 // greater than 5 minutes
+                || !partyId) { // if party no longer exists
+                    await interaction.reply({ content: 'This invite has expired.', flags: MessageFlags.Ephemeral });
+                    return;
+                }
+                
 
             try {
                 await pool.query(
