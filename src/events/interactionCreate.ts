@@ -1,6 +1,6 @@
 import { ActionRowBuilder, APIActionRowComponent, APIEmbedField, APIStringSelectComponent, ButtonBuilder, ButtonStyle, Events, Interaction, MessageComponentInteraction, MessageFlags, StringSelectMenuBuilder, StringSelectMenuComponent, StringSelectMenuInteraction, StringSelectMenuOptionBuilder, TextChannel } from 'discord.js';
 import { pool } from '../db';
-import { updateQueueMessage, matchUpGames, timeSpentInQueue, queueUsers } from '../utils/queueHelpers';
+import { updateQueueMessage, matchUpGames, timeSpentInQueue, createMatch } from '../utils/queueHelpers';
 import { customDecks, decks, endMatch, getTeamsInMatch, setupDeckSelect } from '../utils/matchHelpers';
 import { closeMatch, getActiveQueues, getMatchData, getQueueSettings, getUserPriorityQueueId, getUserQueues, getUsersInQueue, partyUtils, setUserPriorityQueue, userInMatch, userInQueue } from '../utils/queryDB';
 import { QueryResult } from 'pg';
@@ -345,7 +345,7 @@ module.exports = {
                 embedFieldIndex: 2,
                 participants: matchUsersArray,
                 onComplete: async (interaction, { embed }) => {
-                    await queueUsers(matchUsersArray, matchData.queue_id);
+                    await createMatch(matchUsersArray, matchData.queue_id);
                     await interaction.update({
                         content: 'A Rematch for this matchup has begun!',
                         embeds: [embed],

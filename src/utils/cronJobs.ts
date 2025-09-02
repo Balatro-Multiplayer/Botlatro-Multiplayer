@@ -1,8 +1,12 @@
 import { set, update } from "lodash-es";
 import { partyUtils, getUsersInQueue, getCurrentEloRangeForUser, updateCurrentEloRangeForUser, ratingUtils, removeUserFromQueue, getActiveQueues, getUserQueues } from "./queryDB";
 import { getQueueSettings } from "./queryDB";
-import { matchUpGames, queueUsers } from "./queueHelpers";
+import { createMatch, matchUpGames } from "./queueHelpers";
+import * as fs from 'fs';
+import * as path from 'path';
+import { glob } from "glob";
 import { get } from "http";
+import { Client, Collection, GatewayIntentBits, Events, REST, Routes } from 'discord.js';
 
 const lockedUsers = new Set<string>();
 
@@ -101,7 +105,7 @@ export async function incrementEloCronJobAllQueues() {
                     }
 
                     // queue them for the match
-                    await queueUsers(matchupUsers, bestPair[0].queueId);
+                    await createMatch(matchupUsers, bestPair[0].queueId);
                 }
             }
         } catch (err) {
@@ -110,3 +114,26 @@ export async function incrementEloCronJobAllQueues() {
     }, speedDefault * 1000);
 }
 
+
+// delete old transcript files in case they dont get deleted  TODO: this should maybe send the data before deleting?
+export async function deleteOldTranscriptsCronJob() {
+    setInterval(async () => {
+        console.log('-- running deleteOldTranscriptsCronJob --');
+        const client = (await import('../index')).default; 
+        const guild = client.guilds.cache.get(process.env.GUILD_ID!) 
+
+        const pattern = path.join(__dirname, '..', 'logs', `match-*_*.log`).replace(/\\/g, '/');
+        const files = await glob(pattern);
+
+        files.map(file => {
+            const channelId = file.split('_').pop()?.replace('.log', '');
+            if (!channelId) return;
+            const channel = guild?.channels.cache.get(channelId) || null;
+            if (!channel) {
+                console.log(`Deleting old transcript file: ${file}`);
+                fs.unlinkSync(file);
+            }
+        });
+
+    }, 30 * 60 * 1000); // every 30 mins
+}

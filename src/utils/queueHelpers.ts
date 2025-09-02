@@ -4,12 +4,16 @@ import { sendMatchInitMessages } from './matchHelpers';
 import { getUsersInQueue, userInQueue } from './queryDB';
 import { Queues } from 'psqlDB';
 import { QueryResult } from 'pg';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Updates or sends a new queue message for the specified text channel  
 export async function updateQueueMessage(): Promise<Message | undefined> {
     const response = await pool.query(
         'SELECT queue_channel_id, queue_message_id FROM settings',
     )
+
+    if (response.rows[0].queue_channel_id === null) { throw new Error('No queue channel set in settings, try using \'/setup-bot\' '); };
 
     const { 
         queue_channel_id: queueChannelId,
@@ -162,7 +166,7 @@ export async function matchUpGames(): Promise<void> {
             // Mark users as used
             users.forEach((u: Record<string, any>) => usedUsers.add(u.user_id));
 
-            queueUsers(users.map((u: Record<string, any>) => u.user_id), queueId)
+            createMatch(users.map((u: Record<string, any>) => u.user_id), queueId)
         }
 
     } catch (err) {
@@ -190,10 +194,12 @@ function getCombinations<T>(arr: T[], k: number): T[][] {
 
 
 // Queues players together and creates a match channel for them
-export async function queueUsers(userIds: string[], queueId: number): Promise<void> {
+export async function createMatch(userIds: string[], queueId: number): Promise<void> {
     if (userIds.length === 0 || !queueId) {
         throw new Error('Wrong parameters provided for creating a match');
     };
+
+    // get global settings
     const queue: QueryResult<Queues> = await pool.query('SELECT id FROM queues WHERE id = $1', [queueId]);
     const settings = await pool.query('SELECT * FROM settings');
     if (!settings) return;
@@ -228,6 +234,7 @@ export async function queueUsers(userIds: string[], queueId: number): Promise<vo
 
     const matchId = response.rows[0].id;
 
+    // rename channel to match-{id}
     channel.setName(`match-${matchId}`);
 
     for (const userId of userIds) {
