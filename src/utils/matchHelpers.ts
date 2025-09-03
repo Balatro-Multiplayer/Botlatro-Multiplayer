@@ -1,7 +1,7 @@
 import { ActionRowBuilder, APIEmbedField, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, TextChannel } from 'discord.js';
 import { pool } from '../db';
 import client from '../index';
-import _, { random } from 'lodash-es';
+import { random, shuffle } from 'lodash-es';
 import { closeMatch, getMatchResultsChannel, getQueueIdFromMatch, isQueueGlicko, getWinningTeamFromMatch, getQueueSettings, getMatchChannel } from './queryDB';
 import { Deck, Stake } from 'psqlDB';
 import dotenv from 'dotenv';
@@ -362,7 +362,7 @@ export async function sendMatchInitMessages(queueId: number, matchId: number, te
         .setFields(teamFields)
         .setColor(0xFF0000);
      
-  const randomTeams: any[] = _.shuffle(teamFields);
+  const randomTeams: any[] = shuffle(teamFields);
 
   const deckEmbed = new EmbedBuilder()
         .setTitle(`Deck Bans`)

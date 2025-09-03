@@ -9,15 +9,7 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName('set')
     .setDescription('sets things to a certain value')
-    
-    .addSubcommand(sub => sub.setName('priority-queue').setDescription('Set a priority queue for when you queue in multiple queues')
-        .addStringOption(option => option
-            .setName('queue-name')
-            .setDescription('The queue you would like to prioritize')
-            .setRequired(true)
-            .setAutocomplete(true)
-		)
-    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addSubcommand(sub => sub.setName('mmr').setDescription('[ADMIN] Set a users MMR in a specific queue')
         .addUserOption(option => option
             .setName('user')
