@@ -162,10 +162,16 @@ module.exports = {
         }
 
         if (interaction.customId === 'priority-queue-sel') {
-            const queueSelId = parseInt(interaction.values[0]);
+            let queueSelId: number | null = parseInt(interaction.values[0]);
+            if (queueSelId == -1) queueSelId = null;
             await setUserPriorityQueue(interaction.user.id, queueSelId);
-            const queueData = await getQueueSettings(queueSelId, ["queue_name"]);
-            interaction.update({ content: `Successfully set priority queue to **${queueData.queue_name}**!`, components: [] });
+
+            if (queueSelId) {
+                const queueData = await getQueueSettings(queueSelId, ["queue_name"]);
+                interaction.update({ content: `Successfully set priority queue to **${queueData.queue_name}**!`, components: [] });
+            } else {
+                interaction.update({ content: `Successfully removed your priority queue.`, components: [] });
+            }
         }
 
         if (interaction.values[0].includes('winmatch_')) {
@@ -305,6 +311,13 @@ module.exports = {
                         .setDescription((queue.queue_desc || '').slice(0, 100))
                         .setValue(queue.id.toString())
                 });
+
+                options.unshift(
+                    new StringSelectMenuOptionBuilder()
+                        .setLabel('Remove Priority Queue')
+                        .setDescription('Select to have no priority queue.')
+                        .setValue('-1')
+                )
             
                 if (options.length == 0) return;
             
