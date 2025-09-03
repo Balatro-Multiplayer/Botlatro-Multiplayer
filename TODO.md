@@ -29,7 +29,7 @@
 - Players need to be able to be banned (temporarily and permanently) from queuing, this needs to be tied to their userID in case they leave the server and join back
 - Command to lock/unlock a queue (the code handles this, just need something to change the db entry)
 - Button on results embed after a match to contest a match/send a ticket?
-- All queues need their transcripts saved to somewhere were staff can access them at any point forever (maybe a time limit is reasonable but it would have to be large)
+- Transcripts need to be put somewhere
 - Staff need to be able to edit player stats, such as add/remove mmr, win streaks, wins/losses, etc.
 
 ## Leaderboard

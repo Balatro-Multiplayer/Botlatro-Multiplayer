@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, MessageFlags, PermissionFlagsBits, AutocompleteInteraction } from 'discord.js';
+import {  ChatInputCommandInteraction, MessageFlags, AutocompleteInteraction } from 'discord.js';
 import { pool } from '../../db';
 import { getQueueNames } from '../../utils/queryDB'
 import { updateQueueMessage } from '../../utils/queueHelpers';

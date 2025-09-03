@@ -21,9 +21,9 @@ module.exports = {
   async execute(interaction: ChatInputCommandInteraction) {
 
     if (interaction.options.getSubcommand() === 'deck') {
-    await randomDeck.execute(interaction);
+        await randomDeck.execute(interaction);
     } else if (interaction.options.getSubcommand() === 'stake') {
-    await randomStake.execute(interaction);
+        await randomStake.execute(interaction);
     }
 
   }

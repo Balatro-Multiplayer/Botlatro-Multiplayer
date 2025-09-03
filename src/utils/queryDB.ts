@@ -37,7 +37,7 @@ export async function getUserQueues(userId: string): Promise<Queues[]> {
 }
 
 // Set a priority queue for a user
-export async function setUserPriorityQueue(userId: string, queueId: number): Promise<boolean> {
+export async function setUserPriorityQueue(userId: string, queueId: number | null): Promise<boolean> {
   const response = await pool.query(`
     UPDATE users
     SET priority_queue_id = $2

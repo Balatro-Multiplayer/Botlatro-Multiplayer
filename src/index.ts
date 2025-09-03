@@ -78,11 +78,8 @@ for (const file of eventFiles) {
 client.login(process.env.DISCORD_TOKEN);
 
 // cronjob for deleting old parties every 5 minutes
-import { partyDeleteCronJob } from './utils/cronJobs';
+import { partyDeleteCronJob, deleteOldTranscriptsCronJob } from './utils/cronJobs';
 partyDeleteCronJob();
-
-// cronjob for deleting old transcript files every 30 minutes
-import { deleteOldTranscriptsCronJob } from './utils/cronJobs';
 deleteOldTranscriptsCronJob();
 
 export default client;

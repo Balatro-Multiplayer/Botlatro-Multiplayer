@@ -1,8 +1,5 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, MessageFlags, TextChannel, ChannelType } from 'discord.js';
 import { pool } from '../../db';
-import { updateQueueMessage } from '../../utils/queueHelpers';
-import { get } from 'http';
-import { channel } from 'diagnostics_channel';
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -74,7 +71,7 @@ module.exports = {
 						permissionOverwrites: permissionOverwrites
 					}) as TextChannel;
 					await pool.query(`
-						INSERT INTO settings ${databaseEntry} VALUES $1 WHERE singleton = $2`,
+						UPDATE settings SET ${databaseEntry} = $1 WHERE singleton = $2`,
 						[newChannel.id, true]
 					)
 					return newChannel;
@@ -117,7 +114,6 @@ module.exports = {
 			const botPerms = { id: botId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] };
 
 			// Get or create all channels
-
 			await getOrCreateChannel(settings.queue_channel_id, 'queue', everyonePermsSend, 'queue_channel_id'),
 			await getOrCreateChannel(settings.queue_results_channel_id, 'queue-results', [everyonePermsSend[0], botPerms], 'queue_results_channel_id'),
 			await getOrCreateChannel(settings.logs_channel_id, 'activity-log', [everyonePermsView[0], helperPerms, botPerms], 'logs_channel_id'),
