@@ -9,7 +9,7 @@ const partyInvite = require('../party/partyInvite');
 // const partyJoin = require('../party/partyJoin');
 const partyLeave = require('../party/partyLeave');
 // const partyPromote = require('../party/partyPromote');
-// const partyRemove = require('../party/partyRemove');
+const partyKick = require('../party/partyKick');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -33,7 +33,13 @@ module.exports = {
     .addSubcommand(sub => sub.setName('join').setDescription('Join a party that you have a pending invite to'))
     .addSubcommand(sub => sub.setName('leave').setDescription('Leave your current party'))
     .addSubcommand(sub => sub.setName('promote').setDescription('Promote a user in your party to be the new leader'))
-    .addSubcommand(sub => sub.setName('remove').setDescription('Remove a user from your party')),
+    .addSubcommand(sub => sub.setName('kick').setDescription('Remove a user from your party')
+        .addStringOption(option => option
+            .setName('user')
+            .setDescription('The user you would like to remove from your party')
+            .setAutocomplete(true)
+            .setRequired(true))
+),
 
     async execute(interaction: ChatInputCommandInteraction) {
 
@@ -51,9 +57,18 @@ module.exports = {
         await partyLeave.execute(interaction);
         } else if (interaction.options.getSubcommand() === 'promote') {
         // await partyPromote.execute(interaction);
-        } else if (interaction.options.getSubcommand() === 'remove') {
-        // await partyRemove.execute(interaction);
+        } else if (interaction.options.getSubcommand() === 'kick') {
+        await partyKick.execute(interaction);
         }
 
+    },
+
+    async autocomplete(interaction: AutocompleteInteraction) {
+        const subcommand = interaction.options.getSubcommand();
+
+        if (subcommand === 'kick') {
+        await partyKick.autocomplete(interaction);
+        }
+        
     }
 };

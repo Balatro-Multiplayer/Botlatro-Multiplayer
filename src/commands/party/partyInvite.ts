@@ -6,9 +6,8 @@ module.exports = {
 	async execute(interaction: ChatInputCommandInteraction) {
 
 		try {
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
             const member = interaction.options.getUser('member', true);
-
-			await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
             const acceptButton = new ButtonBuilder()
                 .setCustomId(`accept-party-invite-${interaction.user.id}`)

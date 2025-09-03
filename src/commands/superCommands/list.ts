@@ -9,12 +9,12 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName('list')
     .setDescription('List things')
-
-    .addSubcommand(sub => sub.setName('parties').setDescription('Lists all parties'))
-    .addSubcommand(sub => sub.setName('users-in-party').setDescription('Lists users in the specified party')
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .addSubcommand(sub => sub.setName('parties').setDescription('[ADMIN] Lists all parties'))
+    .addSubcommand(sub => sub.setName('users-in-party').setDescription('[ADMIN] Lists users in the specified party')
         .addStringOption(option => option
             .setName('party-to-check')
-            .setDescription('Only available for admins: lists users in the specified party')
+            .setDescription('[ADMIN] lists users in the specified party')
             .setAutocomplete(true)
             .setRequired(true))
     ),

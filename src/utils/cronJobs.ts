@@ -1,7 +1,7 @@
 import { set, update } from "lodash-es";
-import { partyUtils, getUsersInQueue, getCurrentEloRangeForUser, updateCurrentEloRangeForUser, ratingUtils, removeUserFromQueue, getActiveQueues, getUserQueues } from "./queryDB";
+import { partyUtils, getUsersInQueue, getCurrentEloRangeForUser, updateCurrentEloRangeForUser, ratingUtils, removeUserFromQueue, getActiveQueues, getUserQueues, getUserPriorityQueueId } from "./queryDB";
 import { getQueueSettings } from "./queryDB";
-import { createMatch, matchUpGames } from "./queueHelpers";
+import { createMatch, matchUpGames, timeSpentInQueue } from "./queueHelpers";
 import * as fs from 'fs';
 import * as path from 'path';
 import { glob } from "glob";
@@ -63,17 +63,20 @@ export async function incrementEloCronJobAllQueues() {
                 let usersInQueue = await getUsersInQueue(queue.id);
                 if (usersInQueue.length <= 1) continue;
 
-                const candidates: { range: number; userId: string; elo: number; queueId: number }[] = [];
+                const candidates: { range: number; userId: string; elo: number; queueId: number, priorityQueueId: number | null, timeInQueue: string }[] = [];
 
                 for (const userId of usersInQueue) {
                     const elo = await ratingUtils.getPlayerElo(userId, queue.id);
                     if (!elo) continue;
+                    const userTimeSpent = await timeSpentInQueue(userId, queue.id)
+                    if (!userTimeSpent) continue;
+                    const userPriorityQueueId = await getUserPriorityQueueId(userId);
 
                     const currentRange = await getCurrentEloRangeForUser(userId, queue.id);
                     const newRange = (currentRange ?? start) + increment;
                     await updateCurrentEloRangeForUser(userId, queue.id, newRange);
 
-                    candidates.push({ range: newRange, userId, elo, queueId: queue.id });
+                    candidates.push({ range: newRange, userId, elo, queueId: queue.id, priorityQueueId: userPriorityQueueId, timeInQueue: userTimeSpent });
                 }
 
                 // find best pair within this queue
@@ -83,9 +86,24 @@ export async function incrementEloCronJobAllQueues() {
                 for (let i = 0; i < candidates.length; i++) {
                     for (let j = i + 1; j < candidates.length; j++) {
                         const diff = Math.abs(candidates[i].elo - candidates[j].elo);
-                        const inRange =
+                        let inRange =
                             diff < candidates[i].range && diff < candidates[j].range;
 
+                        // Time-in-queue check
+                        const anyTooRecent = [candidates[i], candidates[j]].some(candidate => {
+                            if (candidate.queueId === candidate.priorityQueueId) return false;
+
+                            const match = candidate.timeInQueue?.match(/<t:(\d+)(?::[a-zA-Z])?>/);
+                            if (!match) return false;
+
+                            const tsMs = parseInt(match[1], 10) * 1000;
+                            const diffMinutes = (Date.now() - tsMs) / 60000;
+
+                            return diffMinutes < 3;
+                        });
+
+                        inRange = inRange && !anyTooRecent;
+                        
                         if (inRange && diff < minDiff) {
                             minDiff = diff;
                             bestPair = [candidates[i], candidates[j]];
