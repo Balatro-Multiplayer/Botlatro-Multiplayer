@@ -1,17 +1,16 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, MessageFlags, ButtonBuilder, ActionRowBuilder, ButtonStyle, AutocompleteInteraction  } from 'discord.js';
-import { pool } from '../../db';
-import { partyUtils } from '../../utils/queryDB';
+import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits } from 'discord.js';
 
 const deleteQueue = require('../moderation/deleteQueue');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('delete')
-    .setDescription('delete things')
+    .setDescription('Delete Subcommands')
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addSubcommand(sub => sub.setName('queue').setDescription('List parties')
         .addStringOption(option =>
         option.setName('queue-name')
-            .setDescription('The queue name you would like to cancel')
+            .setDescription('[ADMIN] The queue name you would like to cancel')
             .setRequired(true)
             .setAutocomplete(true)
 		)

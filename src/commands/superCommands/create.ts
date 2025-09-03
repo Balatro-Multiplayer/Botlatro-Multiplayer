@@ -7,8 +7,9 @@ const newQueue = require('../moderation/newQueue');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('create')
-    .setDescription('create things')
-    .addSubcommand(sub => sub.setName('queue').setDescription('Create a new queue embed')
+    .setDescription('Create things')
+	.setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .addSubcommand(sub => sub.setName('queue').setDescription('Create a new queue')
     		// required
 		.addStringOption(option =>
 			option.setName('queue-name')
