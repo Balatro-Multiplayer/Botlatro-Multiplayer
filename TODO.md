@@ -16,7 +16,7 @@
 - A button available to players in queue that calls a helper to the queue (the button is there but doesn't work yet)
 - Only putting staff in matches if they have been called (or have admin perms since that is unavoidable)
 - Optional VCs for matches, players can vote if they want to be in a VC for a particular game (no default VC)
-  
+
 ## Webhooks/API
 
 - Webhooks that will receive data for when a user's mmr is updated, when they play a match, who their current opponent is, etc. just anything that is possible to get
