@@ -1,6 +1,7 @@
 # Dependencies
 node_modules/
 package-lock.json
+bun.lock
 
 # Environment files
 .env
@@ -12,3 +13,6 @@ package-lock.json
 
 # Logs
 logs/
+
+# Code Editors/ IDE's
+.idea
