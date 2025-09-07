@@ -1,15 +1,14 @@
 /// <reference path="./@types/discord.d.ts" />
-import {
-  Client,
-  Collection,
-  GatewayIntentBits,
-  Events,
-  REST,
-  Routes,
-} from 'discord.js'
+import { REST, Routes } from 'discord.js'
 import * as dotenv from 'dotenv'
 import fs from 'node:fs'
 import path from 'node:path'
+import {
+  deleteOldTranscriptsCronJob,
+  partyDeleteCronJob,
+} from './utils/cronJobs'
+import { client } from './client'
+
 require('dotenv').config()
 
 dotenv.config()
@@ -17,15 +16,6 @@ dotenv.config()
 const token = process.env.DISCORD_TOKEN || ''
 const clientId = process.env.CLIENT_ID || ''
 const guildId = process.env.GUILD_ID || ''
-
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-  ],
-})
-client.commands = new Collection()
 
 const commands = []
 const foldersPath = path.join(__dirname, 'commands')
@@ -94,12 +84,9 @@ for (const file of eventFiles) {
 
 client.login(process.env.DISCORD_TOKEN)
 
-// cronjob for deleting old parties every 5 minutes
-import {
-  partyDeleteCronJob,
-  deleteOldTranscriptsCronJob,
-} from './utils/cronJobs'
+// todo: cron jobs should be managed by a separate service, internal crons are unreliable
 partyDeleteCronJob()
 deleteOldTranscriptsCronJob()
 
+// todo: remove this export. get rid of (await import '../../index').default and such, directly import the client where required or use interaction.client in commands directly.
 export default client
