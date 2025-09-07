@@ -1,52 +1,64 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits, MessageFlags, ButtonBuilder, ActionRowBuilder, ButtonStyle, AutocompleteInteraction  } from 'discord.js';
-import { pool } from '../../db';
-import { partyUtils } from '../../utils/queryDB';
+import {
+  SlashCommandBuilder,
+  ChatInputCommandInteraction,
+  PermissionFlagsBits,
+  MessageFlags,
+  ButtonBuilder,
+  ActionRowBuilder,
+  ButtonStyle,
+  AutocompleteInteraction,
+} from 'discord.js'
+import { pool } from '../../db'
+import { partyUtils } from '../../utils/queryDB'
 
-const setPriorityQueue = require('../queues/setPriorityQueue');
-const chamgeMMR = require('../moderation/changeMMR');
+const setPriorityQueue = require('../queues/setPriorityQueue')
+const chamgeMMR = require('../moderation/changeMMR')
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('set')
     .setDescription('sets things to a certain value')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .addSubcommand(sub => sub.setName('mmr').setDescription('[ADMIN] Set a users MMR in a specific queue')
-        .addUserOption(option => option
+    .addSubcommand((sub) =>
+      sub
+        .setName('mmr')
+        .setDescription('[ADMIN] Set a users MMR in a specific queue')
+        .addUserOption((option) =>
+          option
             .setName('user')
             .setDescription('The user whose MMR you want to change')
-            .setRequired(true)
+            .setRequired(true),
         )
-        .addStringOption(option => option
+        .addStringOption((option) =>
+          option
             .setName('queue-name')
             .setDescription('The queue that you are changing the mmr in')
             .setRequired(true)
-            .setAutocomplete(true)
+            .setAutocomplete(true),
         )
-        .addNumberOption(option => option
+        .addNumberOption((option) =>
+          option
             .setName('new-elo')
             .setDescription('The new elo to set the user to')
-            .setRequired(true)
-        )
-),
+            .setRequired(true),
+        ),
+    ),
 
   async execute(interaction: ChatInputCommandInteraction) {
-
-        if (interaction.options.getSubcommand() === 'priority-queue') {
-        await setPriorityQueue.execute(interaction);
-        } else if (interaction.options.getSubcommand() === 'mmr') {
-        await chamgeMMR.execute(interaction);
-        }
-
+    if (interaction.options.getSubcommand() === 'priority-queue') {
+      await setPriorityQueue.execute(interaction)
+    } else if (interaction.options.getSubcommand() === 'mmr') {
+      await chamgeMMR.execute(interaction)
+    }
   },
 
-    async autocomplete(interaction: AutocompleteInteraction) {
-        const subcommand = interaction.options.getSubcommand();
+  async autocomplete(interaction: AutocompleteInteraction) {
+    const subcommand = interaction.options.getSubcommand()
 
-        if (subcommand === 'priority-queue') {
-        await setPriorityQueue.autocomplete(interaction);
-        } else if (subcommand === 'mmr') {
-        await chamgeMMR.autocomplete(interaction);
-        }
-  }
-
-};
+    if (subcommand === 'priority-queue') {
+      await setPriorityQueue.autocomplete(interaction)
+    } else if (subcommand === 'mmr') {
+      await chamgeMMR.autocomplete(interaction)
+    }
+  },
+}
