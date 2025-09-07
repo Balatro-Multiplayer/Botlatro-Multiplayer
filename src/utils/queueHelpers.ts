@@ -16,8 +16,7 @@ import { sendMatchInitMessages } from './matchHelpers'
 import { getUsersInQueue, userInQueue } from './queryDB'
 import { Queues } from 'psqlDB'
 import { QueryResult } from 'pg'
-import * as fs from 'fs'
-import * as path from 'path'
+import { client } from '../client'
 
 // Updates or sends a new queue message for the specified text channel
 export async function updateQueueMessage(): Promise<Message | undefined> {
@@ -31,8 +30,6 @@ export async function updateQueueMessage(): Promise<Message | undefined> {
 
   const { queue_channel_id: queueChannelId, queue_message_id: queueMessageId } =
     response.rows[0]
-
-  const client = (await import('../index')).default
 
   const queueListResponse = await pool.query(`SELECT * from queues`)
   if (queueListResponse.rowCount == 0) return
@@ -247,7 +244,6 @@ export async function createMatch(
   if (!settings) return
   const categoryId = settings.rows[0].queue_category_id
 
-  const client = (await import('../index')).default
   const guild =
     client.guilds.cache.get(process.env.GUILD_ID!) ??
     (await client.guilds.fetch(process.env.GUILD_ID!))

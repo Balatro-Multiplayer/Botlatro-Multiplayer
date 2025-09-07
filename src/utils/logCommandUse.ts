@@ -1,18 +1,6 @@
-import {
-  SlashCommandBuilder,
-  ChatInputCommandInteraction,
-  MessageFlags,
-  PermissionFlagsBits,
-  AutocompleteInteraction,
-  EmbedBuilder,
-} from 'discord.js'
-import {
-  closeMatch,
-  getQueueNames,
-  getSettings,
-  updatePlayerElo,
-} from './queryDB'
-import { pool } from '../db'
+import { ChatInputCommandInteraction, EmbedBuilder } from 'discord.js'
+import { getSettings } from './queryDB'
+import { client } from '../client'
 
 export async function logCommandUse(interaction: ChatInputCommandInteraction) {
   try {
@@ -22,7 +10,6 @@ export async function logCommandUse(interaction: ChatInputCommandInteraction) {
       return
     }
 
-    const client = (await import('../index')).default
     const guild =
       client.guilds.cache.get(process.env.GUILD_ID!) ??
       (await client.guilds.fetch(process.env.GUILD_ID!))

@@ -7,7 +7,7 @@ import { pool } from '../../db'
 import { getQueueNames } from '../../utils/queryDB'
 import { updateQueueMessage } from '../../utils/queueHelpers'
 
-module.exports = {
+export default {
   async execute(interaction: ChatInputCommandInteraction) {
     try {
       // delete the queue from the database

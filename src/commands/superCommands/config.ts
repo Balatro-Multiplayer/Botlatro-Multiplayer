@@ -6,7 +6,7 @@ import {
 
 const setPriorityQueue = require('../queues/setPriorityQueue')
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('config')
     .setDescription('Change your configuration settings')

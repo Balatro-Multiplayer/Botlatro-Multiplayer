@@ -7,7 +7,7 @@ import {
 } from 'discord.js'
 import { updateQueueMessage } from '../../utils/queueHelpers'
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('resend-queue-message')
     .setDescription('[ADMIN] Resends the queue message in the current channel')

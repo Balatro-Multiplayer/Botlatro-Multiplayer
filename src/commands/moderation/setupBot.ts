@@ -7,8 +7,9 @@ import {
   ChannelType,
 } from 'discord.js'
 import { pool } from '../../db'
+import { client } from '../../client'
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('setup-bot')
     .setDescription('[ADMIN] Setup the initial settings for the bot')
@@ -54,7 +55,6 @@ module.exports = {
         'queue-category',
         true,
       )?.id
-      const client = (await import('../../index')).default
       const guild =
         client.guilds.cache.get(process.env.GUILD_ID!) ??
         (await client.guilds.fetch(process.env.GUILD_ID!))

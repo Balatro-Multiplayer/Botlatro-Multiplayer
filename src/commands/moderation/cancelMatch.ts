@@ -4,10 +4,9 @@ import {
   MessageFlags,
   PermissionFlagsBits,
 } from 'discord.js'
-import { closeMatch } from '../../utils/queryDB'
-import { endMatch } from '../../utils/matchHelpers'
+import { COMMAND_HANDLERS } from '../../command-handlers'
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('cancel-match')
     .setDescription('Cancel a specific match')
@@ -30,7 +29,8 @@ module.exports = {
         return
       }
 
-      const matchCancelCheck = await endMatch(matchId, true)
+      const matchCancelCheck =
+        await COMMAND_HANDLERS.MODERATION.CANCEL_MATCH(matchId)
 
       if (matchCancelCheck) {
         interaction.reply({
