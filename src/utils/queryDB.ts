@@ -1,8 +1,7 @@
-import { Channel, TextChannel } from 'discord.js'
+import { TextChannel } from 'discord.js'
 import { pool } from '../db'
-import { create } from 'node:domain'
-import { remove, update } from 'lodash-es'
-import { MatchUsers, teamResults, Matches, Queues, Settings } from 'psqlDB'
+import { Matches, MatchUsers, Queues, Settings, teamResults } from 'psqlDB'
+import { client } from '../client'
 
 // Get the queue names of all queues that exist
 export async function getQueueNames(): Promise<string[]> {
@@ -115,7 +114,6 @@ export async function getMatchChannel(
 
   if (rowCount == 0) throw Error('No matches found under this ID.')
 
-  const client = (await import('../index')).default
   const channel = await client.channels.fetch(rows[0].channel_id)
 
   if (channel instanceof TextChannel) {
@@ -135,7 +133,6 @@ export async function getMatchResultsChannel(): Promise<TextChannel | null> {
     throw new Error(`No queue found.`)
   }
 
-  const client = (await import('../index')).default
   const channel = await client.channels.fetch(rows[0].queue_results_channel_id)
 
   if (channel instanceof TextChannel) {
@@ -271,7 +268,6 @@ export async function getPartyUserList(
   }
   return Promise.all(
     response.rows.map(async (row) => {
-      const client = (await import('../index')).default
       const user = await client.users.fetch(row.user_id)
       return { name: user.username, id: row.user_id }
     }),

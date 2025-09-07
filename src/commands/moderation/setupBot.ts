@@ -7,6 +7,7 @@ import {
   ChannelType,
 } from 'discord.js'
 import { pool } from '../../db'
+import { client } from '../../client'
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -54,7 +55,6 @@ module.exports = {
         'queue-category',
         true,
       )?.id
-      const client = (await import('../../index')).default
       const guild =
         client.guilds.cache.get(process.env.GUILD_ID!) ??
         (await client.guilds.fetch(process.env.GUILD_ID!))

@@ -19,7 +19,7 @@ module.exports = {
         [queueName],
       )
 
-      const client = (await import('../../index')).default
+      const client = interaction.client
       const guild =
         client.guilds.cache.get(process.env.GUILD_ID!) ??
         (await client.guilds.fetch(process.env.GUILD_ID!))
