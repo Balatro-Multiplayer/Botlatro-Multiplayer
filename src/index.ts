@@ -8,7 +8,7 @@ import {
   partyDeleteCronJob,
 } from './utils/cronJobs'
 import { client } from './client'
-import { app } from './app'
+import { app } from './api/app'
 require('dotenv').config()
 
 dotenv.config()
