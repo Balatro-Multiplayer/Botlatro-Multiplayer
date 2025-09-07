@@ -14,7 +14,7 @@ import { partyUtils } from '../../utils/queryDB'
 const randomDeck = require('../other/randomDeck')
 const randomStake = require('../other/randomStake')
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('random')
     .setDescription('randomise things')

@@ -2,11 +2,12 @@
   "name": "nkqueue",
   "version": "1.0.0",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
-    "start": "npx ts-node src/index.ts",
-    "dev": "nodemon ./src/index.ts",
+    "start": "bun run src/index.ts",
+    "dev": "bun run --hot src/index.ts",
     "migrate": "npx node-pg-migrate up",
     "format": "prettier --write ."
   },

@@ -11,7 +11,7 @@ import {
   setUserPriorityQueue,
 } from '../../utils/queryDB'
 
-module.exports = {
+export default {
   async execute(interaction: ChatInputCommandInteraction) {
     try {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral })

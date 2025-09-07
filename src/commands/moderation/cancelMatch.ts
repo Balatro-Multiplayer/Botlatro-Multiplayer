@@ -6,7 +6,7 @@ import {
 } from 'discord.js'
 import { COMMAND_HANDLERS } from '../../command-handlers'
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('cancel-match')
     .setDescription('Cancel a specific match')

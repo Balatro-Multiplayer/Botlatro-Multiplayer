@@ -3,7 +3,7 @@ import { getSettings } from '../utils/queryDB'
 import * as fs from 'fs'
 import * as path from 'path'
 
-module.exports = {
+export default {
   name: Events.MessageCreate,
   async execute(message: any) {
     try {

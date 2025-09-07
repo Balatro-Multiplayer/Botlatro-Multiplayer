@@ -9,7 +9,7 @@ import {
 import { pool } from '../../db'
 import { client } from '../../client'
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('setup-bot')
     .setDescription('[ADMIN] Setup the initial settings for the bot')

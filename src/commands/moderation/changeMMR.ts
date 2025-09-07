@@ -8,7 +8,7 @@ import {
 import { closeMatch, getQueueNames, updatePlayerElo } from '../../utils/queryDB'
 import { pool } from '../../db'
 
-module.exports = {
+export default {
   async execute(interaction: ChatInputCommandInteraction) {
     try {
       const user = interaction.options.getUser('user', true)

@@ -20,7 +20,7 @@ const partyLeave = require('../party/partyLeave')
 // const partyPromote = require('../party/partyPromote');
 const partyKick = require('../party/partyKick')
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('party')
     .setDescription('party commands')

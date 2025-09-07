@@ -47,7 +47,7 @@ import { Queues } from 'psqlDB'
 import { handleTwoPlayerMatchVoting, handleVoting } from '../utils/voteHelpers'
 import { client } from '../client'
 
-module.exports = {
+export default {
   name: Events.InteractionCreate,
   async execute(interaction: Interaction) {
     // Slash commands

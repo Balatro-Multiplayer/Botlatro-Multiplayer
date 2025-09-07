@@ -1,7 +1,7 @@
 import { Events, Client } from 'discord.js'
 import { incrementEloCronJobAllQueues } from '../utils/cronJobs'
 
-module.exports = {
+export default {
   name: Events.ClientReady,
   once: true,
   async execute(client: Client) {
