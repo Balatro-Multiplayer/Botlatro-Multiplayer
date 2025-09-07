@@ -452,7 +452,7 @@ export async function endMatch(
 ): Promise<boolean> {
   try {
     // close match in DB
-    console.log('being closed')
+    console.log(`Closing match: ${matchId}`)
     await closeMatch(matchId)
 
     // get log file using glob library
