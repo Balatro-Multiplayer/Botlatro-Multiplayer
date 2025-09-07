@@ -2,123 +2,123 @@
 
 declare module 'psqlDB' {
   export interface Queues {
-    id: number;
-    queue_name: string;
-    queue_desc: string;
-    members_per_team: number;
-    number_of_teams: number;
-    elo_search_start: number;
-    elo_search_increment: number;
-    elo_search_speed: number;
-    default_elo: number;
-    minimum_elo?: number | null;
-    maximum_elo?: number | null;
-    max_party_elo_difference?: number | null;
-    locked: boolean;
+    id: number
+    queue_name: string
+    queue_desc: string
+    members_per_team: number
+    number_of_teams: number
+    elo_search_start: number
+    elo_search_increment: number
+    elo_search_speed: number
+    default_elo: number
+    minimum_elo?: number | null
+    maximum_elo?: number | null
+    max_party_elo_difference?: number | null
+    locked: boolean
   }
 
   export interface Parties {
-    id: number;
-    name: string;
-    created_at: Date;
+    id: number
+    name: string
+    created_at: Date
   }
 
   export interface PartyUsers {
-    id: number;
-    user_id: string;
-    party_id: number;
-    is_leader: boolean;
-    joined_at: Date;
+    id: number
+    user_id: string
+    party_id: number
+    is_leader: boolean
+    joined_at: Date
   }
 
   export interface Matches {
-    id: number;
-    queue_id: number;
-    channel_id: string;
-    open: boolean;
-    winning_team: number | null;
+    id: number
+    queue_id: number
+    channel_id: string
+    open: boolean
+    winning_team: number | null
   }
 
   export interface Users {
-    id: number;
-    user_id: string;
-    priority_queue_id: number;
-    joined_party_id?: string | null;
+    id: number
+    user_id: string
+    priority_queue_id: number
+    joined_party_id?: string | null
   }
 
   export interface QueueUsers {
     // glicko2 fields
-    elo: number | undefined; // rating
-    rating_deviation: number | undefined; // rating deviation
-    volatility: number | undefined; // rating change volatility
+    elo: number | undefined // rating
+    rating_deviation: number | undefined // rating deviation
+    volatility: number | undefined // rating change volatility
 
     // our fields
-    queue_id: number;
-    id: number;
-    user_id: string;
-    peak_rating: number;
-    wins: number;
-    losses: number;
-    games_played: number;
-    win_streak: number;
-    peak_win_streak: number;
-    current_elo_range: string[];
-    queue_join_time?: Date | null;
+    queue_id: number
+    id: number
+    user_id: string
+    peak_rating: number
+    wins: number
+    losses: number
+    games_played: number
+    win_streak: number
+    peak_win_streak: number
+    current_elo_range: string[]
+    queue_join_time?: Date | null
   }
 
   export interface MatchUsers extends QueueUsers {
-    id: number;
-    user_id: string;
-    match_id: number | null;
-    team: number | null;
-    elo_change?: number | null;
+    id: number
+    user_id: string
+    match_id: number | null
+    team: number | null
+    elo_change?: number | null
   }
 
   export interface Bans {
-    id: number;
-    user_id: string;
-    reason: string;
-    expires_at?: Date | null;
+    id: number
+    user_id: string
+    reason: string
+    expires_at?: Date | null
   }
 
   export interface Settings {
-    singleton: boolean;
-    queue_channel_id: string;
-    queue_category_id: string;
-    queue_results_channel_id: string;
-    helper_role_id: string;
-    queue_message_id: string;
-    logs_channel_id: string;
-    queue_logs_channel_id: string;
+    singleton: boolean
+    queue_channel_id: string
+    queue_category_id: string
+    queue_results_channel_id: string
+    helper_role_id: string
+    queue_message_id: string
+    logs_channel_id: string
+    queue_logs_channel_id: string
   }
 
   export type teamResults = {
-    teams: { 
-      id: number; 
-      score: 0 | 0.5 | 1; 
-      players: MatchUsers[];
-    } []
+    teams: {
+      id: number
+      score: 0 | 0.5 | 1
+      players: MatchUsers[]
+    }[]
   }
 
   export type Settings = {
-    singleton: boolean;
-    queue_channel_id: string;
-    queue_message_id: string;
-    queue_category_id: string;
-    helper_role_id: string;
+    singleton: boolean
+    queue_channel_id: string
+    queue_message_id: string
+    queue_category_id: string
+    helper_role_id: string
   }
 
   export type Deck = {
-    deck_name: string;
-    deck_emote: string;
-    deck_value: string;
-    deck_desc: string;
+    deck_name: string
+    deck_emote: string
+    deck_value: string
+    deck_desc: string
   }
 
   export type Stake = {
-    stake_name: string;
-    stake_emote: string;
-    stake_value: string;
-    stake_desc: string;
+    stake_name: string
+    stake_emote: string
+    stake_value: string
+    stake_desc: string
   }
 }
