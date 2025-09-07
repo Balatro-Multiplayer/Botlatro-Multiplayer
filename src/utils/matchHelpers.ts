@@ -1,6 +1,5 @@
 import {
   ActionRowBuilder,
-  APIEmbedField,
   ButtonBuilder,
   ButtonStyle,
   EmbedBuilder,
@@ -9,26 +8,26 @@ import {
   TextChannel,
 } from 'discord.js'
 import { pool } from '../db'
-import client from '../index'
-import { random, shuffle } from 'lodash-es'
+import { shuffle } from 'lodash-es'
 import {
   closeMatch,
+  getMatchChannel,
   getMatchResultsChannel,
   getQueueIdFromMatch,
-  isQueueGlicko,
-  getWinningTeamFromMatch,
   getQueueSettings,
-  getMatchChannel,
+  getWinningTeamFromMatch,
+  isQueueGlicko,
 } from './queryDB'
-import { Deck, Stake } from 'psqlDB'
+import { Deck, MatchUsers, Stake, teamResults } from 'psqlDB'
 import dotenv from 'dotenv'
 import { calculateGlicko2 } from './algorithms/calculateGlicko-2'
-import { teamResults, MatchUsers } from 'psqlDB'
 import { QueryResult } from 'pg'
 import * as fs from 'fs'
 import * as path from 'path'
 import { glob } from 'glob'
 import { parseLogLines } from './transcriptHelpers'
+import { client } from '../client'
+
 require('dotenv').config()
 
 dotenv.config()

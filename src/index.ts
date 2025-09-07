@@ -87,6 +87,3 @@ client.login(process.env.DISCORD_TOKEN)
 // todo: cron jobs should be managed by a separate service, internal crons are unreliable
 partyDeleteCronJob()
 deleteOldTranscriptsCronJob()
-
-// todo: remove this export. get rid of (await import '../../index').default and such, directly import the client where required or use interaction.client in commands directly.
-export default client
