@@ -8,7 +8,7 @@ import {
   partyDeleteCronJob,
 } from './utils/cronJobs'
 import { client } from './client'
-
+import { app } from './app'
 require('dotenv').config()
 
 dotenv.config()
@@ -29,7 +29,7 @@ for (const folder of commandFolders) {
 
   for (const file of commandFiles) {
     const filePath = path.join(commandsPath, file)
-    const command = require(filePath)
+    const command = require(filePath).default
 
     if ('data' in command && 'execute' in command) {
       commands.push(command.data.toJSON())
@@ -87,3 +87,5 @@ client.login(process.env.DISCORD_TOKEN)
 // todo: cron jobs should be managed by a separate service, internal crons are unreliable
 partyDeleteCronJob()
 deleteOldTranscriptsCronJob()
+
+export default app

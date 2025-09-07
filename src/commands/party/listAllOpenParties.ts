@@ -10,7 +10,7 @@ import {
 import { pool } from '../../db'
 import { partyUtils } from '../../utils/queryDB'
 
-module.exports = {
+export default {
   async execute(interaction: ChatInputCommandInteraction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 

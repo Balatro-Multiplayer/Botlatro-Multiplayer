@@ -13,7 +13,7 @@ import { partyUtils } from '../../utils/queryDB'
 
 const newQueue = require('../moderation/newQueue')
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('create')
     .setDescription('Create things')

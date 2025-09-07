@@ -5,7 +5,7 @@ import {
 } from 'discord.js'
 import { getRandomDeck, setupDeckSelect } from '../../utils/matchHelpers'
 
-module.exports = {
+export default {
   async execute(interaction: ChatInputCommandInteraction) {
     const customDecks = interaction.options.getString('custom-decks') || null
     let customDecksBoolean = false

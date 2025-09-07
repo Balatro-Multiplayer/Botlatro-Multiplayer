@@ -6,7 +6,7 @@ import {
 
 const deleteQueue = require('../moderation/deleteQueue')
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('delete')
     .setDescription('Delete Subcommands')

@@ -5,7 +5,7 @@ import {
 } from 'discord.js'
 import { getRandomStake } from '../../utils/matchHelpers'
 
-module.exports = {
+export default {
   async execute(interaction: ChatInputCommandInteraction) {
     try {
       const stakeChoice = getRandomStake()

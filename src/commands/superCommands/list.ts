@@ -14,7 +14,7 @@ import { partyUtils } from '../../utils/queryDB'
 const listAllOpenParties = require('../party/listAllOpenParties')
 const ListUsersInSpecificParty = require('../party/listUsersInSpecificParty')
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('list')
     .setDescription('List things')
