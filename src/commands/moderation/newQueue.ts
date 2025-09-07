@@ -8,7 +8,7 @@ import {
 import { pool } from '../../db'
 import { updateQueueMessage } from '../../utils/queueHelpers'
 
-module.exports = {
+export default {
   async execute(interaction: ChatInputCommandInteraction) {
     // required
     const queueName = interaction.options.getString('queue-name', true)

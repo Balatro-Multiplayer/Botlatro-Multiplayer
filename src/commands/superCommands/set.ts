@@ -14,7 +14,7 @@ import { partyUtils } from '../../utils/queryDB'
 const setPriorityQueue = require('../queues/setPriorityQueue')
 const chamgeMMR = require('../moderation/changeMMR')
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('set')
     .setDescription('sets things to a certain value')

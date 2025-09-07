@@ -1,56 +1,9 @@
-import {
-  ActionRowBuilder,
-  APIActionRowComponent,
-  APIEmbedField,
-  APIStringSelectComponent,
-  ButtonBuilder,
-  ButtonStyle,
-  Events,
-  Interaction,
-  MessageComponentInteraction,
-  MessageFlags,
-  StringSelectMenuBuilder,
-  StringSelectMenuComponent,
-  StringSelectMenuInteraction,
-  StringSelectMenuOptionBuilder,
-  TextChannel,
-} from 'discord.js'
-import { pool } from '../db'
-import {
-  updateQueueMessage,
-  matchUpGames,
-  timeSpentInQueue,
-  createMatch,
-} from '../utils/queueHelpers'
-import {
-  customDecks,
-  decks,
-  endMatch,
-  getTeamsInMatch,
-  setupDeckSelect,
-} from '../utils/matchHelpers'
-import {
-  closeMatch,
-  getActiveQueues,
-  getMatchData,
-  getQueueSettings,
-  getUserPriorityQueueId,
-  getUserQueues,
-  getUsersInQueue,
-  partyUtils,
-  setUserPriorityQueue,
-  userInMatch,
-  userInQueue,
-} from '../utils/queryDB'
-import { QueryResult } from 'pg'
-import { Queues, Settings } from 'psqlDB'
-import { handleTwoPlayerMatchVoting, handleVoting } from '../utils/voteHelpers'
+import { Events } from 'discord.js'
 import { getSettings } from '../utils/queryDB'
-import client from '../index'
 import * as fs from 'fs'
 import * as path from 'path'
 
-module.exports = {
+export default {
   name: Events.MessageCreate,
   async execute(message: any) {
     try {

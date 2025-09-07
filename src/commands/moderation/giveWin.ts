@@ -13,7 +13,7 @@ import {
 import { pool } from '../../db'
 import { endMatch } from '../../utils/matchHelpers'
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('give-win')
     .setDescription('[ADMIN] Manually choose a winner for an in-progress match')

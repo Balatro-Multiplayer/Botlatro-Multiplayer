@@ -45,9 +45,9 @@ import {
 import { QueryResult } from 'pg'
 import { Queues } from 'psqlDB'
 import { handleTwoPlayerMatchVoting, handleVoting } from '../utils/voteHelpers'
-import client from '../index'
+import { client } from '../client'
 
-module.exports = {
+export default {
   name: Events.InteractionCreate,
   async execute(interaction: Interaction) {
     // Slash commands
@@ -519,7 +519,7 @@ module.exports = {
           return
         }
 
-        const client = (await import('../index')).default
+        const client = interaction.client
         const guild =
           client.guilds.cache.get(process.env.GUILD_ID!) ??
           (await client.guilds.fetch(process.env.GUILD_ID!))

@@ -1,29 +1,20 @@
-import { set, update } from 'lodash-es'
 import {
-  partyUtils,
-  getUsersInQueue,
+  getActiveQueues,
   getCurrentEloRangeForUser,
-  updateCurrentEloRangeForUser,
+  getQueueSettings,
+  getUserPriorityQueueId,
+  getUserQueues,
+  getUsersInQueue,
+  partyUtils,
   ratingUtils,
   removeUserFromQueue,
-  getActiveQueues,
-  getUserQueues,
-  getUserPriorityQueueId,
+  updateCurrentEloRangeForUser,
 } from './queryDB'
-import { getQueueSettings } from './queryDB'
-import { createMatch, matchUpGames, timeSpentInQueue } from './queueHelpers'
+import { createMatch, timeSpentInQueue } from './queueHelpers'
 import * as fs from 'fs'
 import * as path from 'path'
 import { glob } from 'glob'
-import { get } from 'http'
-import {
-  Client,
-  Collection,
-  GatewayIntentBits,
-  Events,
-  REST,
-  Routes,
-} from 'discord.js'
+import { client } from '../client'
 
 const lockedUsers = new Set<string>()
 
@@ -177,7 +168,6 @@ export async function deleteOldTranscriptsCronJob() {
   setInterval(
     async () => {
       console.log('-- running deleteOldTranscriptsCronJob --')
-      const client = (await import('../index')).default
       const guild = client.guilds.cache.get(process.env.GUILD_ID!)
 
       const pattern = path

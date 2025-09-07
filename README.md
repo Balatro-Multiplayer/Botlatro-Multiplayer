@@ -1,8 +1,9 @@
 # Quick Setup Steps
 
 - Clone the repo
-- Run `npm install`
+- Install [Bun](https://bun.sh)
+- Run `bun install`
 - Download postgresql and set it all up on your PC properly
 - Add the `.env` file to your project (see `.env.example`)
-- `npm run migrate` to initialize the DB
-- `npm start` to run the bot
+- `bun run migrate` to initialize the DB
+- `bun run dev` to run the bot in development mode
