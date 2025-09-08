@@ -41,6 +41,7 @@ export default {
     // Slash commands
     if (interaction.isChatInputCommand()) {
       const command = interaction.client.commands.get(interaction.commandName)
+      console.log(command);
 
       if (!command) {
         console.error(
