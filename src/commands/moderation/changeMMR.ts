@@ -3,7 +3,7 @@ import {
   MessageFlags,
   AutocompleteInteraction,
 } from 'discord.js'
-import { closeMatch, getQueueNames, updatePlayerElo } from '../../utils/queryDB'
+import { getQueueNames, updatePlayerElo } from '../../utils/queryDB'
 import { pool } from '../../db'
 
 export default {

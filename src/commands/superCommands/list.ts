@@ -31,6 +31,7 @@ export default {
 
   async execute(interaction: ChatInputCommandInteraction) {
     if (interaction.options.getSubcommand() === 'parties') {
+      
       await listAllOpenParties.execute(interaction)
     } else if (interaction.options.getSubcommand() === 'users-in-party') {
       await ListUsersInSpecificParty.execute(interaction)

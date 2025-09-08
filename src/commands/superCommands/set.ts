@@ -5,9 +5,6 @@ import {
   AutocompleteInteraction,
 } from 'discord.js'
 
-import setPriorityQueue from '../queues/setPriorityQueue'
-import chamgeMMR from '../moderation/changeMMR'
-
 export default {
   data: new SlashCommandBuilder()
     .setName('set')
@@ -39,20 +36,17 @@ export default {
     ),
 
   async execute(interaction: ChatInputCommandInteraction) {
-    if (interaction.options.getSubcommand() === 'priority-queue') {
-      await setPriorityQueue.execute(interaction)
-    } else if (interaction.options.getSubcommand() === 'mmr') {
-      await chamgeMMR.execute(interaction)
+    if (interaction.options.getSubcommand() === 'mmr') {
+      const changeMMR = require('../moderation/changeMMR').default;
+      await changeMMR.execute(interaction)
     }
   },
 
   async autocomplete(interaction: AutocompleteInteraction) {
     const subcommand = interaction.options.getSubcommand()
-
-    if (subcommand === 'priority-queue') {
-      await setPriorityQueue.autocomplete(interaction)
-    } else if (subcommand === 'mmr') {
-      await chamgeMMR.autocomplete(interaction)
+    if (subcommand === 'mmr') {
+      const changeMMR = require('../moderation/changeMMR').default;
+      await changeMMR.autocomplete(interaction)
     }
   },
 }
