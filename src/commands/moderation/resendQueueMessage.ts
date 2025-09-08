@@ -3,7 +3,6 @@ import {
   ChatInputCommandInteraction,
   PermissionFlagsBits,
   MessageFlags,
-  TextChannel,
 } from 'discord.js'
 import { updateQueueMessage } from '../../utils/queueHelpers'
 

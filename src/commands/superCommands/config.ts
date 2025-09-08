@@ -4,7 +4,7 @@ import {
   AutocompleteInteraction,
 } from 'discord.js'
 
-const setPriorityQueue = require('../queues/setPriorityQueue')
+import setPriorityQueue from '../queues/setPriorityQueue'
 
 export default {
   data: new SlashCommandBuilder()

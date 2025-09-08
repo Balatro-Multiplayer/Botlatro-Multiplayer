@@ -1,14 +1,8 @@
 import {
-  SlashCommandBuilder,
   ChatInputCommandInteraction,
-  PermissionFlagsBits,
   MessageFlags,
-  ButtonBuilder,
-  ActionRowBuilder,
-  ButtonStyle,
   AutocompleteInteraction,
 } from 'discord.js'
-import { pool } from '../../db'
 import { partyUtils } from '../../utils/queryDB'
 
 export default {

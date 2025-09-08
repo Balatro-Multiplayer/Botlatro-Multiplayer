@@ -1,9 +1,8 @@
 import {
-  SlashCommandBuilder,
   ChatInputCommandInteraction,
   MessageFlags,
 } from 'discord.js'
-import { getRandomDeck, setupDeckSelect } from '../../utils/matchHelpers'
+import { getRandomDeck } from '../../utils/matchHelpers'
 
 export default {
   async execute(interaction: ChatInputCommandInteraction) {

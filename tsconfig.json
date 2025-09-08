@@ -12,7 +12,8 @@
     "baseUrl": "./src",
     "paths": {
       "psqlDB": ["@types/global.d.ts"]
-    }
+    },
+    "ignoreDeprecations": "6.0"
   },
   "include": ["src"],
   "exclude": ["node_modules"]

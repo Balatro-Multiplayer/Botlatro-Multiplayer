@@ -1,9 +1,6 @@
 import {
-  SlashCommandBuilder,
   ChatInputCommandInteraction,
-  PermissionFlagsBits,
   MessageFlags,
-  TextChannel,
 } from 'discord.js'
 import { pool } from '../../db'
 import { updateQueueMessage } from '../../utils/queueHelpers'
