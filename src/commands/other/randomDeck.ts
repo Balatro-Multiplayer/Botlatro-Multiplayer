@@ -12,7 +12,7 @@ export default {
     try {
       const deckChoice = getRandomDeck(customDecksBoolean)
       const deckStr = `${deckChoice.deck_emote} ${deckChoice.deck_name}`
-      interaction.reply({ content: deckStr })
+      interaction.reply({ content: deckStr });
     } catch (err: any) {
       console.error(err)
       const errorMsg = err.detail || err.message || 'Unknown'
