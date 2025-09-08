@@ -1,18 +1,10 @@
 import {
   SlashCommandBuilder,
-  ChatInputCommandInteraction,
-  PermissionFlagsBits,
-  MessageFlags,
-  ButtonBuilder,
-  ActionRowBuilder,
-  ButtonStyle,
-  AutocompleteInteraction,
+  ChatInputCommandInteraction
 } from 'discord.js'
-import { pool } from '../../db'
-import { partyUtils } from '../../utils/queryDB'
 
-const randomDeck = require('../other/randomDeck')
-const randomStake = require('../other/randomStake')
+import randomDeck from '../other/randomDeck'
+import randomStake from '../other/randomStake'
 
 export default {
   data: new SlashCommandBuilder()

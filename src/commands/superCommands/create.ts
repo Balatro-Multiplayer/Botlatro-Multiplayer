@@ -1,15 +1,8 @@
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  PermissionFlagsBits,
-  MessageFlags,
-  ButtonBuilder,
-  ActionRowBuilder,
-  ButtonStyle,
-  AutocompleteInteraction,
+  PermissionFlagsBits
 } from 'discord.js'
-import { pool } from '../../db'
-import { partyUtils } from '../../utils/queryDB'
 
 const newQueue = require('../moderation/newQueue')
 

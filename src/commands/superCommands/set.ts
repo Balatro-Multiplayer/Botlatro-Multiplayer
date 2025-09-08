@@ -2,17 +2,11 @@ import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  MessageFlags,
-  ButtonBuilder,
-  ActionRowBuilder,
-  ButtonStyle,
   AutocompleteInteraction,
 } from 'discord.js'
-import { pool } from '../../db'
-import { partyUtils } from '../../utils/queryDB'
 
-const setPriorityQueue = require('../queues/setPriorityQueue')
-const chamgeMMR = require('../moderation/changeMMR')
+import setPriorityQueue from '../queues/setPriorityQueue'
+import chamgeMMR from '../moderation/changeMMR'
 
 export default {
   data: new SlashCommandBuilder()

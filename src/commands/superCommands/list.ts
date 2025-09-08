@@ -2,17 +2,11 @@ import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  MessageFlags,
-  ButtonBuilder,
-  ActionRowBuilder,
-  ButtonStyle,
   AutocompleteInteraction,
 } from 'discord.js'
-import { pool } from '../../db'
-import { partyUtils } from '../../utils/queryDB'
 
-const listAllOpenParties = require('../party/listAllOpenParties')
-const ListUsersInSpecificParty = require('../party/listUsersInSpecificParty')
+import listAllOpenParties from '../party/listAllOpenParties'
+import ListUsersInSpecificParty from '../party/listUsersInSpecificParty'
 
 export default {
   data: new SlashCommandBuilder()

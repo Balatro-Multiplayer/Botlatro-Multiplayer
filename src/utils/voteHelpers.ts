@@ -1,6 +1,5 @@
 import {
   Embed,
-  Interaction,
   MessageComponentInteraction,
   MessageFlags,
   StringSelectMenuInteraction,

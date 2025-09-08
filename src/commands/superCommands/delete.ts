@@ -4,7 +4,7 @@ import {
   PermissionFlagsBits,
 } from 'discord.js'
 
-const deleteQueue = require('../moderation/deleteQueue')
+import deleteQueue from '../moderation/deleteQueue'
 
 export default {
   data: new SlashCommandBuilder()

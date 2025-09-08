@@ -1,24 +1,14 @@
 import {
   ActionRowBuilder,
-  APIActionRowComponent,
-  APIEmbedField,
-  APIStringSelectComponent,
-  ButtonBuilder,
-  ButtonStyle,
   Events,
   Interaction,
-  MessageComponentInteraction,
   MessageFlags,
   StringSelectMenuBuilder,
-  StringSelectMenuComponent,
-  StringSelectMenuInteraction,
   StringSelectMenuOptionBuilder,
-  TextChannel,
 } from 'discord.js'
 import { pool } from '../db'
 import {
   updateQueueMessage,
-  matchUpGames,
   timeSpentInQueue,
   createMatch,
 } from '../utils/queueHelpers'
@@ -30,13 +20,11 @@ import {
   setupDeckSelect,
 } from '../utils/matchHelpers'
 import {
-  closeMatch,
   getActiveQueues,
   getMatchData,
   getQueueSettings,
   getUserPriorityQueueId,
   getUserQueues,
-  getUsersInQueue,
   partyUtils,
   setUserPriorityQueue,
   userInMatch,
