@@ -5,6 +5,8 @@ import {
   AutocompleteInteraction,
 } from 'discord.js'
 
+import changeMMR from '../moderation/changeMMR'
+
 export default {
   data: new SlashCommandBuilder()
     .setName('set')
@@ -37,7 +39,6 @@ export default {
 
   async execute(interaction: ChatInputCommandInteraction) {
     if (interaction.options.getSubcommand() === 'mmr') {
-      const changeMMR = require('../moderation/changeMMR').default;
       await changeMMR.execute(interaction)
     }
   },
@@ -45,7 +46,6 @@ export default {
   async autocomplete(interaction: AutocompleteInteraction) {
     const subcommand = interaction.options.getSubcommand()
     if (subcommand === 'mmr') {
-      const changeMMR = require('../moderation/changeMMR').default;
       await changeMMR.autocomplete(interaction)
     }
   },
