@@ -28,10 +28,6 @@ export default {
       if (channel.id === queueChannelId || channel.id === queueResultsChannelId)
         return
 
-      console.log(
-        ` -- Message sent -- \n${content} \n${attachments.map((a: any) => a.url)} `,
-      )
-
       const outputFilePath: string = path.join(
         __dirname,
         '..',
