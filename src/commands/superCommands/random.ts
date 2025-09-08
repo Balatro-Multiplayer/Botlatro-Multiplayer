@@ -3,9 +3,6 @@ import {
   ChatInputCommandInteraction
 } from 'discord.js'
 
-import randomDeck from '../other/randomDeck'
-import randomStake from '../other/randomStake'
-
 export default {
   data: new SlashCommandBuilder()
     .setName('random')
@@ -28,8 +25,10 @@ export default {
 
   async execute(interaction: ChatInputCommandInteraction) {
     if (interaction.options.getSubcommand() === 'deck') {
+      const randomDeck = require('../other/randomDeck').default;
       await randomDeck.execute(interaction)
     } else if (interaction.options.getSubcommand() === 'stake') {
+      const randomStake = require('../other/randomStake').default;
       await randomStake.execute(interaction)
     }
   },

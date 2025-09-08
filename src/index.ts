@@ -1,13 +1,28 @@
 /// <reference path="./@types/discord.d.ts" />
-import fs from 'node:fs'
-import path from 'node:path'
 import {
   deleteOldTranscriptsCronJob,
   partyDeleteCronJob,
 } from './utils/cronJobs'
-import { client } from './client'
 import { app } from './api/app'
+import { client } from './client'
 
+import fs from 'node:fs'
+import path from 'node:path'
+import * as dotenv from 'dotenv'
+import { setupClientCommands } from 'setupCommands'
+
+declare global {
+  var __clientLoggedIn: boolean | null;
+}
+
+require('dotenv').config()
+dotenv.config()
+
+setupClientCommands(client);
+
+const token = process.env.DISCORD_TOKEN || ''
+
+client.removeAllListeners();
 const eventsPath = path.join(__dirname, 'events')
 const eventFiles = fs
   .readdirSync(eventsPath)
@@ -23,10 +38,12 @@ for (const file of eventFiles) {
   }
 }
 
-client.login(process.env.DISCORD_TOKEN)
-
-// todo: cron jobs should be managed by a separate service, internal crons are unreliable
-partyDeleteCronJob()
-deleteOldTranscriptsCronJob()
+if (!globalThis.__clientLoggedIn) {
+  client.login(token);
+  setupClientCommands(client, true);
+  partyDeleteCronJob()
+  deleteOldTranscriptsCronJob()
+  globalThis.__clientLoggedIn = true;
+}
 
 export default app

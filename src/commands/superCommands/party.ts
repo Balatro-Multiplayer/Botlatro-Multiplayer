@@ -4,15 +4,6 @@ import {
   AutocompleteInteraction,
 } from 'discord.js'
 
-import partyCheckUsers from '../party/partyCheckUsers'
-import partyCreate from '../party/partyCreate'
-import partyDisband from '../party/partyDisband'
-import partyInvite from '../party/partyInvite'
-// const partyJoin = require('../party/partyJoin');
-import partyLeave from '../party/partyLeave'
-// const partyPromote = require('../party/partyPromote');
-import partyKick from '../party/partyKick'
-
 export default {
   data: new SlashCommandBuilder()
     .setName('party')
@@ -74,20 +65,26 @@ export default {
 
   async execute(interaction: ChatInputCommandInteraction) {
     if (interaction.options.getSubcommand() === 'list-users') {
+      const partyCheckUsers = require('../party/partyCheckUsers').default;
       await partyCheckUsers.execute(interaction)
     } else if (interaction.options.getSubcommand() === 'create') {
+      const partyCreate = require('../party/partyCreate').default;
       await partyCreate.execute(interaction)
     } else if (interaction.options.getSubcommand() === 'disband') {
+      const partyDisband = require('../party/partyDisband').default;
       await partyDisband.execute(interaction)
     } else if (interaction.options.getSubcommand() === 'invite') {
+      const partyInvite = require('../party/partyInvite').default;
       await partyInvite.execute(interaction)
     } else if (interaction.options.getSubcommand() === 'join') {
       // await partyJoin.execute(interaction);
     } else if (interaction.options.getSubcommand() === 'leave') {
+      const partyLeave = require('../party/partyLeave').default;
       await partyLeave.execute(interaction)
     } else if (interaction.options.getSubcommand() === 'promote') {
       // await partyPromote.execute(interaction);
     } else if (interaction.options.getSubcommand() === 'kick') {
+      const partyKick = require('../party/partyKick').default;
       await partyKick.execute(interaction)
     }
   },
@@ -96,6 +93,7 @@ export default {
     const subcommand = interaction.options.getSubcommand()
 
     if (subcommand === 'kick') {
+      const partyKick = require('../party/partyKick').default;
       await partyKick.autocomplete(interaction)
     }
   },

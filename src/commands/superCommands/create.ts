@@ -4,8 +4,6 @@ import {
   PermissionFlagsBits
 } from 'discord.js'
 
-const newQueue = require('../moderation/newQueue')
-
 export default {
   data: new SlashCommandBuilder()
     .setName('create')
@@ -97,6 +95,7 @@ export default {
     ),
   async execute(interaction: ChatInputCommandInteraction) {
     if (interaction.options.getSubcommand() === 'queue') {
+      const newQueue = require('../moderation/newQueue').default;
       await newQueue.execute(interaction)
     }
   },

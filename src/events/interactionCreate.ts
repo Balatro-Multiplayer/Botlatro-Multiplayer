@@ -33,7 +33,6 @@ import {
 import { QueryResult } from 'pg'
 import { Queues } from 'psqlDB'
 import { handleTwoPlayerMatchVoting, handleVoting } from '../utils/voteHelpers'
-import { client } from '../client'
 
 export default {
   name: Events.InteractionCreate,
@@ -41,7 +40,6 @@ export default {
     // Slash commands
     if (interaction.isChatInputCommand()) {
       const command = interaction.client.commands.get(interaction.commandName)
-      console.log(command);
 
       if (!command) {
         console.error(
@@ -286,7 +284,7 @@ export default {
         // Prepare next step
         const nextStep = step + 1
         const nextTeamId = (startingTeamId + nextStep) % 2
-        const nextMember = await client.guilds
+        const nextMember = await interaction.client.guilds
           .fetch(process.env.GUILD_ID!)
           .then((g) => g.members.fetch(matchTeams[nextTeamId].users[0].user_id))
 
