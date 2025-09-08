@@ -11,18 +11,13 @@ import path from 'node:path'
 import * as dotenv from 'dotenv'
 import { setupClientCommands } from 'setupCommands'
 
-declare global {
-  var __clientLoggedIn: boolean | null;
-}
-
-require('dotenv').config()
 dotenv.config()
 
-setupClientCommands(client);
+setupClientCommands(client)
 
 const token = process.env.DISCORD_TOKEN || ''
 
-client.removeAllListeners();
+client.removeAllListeners()
 const eventsPath = path.join(__dirname, 'events')
 const eventFiles = fs
   .readdirSync(eventsPath)
@@ -38,12 +33,9 @@ for (const file of eventFiles) {
   }
 }
 
-if (!globalThis.__clientLoggedIn) {
-  client.login(token);
-  setupClientCommands(client, true);
-  partyDeleteCronJob()
-  deleteOldTranscriptsCronJob()
-  globalThis.__clientLoggedIn = true;
-}
+client.login(token)
+setupClientCommands(client, false)
+partyDeleteCronJob()
+deleteOldTranscriptsCronJob()
 
 export default app
