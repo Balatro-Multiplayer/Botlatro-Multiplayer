@@ -4,6 +4,8 @@ import {
   PermissionFlagsBits,
 } from 'discord.js'
 
+import deleteQueue from '../moderation/deleteQueue'
+
 export default {
   data: new SlashCommandBuilder()
     .setName('delete')
@@ -24,8 +26,7 @@ export default {
 
   async execute(interaction: ChatInputCommandInteraction) {
     if (interaction.options.getSubcommand() === 'queue') {
-      const deleteQueue = require('../moderation/deleteQueue').default;
-      await deleteQueue.execute(interaction)
+      await deleteQueue.execute(interaction);
     }
   },
 }

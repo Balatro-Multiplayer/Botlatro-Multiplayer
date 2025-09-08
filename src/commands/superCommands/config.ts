@@ -4,6 +4,8 @@ import {
   AutocompleteInteraction,
 } from 'discord.js'
 
+import setPriorityQueue from '../queues/setPriorityQueue'
+
 export default {
   data: new SlashCommandBuilder()
     .setName('config')
@@ -26,7 +28,6 @@ export default {
 
   async execute(interaction: ChatInputCommandInteraction) {
     if (interaction.options.getSubcommand() === 'priority-queue') {
-      const setPriorityQueue = require('../queues/setPriorityQueue').default;
       await setPriorityQueue.execute(interaction)
     }
   },
