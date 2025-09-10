@@ -1,5 +1,7 @@
 import {
   ActionRowBuilder,
+  ActionRowComponent,
+  ButtonBuilder,
   Events,
   Interaction,
   MessageFlags,
@@ -21,6 +23,8 @@ import {
 } from '../utils/matchHelpers'
 import {
   getActiveQueues,
+  getHelperRoleId,
+  getMatchChannel,
   getMatchData,
   getQueueSettings,
   getUserPriorityQueueId,
@@ -454,8 +458,28 @@ export default {
         }
 
         if (interaction.customId.startsWith('call-helpers-')) {
-          const matchId = parseInt(interaction.customId.split('-')[1])
-          // TODO: Make helpers call stuff
+          const matchId = parseInt(interaction.customId.split('-')[2]);
+          const matchChannel = await getMatchChannel(matchId);
+          const helperRoleId = await getHelperRoleId();
+          if (helperRoleId && matchChannel) {
+            const helperRole = await interaction.guild?.roles.fetch(helperRoleId);
+            if (helperRole) {
+              await matchChannel.permissionOverwrites.edit(helperRole.id, {
+                ViewChannel: true,
+                SendMessages: true
+              })
+
+              await matchChannel.send(`<@&${helperRole.id}> have been called into this queue by <@${interaction.user.id}>!`);
+              const rows = interaction.message.components.map(row => 
+                ActionRowBuilder.from(row as any)
+              ) as ActionRowBuilder<ButtonBuilder>[];
+
+              const helperButton = rows[1].components[1] as ButtonBuilder;
+              rows[1].components[1] = ButtonBuilder.from(helperButton).setDisabled(true);
+              
+              await interaction.update({ components: rows });
+            }
+          }
         }
         if (interaction.customId.startsWith('rematch-')) {
           const matchId = parseInt(interaction.customId.split('-')[1])

@@ -118,7 +118,7 @@ export async function incrementEloCronJobAllQueues() {
             // Time-in-queue check
             const anyTooRecent = [candidates[i], candidates[j]].some(
               (candidate) => {
-                if (candidate.queueId === candidate.priorityQueueId)
+                if (candidate.queueId === candidate.priorityQueueId || candidate.priorityQueueId === null)
                   return false
 
                 const match = candidate.timeInQueue?.match(

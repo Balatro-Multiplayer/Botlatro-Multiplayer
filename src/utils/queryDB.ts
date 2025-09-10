@@ -3,6 +3,12 @@ import { pool } from '../db'
 import { Matches, MatchUsers, Queues, Settings, teamResults } from 'psqlDB'
 import { client } from '../client'
 
+// Get the helper role
+export async function getHelperRoleId(): Promise<string | null> {
+  const res = await pool.query('SELECT helper_role_id FROM settings');
+  return res.rows[0].helper_role_id;
+}
+
 // Get the queue names of all queues that exist
 export async function getQueueNames(): Promise<string[]> {
   const res = await pool.query('SELECT queue_name FROM queues')
