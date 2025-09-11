@@ -1,6 +1,7 @@
 import { OpenAPIHono } from '@hono/zod-openapi'
 import { Scalar } from '@scalar/hono-api-reference'
 import { matchesRouter } from './routers/commands/matches.router'
+import { queuesRouter } from './routers/commands/queues.router'
 const app = new OpenAPIHono({ strict: false })
 
 app.get('/', (c) => c.text('Hello Bun!'))
