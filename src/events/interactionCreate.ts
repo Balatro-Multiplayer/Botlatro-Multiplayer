@@ -29,6 +29,7 @@ import {
   getUserPriorityQueueId,
   getUserQueues,
   partyUtils,
+  setQueueDeckBans,
   setUserPriorityQueue,
   userInMatch,
   userInQueue,
@@ -271,7 +272,7 @@ export default {
 
         if (step === 3) {
           const finalDeckPick = deckOptions.find(
-            (deck) => deck.deck_value === interaction.values[0],
+            (deck) => deck.id === parseInt(interaction.values[0]),
           )
 
           await interaction.update({ components: [] })
@@ -292,6 +293,8 @@ export default {
           .fetch(process.env.GUILD_ID!)
           .then((g) => g.members.fetch(matchTeams[nextTeamId].users[0].user_id))
 
+        const deckChoices = interaction.values.map(deckId => parseInt(deckId))
+
         const deckSelMenu = await setupDeckSelect(
           `deck-bans-${nextStep}-${matchId}-${startingTeamId}`,
           matchTeams[nextTeamId].users.length > 1
@@ -300,14 +303,14 @@ export default {
           nextStep === 2 ? 3 : 1,
           nextStep === 2 ? 3 : 1,
           true,
-          interaction.values,
-          nextStep === 3 ? interaction.values : [],
+          nextStep === 3 ? [] : deckChoices,
+          nextStep === 3 ? deckChoices : deckOptions.map(deck => deck.id),
         )
 
         await interaction.update({ components: [deckSelMenu] })
 
         const deckPicks = deckOptions
-          .filter((deck) => interaction.values.includes(deck.deck_value))
+          .filter((deck) => interaction.values.includes(`${deck.id}`))
           .map((deck) => `${deck.deck_emote} - ${deck.deck_name}`)
 
         await interaction.followUp({
@@ -315,8 +318,10 @@ export default {
         })
       }
 
-      if (interaction.customId === 'queue-ban-decks') {
-        
+      if (interaction.customId.startsWith('queue-ban-decks-')) {
+        const queueId = parseInt(interaction.customId.split('-')[3]);
+        await setQueueDeckBans(queueId, interaction.values)
+        await interaction.update({ content: 'Successfully changed queue decks that are banned.', components: [] });
       }
     }
 

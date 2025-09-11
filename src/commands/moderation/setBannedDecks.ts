@@ -2,8 +2,7 @@ import {
   ChatInputCommandInteraction,
   MessageFlags,
 } from 'discord.js'
-import { COMMAND_HANDLERS } from '../../command-handlers'
-import { getQueueIdFromName } from 'utils/queryDB'
+import { getDeckList, getDecksInQueue, getQueueIdFromName } from 'utils/queryDB'
 import { setupDeckSelect } from 'utils/matchHelpers'
 
 export default {
@@ -18,20 +17,22 @@ export default {
             })
             return;
         }
-
+        const deckList = await getDeckList(true);
+        
         const deckSelectRow = await setupDeckSelect(
-            'queue-ban-decks',
-            'Select decks to ban for this queue.',
+            `queue-ban-decks-${queueId}`,
+            `Select decks to ban for ${queueName}.`,
             1,
-            25,
+            deckList.length,
             true,
         )
 
-        interaction.reply({
-            content: `Select decks to ban for ${queueName}`,
+        await interaction.reply({
+            content: `Select decks to ban for ${queueName} with the select menu below.`,
             components: [deckSelectRow],
             flags: MessageFlags.Ephemeral
-        })
+        });
+
     } catch (err: any) {
         console.error(err)
         const errorMsg = err.detail || err.message || 'Unknown'
