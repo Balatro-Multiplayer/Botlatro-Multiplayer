@@ -9,13 +9,25 @@ export async function getHelperRoleId(): Promise<string | null> {
   return res.rows[0].helper_role_id;
 }
 
+// Lock/unlock a queue
+export async function queueChangeLock(queueId: number, lock: boolean = true) {
+  const res = await pool.query(
+    `UPDATE queues SET locked = $2 WHERE id = $1 RETURNING id`, [queueId, lock]
+  )
+
+  if (res.rowCount === 0) {
+    return false
+  }
+  return true
+}
+
 // Get the queue names of all queues that exist
 export async function getQueueNames(): Promise<string[]> {
   const res = await pool.query('SELECT queue_name FROM queues')
   return res.rows.map((row) => row.queue_name)
 }
 
-export async function getQueueIdFromName(queueName: string): Promise<string> {
+export async function getQueueIdFromName(queueName: string): Promise<number> {
   const res = await pool.query(
     `
     SELECT id FROM queues WHERE queue_name = $1
@@ -23,7 +35,7 @@ export async function getQueueIdFromName(queueName: string): Promise<string> {
     [queueName],
   )
 
-  return res.rows[0].id
+  return parseInt(res.rows[0].id)
 }
 
 // Get all queues that are not locked

@@ -13,4 +13,5 @@ app.doc('/swagger', {
 })
 app.get('/docs', Scalar({ url: '/swagger' }))
 app.route('/api/matches', matchesRouter)
+app.route('/api/queues', queuesRouter)
 export { app }
