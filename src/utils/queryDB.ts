@@ -150,6 +150,26 @@ export async function getDecksInQueue(
   return res.rows;
 }
 
+// set queue deck bans
+export async function setQueueDeckBans(
+  queueId: number,
+  deckList: string[]
+): Promise<void> {
+  
+  await pool.query(`
+    DELETE FROM banned_decks
+    WHERE queue_id = $1;
+  `, [queueId]);
+
+  for (const deckId of deckList) {
+    await pool.query(`
+      INSERT INTO banned_decks (queue_id, deck_id)
+      VALUES ($1, $2)
+      ON CONFLICT DO NOTHING;
+    `, [queueId, deckId])
+  }
+}
+
 // get the match id from the match channel id
 export async function getMatchIdFromChannel(
   channelId: string,
