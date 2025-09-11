@@ -137,12 +137,13 @@ export async function getStakeList(
 export async function getDecksInQueue(
   queueId: number,
 ): Promise<Decks[]> {
-  const res: QueryResult<Decks> = await pool.query(
+  const res = await pool.query<Decks>(
     `
-      SELECT *
-      FROM decks
-      JOIN banned_decks ON decks.id = banned_decks.deck_id
-      WHERE banned_decks.queue_id = $1;
+      SELECT d.*
+      FROM decks d
+      LEFT JOIN banned_decks b
+        ON d.id = b.deck_id AND b.queue_id = $1
+      WHERE b.deck_id IS NULL;
     `,
     [queueId],
   );

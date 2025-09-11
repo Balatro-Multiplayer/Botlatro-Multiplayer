@@ -12,6 +12,7 @@ import { shuffle } from 'lodash-es'
 import {
   closeMatch,
   getDeckList,
+  getDecksInQueue,
   getMatchChannel,
   getMatchResultsChannel,
   getQueueIdFromMatch,
@@ -50,17 +51,17 @@ export async function setupDeckSelect(
   minSelect: number,
   maxSelect: number,
   includeCustomDecks: boolean = false,
-  bannedDecks: string[] = [],
-  overrideDecks: string[] = [],
+  bannedDecks: number[] = [],
+  overrideDecks: number[] = [],
 ): Promise<ActionRowBuilder<StringSelectMenuBuilder>> {
   let deckChoices = await getDeckList(includeCustomDecks);
   deckChoices = deckChoices.filter(
-    (deck) => !bannedDecks.includes(deck.deck_value),
+    (deck) => !bannedDecks.includes(deck.id),
   )
 
   if (overrideDecks.length > 0) {
     deckChoices = deckChoices.filter((deck) =>
-      overrideDecks.includes(deck.deck_value),
+      overrideDecks.includes(deck.id),
     )
   }
 
@@ -69,7 +70,7 @@ export async function setupDeckSelect(
       return new StringSelectMenuOptionBuilder()
         .setLabel(deck.deck_name)
         .setEmoji(deck.deck_emote)
-        .setValue(deck.deck_value)
+        .setValue(`${deck.id}`)
         .setDescription(deck.deck_desc)
     },
   )
@@ -242,12 +243,16 @@ export async function sendMatchInitMessages(
     )
     .setColor(0xff0000)
 
+  const deckList = await getDecksInQueue(queueId);
+
   const deckSelMenu = await setupDeckSelect(
     `deck-bans-1-${matchId}-${randomTeams[1].teamIndex}`,
     `${randomTeams[0].name}: Select 5 decks to ban.`,
     5,
     5,
     true,
+    [],
+    deckList.map(deck => deck.id),
   )
 
   await textChannel.send({
