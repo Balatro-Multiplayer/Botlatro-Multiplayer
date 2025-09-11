@@ -100,14 +100,6 @@ declare module 'psqlDB' {
     }[]
   }
 
-  export type Settings = {
-    singleton: boolean
-    queue_channel_id: string
-    queue_message_id: string
-    queue_category_id: string
-    helper_role_id: string
-  }
-
   export type Decks = {
     id: number
     deck_name: string
