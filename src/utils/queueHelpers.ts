@@ -25,7 +25,7 @@ export async function updateQueueMessage(): Promise<Message | undefined> {
   )
 
   if (response.rows[0].queue_channel_id === null) {
-    throw new Error("No queue channel set in settings, try using '/setup-bot' ")
+    throw new Error("No queue channel set in settings, try using '</setup-bot:1414248501956575232>' ")
   }
 
   const { queue_channel_id: queueChannelId, queue_message_id: queueMessageId } =
