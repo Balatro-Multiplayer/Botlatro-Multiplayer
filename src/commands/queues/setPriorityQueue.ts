@@ -18,7 +18,7 @@ export default {
       const queueName = interaction.options.getString('queue-name', true)
       const queueId = await getQueueIdFromName(queueName)
 
-      await setUserPriorityQueue(interaction.user.id, parseInt(queueId))
+      await setUserPriorityQueue(interaction.user.id, queueId)
 
       return interaction.editReply({
         content: `Successfully set **${queueName}** as your priority queue!`,
