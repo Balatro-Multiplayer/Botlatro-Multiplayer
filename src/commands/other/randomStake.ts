@@ -7,7 +7,7 @@ import { getRandomStake } from '../../utils/matchHelpers'
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
     try {
-      const stakeChoice = getRandomStake()
+      const stakeChoice = await getRandomStake()
       const stakeStr = `${stakeChoice.stake_emote} ${stakeChoice.stake_name}`
       interaction.reply({ content: stakeStr })
     } catch (err: any) {

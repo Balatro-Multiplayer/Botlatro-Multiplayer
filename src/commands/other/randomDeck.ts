@@ -10,7 +10,7 @@ export default {
     let customDecksBoolean = false
     if (customDecks == 'yes') customDecksBoolean = true
     try {
-      const deckChoice = getRandomDeck(customDecksBoolean)
+      const deckChoice = await getRandomDeck(customDecksBoolean)
       const deckStr = `${deckChoice.deck_emote} ${deckChoice.deck_name}`
       interaction.reply({ content: deckStr });
     } catch (err: any) {
