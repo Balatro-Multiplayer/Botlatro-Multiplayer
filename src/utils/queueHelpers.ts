@@ -311,6 +311,7 @@ export async function createMatch(
   await sendMatchInitMessages(queueId, matchId, channel)
 }
 
+// Get the time spent in queue in a discord timestamp
 export async function timeSpentInQueue(
   userId: string,
   queueId: number,
