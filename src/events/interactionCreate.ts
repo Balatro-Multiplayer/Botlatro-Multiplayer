@@ -314,6 +314,10 @@ export default {
           content: `### ${step == 1 ? `Banned Decks:\n` : `Decks Picked:\n`}${deckPicks.join('\n')}`,
         })
       }
+
+      if (interaction.customId === 'queue-ban-decks') {
+        
+      }
     }
 
     // Button interactions
