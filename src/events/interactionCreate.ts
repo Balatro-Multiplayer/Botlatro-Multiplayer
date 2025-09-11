@@ -1,6 +1,5 @@
 import {
   ActionRowBuilder,
-  ActionRowComponent,
   ButtonBuilder,
   Events,
   Interaction,
@@ -15,17 +14,17 @@ import {
   createMatch,
 } from '../utils/queueHelpers'
 import {
-  customDecks,
-  decks,
   endMatch,
   getTeamsInMatch,
   setupDeckSelect,
 } from '../utils/matchHelpers'
 import {
   getActiveQueues,
+  getDecksInQueue,
   getHelperRoleId,
   getMatchChannel,
   getMatchData,
+  getQueueIdFromMatch,
   getQueueSettings,
   getUserPriorityQueueId,
   getUserQueues,
@@ -252,12 +251,13 @@ export default {
       }
 
       if (interaction.customId.includes('deck-bans-')) {
-        const parts = interaction.customId.split('-')
-        const step = parseInt(parts[2])
-        const matchId = parseInt(parts[3])
-        const startingTeamId = parseInt(parts[4])
-        const matchTeams = await getTeamsInMatch(matchId)
-        const deckOptions = [decks, customDecks].flat(1)
+        const parts = interaction.customId.split('-');
+        const step = parseInt(parts[2]);
+        const matchId = parseInt(parts[3]);
+        const queueId = await getQueueIdFromMatch(matchId);
+        const startingTeamId = parseInt(parts[4]);
+        const matchTeams = await getTeamsInMatch(matchId);
+        const deckOptions = await getDecksInQueue(queueId);
 
         // Determine which team is active for this step
         const activeTeamId = (startingTeamId + step) % 2
@@ -292,7 +292,7 @@ export default {
           .fetch(process.env.GUILD_ID!)
           .then((g) => g.members.fetch(matchTeams[nextTeamId].users[0].user_id))
 
-        const deckSelMenu = setupDeckSelect(
+        const deckSelMenu = await setupDeckSelect(
           `deck-bans-${nextStep}-${matchId}-${startingTeamId}`,
           matchTeams[nextTeamId].users.length > 1
             ? `Team ${matchTeams[nextTeamId].team}: Select ${nextStep === 2 ? 3 : 1} decks to play.`
