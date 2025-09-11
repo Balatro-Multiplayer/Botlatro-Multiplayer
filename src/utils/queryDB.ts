@@ -1,7 +1,8 @@
 import { TextChannel } from 'discord.js'
 import { pool } from '../db'
-import { Matches, MatchUsers, Queues, Settings, teamResults } from 'psqlDB'
+import { Decks, Matches, MatchUsers, Queues, Settings, Stakes, teamResults } from 'psqlDB'
 import { client } from '../client'
+import { QueryResult } from 'pg';
 
 // Get the helper role
 export async function getHelperRoleId(): Promise<string | null> {
@@ -104,7 +105,73 @@ export async function getUserPriorityQueueId(
   return res.rows[0].priority_queue_id
 }
 
-//  get the match id from the match channel id
+// Get all decks
+export async function getDeckList(
+  custom: boolean = true,
+): Promise<Decks[]> {
+  const res: QueryResult<Decks> = await pool.query(
+    `SELECT * FROM decks`
+  )
+
+  let deckList = res.rows;
+  if (!custom) deckList = deckList.filter(deck => deck.custom == false);
+
+  return deckList;
+}
+
+// Get all stakes
+export async function getStakeList(
+  custom: boolean = true,
+): Promise<Stakes[]> {
+  const res: QueryResult<Stakes> = await pool.query(
+    `SELECT * FROM stakes`
+  )
+
+  let stakeList = res.rows;
+  if (!custom) stakeList = stakeList.filter(stake => stake.custom == false);
+
+  return stakeList;
+}
+
+// get all available decks in a queue
+export async function getDecksInQueue(
+  queueId: number,
+): Promise<Decks[]> {
+  const res = await pool.query<Decks>(
+    `
+      SELECT d.*
+      FROM decks d
+      LEFT JOIN banned_decks b
+        ON d.id = b.deck_id AND b.queue_id = $1
+      WHERE b.deck_id IS NULL;
+    `,
+    [queueId],
+  );
+
+  return res.rows;
+}
+
+// set queue deck bans
+export async function setQueueDeckBans(
+  queueId: number,
+  deckList: string[]
+): Promise<void> {
+  
+  await pool.query(`
+    DELETE FROM banned_decks
+    WHERE queue_id = $1;
+  `, [queueId]);
+
+  for (const deckId of deckList) {
+    await pool.query(`
+      INSERT INTO banned_decks (queue_id, deck_id)
+      VALUES ($1, $2)
+      ON CONFLICT DO NOTHING;
+    `, [queueId, deckId])
+  }
+}
+
+// get the match id from the match channel id
 export async function getMatchIdFromChannel(
   channelId: string,
 ): Promise<number | null> {
@@ -549,7 +616,7 @@ export async function getPlayerDeviation(
 }
 
 // return whether a queue is glicko or openskill
-export async function isQueueGlicko(queueId: string): Promise<boolean> {
+export async function isQueueGlicko(queueId: number): Promise<boolean> {
   const response = await pool.query(
     `SELECT members_per_team, number_of_teams FROM queues WHERE id = $1`,
     [queueId],
@@ -569,7 +636,7 @@ export async function isQueueGlicko(queueId: string): Promise<boolean> {
 }
 
 // get queue ID from match ID
-export async function getQueueIdFromMatch(matchId: number): Promise<string> {
+export async function getQueueIdFromMatch(matchId: number): Promise<number> {
   const response = await pool.query(
     `SELECT queue_id FROM matches WHERE id = $1`,
     [matchId],

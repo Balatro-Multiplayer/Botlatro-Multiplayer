@@ -6,6 +6,8 @@ import {
 } from 'discord.js'
 
 import changeMMR from '../moderation/changeMMR'
+import queue from './queue'
+import setBannedDecks from 'commands/moderation/setBannedDecks'
 
 export default {
   data: new SlashCommandBuilder()
@@ -35,11 +37,25 @@ export default {
             .setDescription('The new elo to set the user to')
             .setRequired(true),
         ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('banned-decks')
+        .setDescription('[ADMIN] Set banned decks for a specified queue.')
+        .addStringOption((option) =>
+          option
+            .setName('queue-name')
+            .setDescription('The user whose MMR you want to change')
+            .setRequired(true)
+            .setAutocomplete(true),
+        )
     ),
 
   async execute(interaction: ChatInputCommandInteraction) {
     if (interaction.options.getSubcommand() === 'mmr') {
       await changeMMR.execute(interaction)
+    } else if (interaction.options.getSubcommand() === 'banned-decks') {
+      await setBannedDecks.execute(interaction)
     }
   },
 
@@ -47,6 +63,8 @@ export default {
     const subcommand = interaction.options.getSubcommand()
     if (subcommand === 'mmr') {
       await changeMMR.autocomplete(interaction)
+    } else if (subcommand === 'banned-decks') {
+      await queue.autocomplete(interaction);
     }
   },
 }

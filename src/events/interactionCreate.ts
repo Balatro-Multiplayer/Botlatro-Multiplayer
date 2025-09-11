@@ -1,6 +1,5 @@
 import {
   ActionRowBuilder,
-  ActionRowComponent,
   ButtonBuilder,
   Events,
   Interaction,
@@ -15,21 +14,22 @@ import {
   createMatch,
 } from '../utils/queueHelpers'
 import {
-  customDecks,
-  decks,
   endMatch,
   getTeamsInMatch,
   setupDeckSelect,
 } from '../utils/matchHelpers'
 import {
   getActiveQueues,
+  getDecksInQueue,
   getHelperRoleId,
   getMatchChannel,
   getMatchData,
+  getQueueIdFromMatch,
   getQueueSettings,
   getUserPriorityQueueId,
   getUserQueues,
   partyUtils,
+  setQueueDeckBans,
   setUserPriorityQueue,
   userInMatch,
   userInQueue,
@@ -252,12 +252,13 @@ export default {
       }
 
       if (interaction.customId.includes('deck-bans-')) {
-        const parts = interaction.customId.split('-')
-        const step = parseInt(parts[2])
-        const matchId = parseInt(parts[3])
-        const startingTeamId = parseInt(parts[4])
-        const matchTeams = await getTeamsInMatch(matchId)
-        const deckOptions = [decks, customDecks].flat(1)
+        const parts = interaction.customId.split('-');
+        const step = parseInt(parts[2]);
+        const matchId = parseInt(parts[3]);
+        const queueId = await getQueueIdFromMatch(matchId);
+        const startingTeamId = parseInt(parts[4]);
+        const matchTeams = await getTeamsInMatch(matchId);
+        const deckOptions = await getDecksInQueue(queueId);
 
         // Determine which team is active for this step
         const activeTeamId = (startingTeamId + step) % 2
@@ -271,7 +272,7 @@ export default {
 
         if (step === 3) {
           const finalDeckPick = deckOptions.find(
-            (deck) => deck.deck_value === interaction.values[0],
+            (deck) => deck.id === parseInt(interaction.values[0]),
           )
 
           await interaction.update({ components: [] })
@@ -292,7 +293,9 @@ export default {
           .fetch(process.env.GUILD_ID!)
           .then((g) => g.members.fetch(matchTeams[nextTeamId].users[0].user_id))
 
-        const deckSelMenu = setupDeckSelect(
+        const deckChoices = interaction.values.map(deckId => parseInt(deckId))
+
+        const deckSelMenu = await setupDeckSelect(
           `deck-bans-${nextStep}-${matchId}-${startingTeamId}`,
           matchTeams[nextTeamId].users.length > 1
             ? `Team ${matchTeams[nextTeamId].team}: Select ${nextStep === 2 ? 3 : 1} decks to play.`
@@ -300,19 +303,25 @@ export default {
           nextStep === 2 ? 3 : 1,
           nextStep === 2 ? 3 : 1,
           true,
-          interaction.values,
-          nextStep === 3 ? interaction.values : [],
+          nextStep === 3 ? [] : deckChoices,
+          nextStep === 3 ? deckChoices : deckOptions.map(deck => deck.id),
         )
 
         await interaction.update({ components: [deckSelMenu] })
 
         const deckPicks = deckOptions
-          .filter((deck) => interaction.values.includes(deck.deck_value))
+          .filter((deck) => interaction.values.includes(`${deck.id}`))
           .map((deck) => `${deck.deck_emote} - ${deck.deck_name}`)
 
         await interaction.followUp({
           content: `### ${step == 1 ? `Banned Decks:\n` : `Decks Picked:\n`}${deckPicks.join('\n')}`,
         })
+      }
+
+      if (interaction.customId.startsWith('queue-ban-decks-')) {
+        const queueId = parseInt(interaction.customId.split('-')[3]);
+        await setQueueDeckBans(queueId, interaction.values)
+        await interaction.update({ content: 'Successfully changed queue decks that are banned.', components: [] });
       }
     }
 

@@ -108,17 +108,21 @@ declare module 'psqlDB' {
     helper_role_id: string
   }
 
-  export type Deck = {
+  export type Decks = {
+    id: number
     deck_name: string
     deck_emote: string
     deck_value: string
     deck_desc: string
+    custom: boolean
   }
 
-  export type Stake = {
+  export type Stakes = {
+    id: number
     stake_name: string
     stake_emote: string
     stake_value: string
     stake_desc: string
+    custom: boolean
   }
 }
