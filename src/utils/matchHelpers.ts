@@ -239,7 +239,7 @@ export async function sendMatchInitMessages(
   const deckEmbed = new EmbedBuilder()
     .setTitle(`Deck Bans`)
     .setDescription(
-      `**${randomTeams[0].name}** bans 5 decks.\n**${randomTeams[1].name}** chooses 3 decks.\n**${randomTeams[0].name}** picks 1 deck.\nVote using the dropdown below!\n\nAlternately, you can do </random-deck:1407756759057174560> and randomly pick one.`,
+      `**${randomTeams[0].name}** bans 5 decks.\n**${randomTeams[1].name}** chooses 3 decks.\n**${randomTeams[0].name}** picks 1 deck.\nVote using the dropdown below!\n\nAlternately, you can do </random deck:1414248501742669937> and randomly pick one.`,
     )
     .setColor(0xff0000)
 

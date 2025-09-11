@@ -177,7 +177,7 @@ export default {
 
       await interaction.reply({
         content:
-          'Successfully setup queue bot! Use /create queue to setup a queue and queue message.',
+          'Successfully setup queue bot! Use </create queue:1414248501742669938> to setup a queue and queue message.',
         flags: MessageFlags.Ephemeral,
       })
     } catch (err: any) {
