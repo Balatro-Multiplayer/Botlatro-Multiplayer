@@ -1,6 +1,6 @@
 import { TextChannel } from 'discord.js'
 import { pool } from '../db'
-import { Decks, Matches, MatchUsers, Queues, Settings, Stakes, teamResults } from 'psqlDB'
+import { Decks, Matches, MatchUsers, Queues, Settings, Stakes, StatsCanvasPlayerData, teamResults } from 'psqlDB'
 import { client } from '../client'
 import { QueryResult } from 'pg';
 
@@ -758,4 +758,104 @@ export async function getSettings(): Promise<Settings> {
   const response = await pool.query(`SELECT * FROM settings`)
   if (response.rowCount === 0) throw new Error('No settings found.')
   return response.rows[0]
+}
+
+// get the data for the statistics canvas display
+/* 
+  I'm gonna be real, I had ChatGPT help me with this horrific query.
+  It's probably pretty bad as a result. I understand how it works,
+  and it DOES work, but feel free to adjust this if it sucks lol
+  - Jeff
+*/
+export async function getStatsCanvasUserData(
+  userId: string, 
+  queueId: number
+): Promise<StatsCanvasPlayerData> {
+  const res: QueryResult<StatsCanvasPlayerData> = await pool.query(`
+    WITH player AS (
+      SELECT
+        qu.id,
+        qu.user_id,
+        qu.elo,
+        qu.peak_elo,
+        qu.wins,
+        qu.losses,
+        qu.games_played,
+        qu.win_streak,
+        qu.peak_win_streak
+      FROM queue_users qu
+      WHERE qu.user_id = $1
+        AND qu.queue_id = $2
+    ),
+    previous_games AS (
+      SELECT
+        mu.user_id,
+        mu.elo_change AS change,
+        m.created_at AS time,
+        m.id AS match_id
+      FROM match_users mu
+      JOIN matches m ON m.id = mu.match_id
+      WHERE mu.user_id = $1 AND m.winning_team IS NOT NULL
+      ORDER BY m.id DESC
+      LIMIT 6
+    ),
+    elo_graph AS (
+      SELECT
+        mu.user_id,
+        m.id AS match_id,
+        SUM(mu.elo_change) OVER (
+          PARTITION BY mu.user_id ORDER BY m.id
+          ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+        )
+        + (
+          SELECT p.elo
+          FROM player p
+        ) AS rating,
+        m.created_at::timestamp AS date
+      FROM match_users mu
+      JOIN matches m ON m.id = mu.match_id
+      WHERE mu.user_id = $1 AND m.winning_team IS NOT NULL
+      ORDER BY m.id
+      LIMIT 50
+    )
+    SELECT
+      p.user_id,
+      p.elo AS mmr,
+      p.peak_elo AS peak_mmr,
+      COALESCE(
+        json_agg(
+          json_build_object(
+            'label', s.label,
+            'value', s.value
+          )
+        ) FILTER (WHERE s.label IS NOT NULL),
+        '[]'::json
+      ) AS stats,
+      COALESCE(
+        (SELECT json_agg(json_build_object(
+          'change', change,
+          'time', time
+        )) FROM previous_games),
+        '[]'::json
+      ) AS previous_games,
+      COALESCE(
+        (SELECT json_agg(json_build_object(
+          'date', date,
+          'rating', rating
+        )) FROM elo_graph),
+        '[]'::json
+      ) AS elo_graph_data
+    FROM player p
+    CROSS JOIN LATERAL (
+      VALUES
+        ('WINS', p.wins::text),
+        ('LOSSES', p.losses::text),
+        ('GAMES', p.games_played::text),
+        ('WIN STREAK', p.win_streak::text)
+    ) AS s(label, value)
+    GROUP BY p.user_id, p.elo, p.peak_elo;
+  `, [userId, queueId])
+
+  console.log(res.rows[0]);
+  return res.rows[0];
 }

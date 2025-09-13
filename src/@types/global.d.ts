@@ -37,6 +37,7 @@ declare module 'psqlDB' {
     channel_id: string
     open: boolean
     winning_team: number | null
+    created_at: Date
   }
 
   export interface Users {
@@ -56,7 +57,7 @@ declare module 'psqlDB' {
     queue_id: number
     id: number
     user_id: string
-    peak_rating: number
+    peak_elo: number
     wins: number
     losses: number
     games_played: number
@@ -116,5 +117,15 @@ declare module 'psqlDB' {
     stake_value: string
     stake_desc: string
     custom: boolean
+  }
+
+  export type StatsCanvasPlayerData = {
+    user_id: string,
+    name: string,
+    mmr: number,
+    peak_mmr: number,
+    stats: { label: string, value: string, percentile: string }[],
+    previous_games: { change: number, time: Date }[],
+    elo_graph_data: { date: Date, rating: number }[],
   }
 }

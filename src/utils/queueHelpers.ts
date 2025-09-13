@@ -267,11 +267,11 @@ export async function createMatch(
 
   const response = await pool.query(
     `
-        INSERT INTO matches (queue_id, channel_id)
-        VALUES ($1, $2)
+        INSERT INTO matches (queue_id, channel_id, created_at)
+        VALUES ($1, $2, $3)
         RETURNING id
     `,
-    [queue.rows[0].id, channel.id],
+    [queue.rows[0].id, channel.id, Date.now()],
   )
 
   const matchId = response.rows[0].id
