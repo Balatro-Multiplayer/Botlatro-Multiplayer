@@ -1,4 +1,5 @@
 import queueLock from 'commands/moderation/queueLock'
+import viewStats from 'commands/moderation/viewStats'
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
@@ -22,7 +23,7 @@ export default {
             .setAutocomplete(true)
         ),
     )
-     .addSubcommand((sub) =>
+    .addSubcommand((sub) =>
       sub
         .setName('unlock')
         .setDescription('Unlocks a queue.')
@@ -33,12 +34,26 @@ export default {
             .setRequired(true)
             .setAutocomplete(true)
         ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('stats')
+        .setDescription('View your stats in a queue.')
+        .addStringOption((option) =>
+          option
+            .setName('queue-name')
+            .setDescription('The queue name to view stats for')
+            .setRequired(true)
+            .setAutocomplete(true)
+        ),
     ),
   async execute(interaction: ChatInputCommandInteraction) {
     if (interaction.options.getSubcommand() === 'lock') {
       await queueLock.execute(interaction, true)
     } else if (interaction.options.getSubcommand() === 'unlock') {
       await queueLock.execute(interaction, false)
+    } else if (interaction.options.getSubcommand() === 'stats') {
+      await viewStats.execute(interaction);
     }
   },
   async autocomplete(interaction: AutocompleteInteraction) {
