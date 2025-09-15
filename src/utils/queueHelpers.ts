@@ -13,7 +13,7 @@ import {
   APIEmbedField,
 } from 'discord.js'
 import { sendMatchInitMessages } from './matchHelpers'
-import { getUsersInQueue, userInQueue } from './queryDB'
+import { getUserPreviousQueueRole, getUserQueueRole, getUsersInQueue, userInQueue } from './queryDB'
 import { Queues } from 'psqlDB'
 import { QueryResult } from 'pg'
 import { client } from '../client'
@@ -132,13 +132,13 @@ export async function matchUpGames(): Promise<void> {
   try {
     // Get all users in unlocked queues
     const response = await pool.query(`
-            SELECT u.*, q.number_of_teams, q.members_per_team, q.elo_search_start, q.elo_search_speed, q.elo_search_increment
-            FROM queue_users u
-            JOIN queues q
-                ON u.queue_id = q.id
-            WHERE u.queue_join_time IS NOT NULL
-                AND q.locked = false;
-        `)
+      SELECT u.*, q.number_of_teams, q.members_per_team, q.elo_search_start, q.elo_search_speed, q.elo_search_increment
+      FROM queue_users u
+      JOIN queues q
+          ON u.queue_id = q.id
+      WHERE u.queue_join_time IS NOT NULL
+          AND q.locked = false;
+    `)
 
     // Group users by queue
     const queues: Record<string, any[]> = {}
@@ -267,11 +267,11 @@ export async function createMatch(
 
   const response = await pool.query(
     `
-        INSERT INTO matches (queue_id, channel_id, created_at)
-        VALUES ($1, $2, $3)
+        INSERT INTO matches (queue_id, channel_id)
+        VALUES ($1, $2)
         RETURNING id
     `,
-    [queue.rows[0].id, channel.id, Date.now()],
+    [queue.rows[0].id, channel.id],
   )
 
   const matchId = response.rows[0].id
@@ -328,4 +328,18 @@ export async function timeSpentInQueue(
   const joinTime = new Date(response.rows[0].queue_join_time)
   const timeSpent = Math.floor(joinTime.getTime() / 1000) // Convert to seconds for Discord timestamp
   return `<t:${timeSpent}:R>`
+}
+  
+// set queue roles
+export async function setUserQueueRole(queueId: number, userId: string): Promise<void> {
+  const currentRole = await getUserQueueRole(queueId, userId);
+  const previousRole = await getUserPreviousQueueRole(queueId, userId);
+
+  const guild =
+    client.guilds.cache.get(process.env.GUILD_ID!) ??
+    (await client.guilds.fetch(process.env.GUILD_ID!))
+  const member = await guild.members.fetch(userId);
+
+  if (currentRole) member.roles.add(currentRole.role_id);
+  if (previousRole) member.roles.remove(previousRole.role_id);
 }
