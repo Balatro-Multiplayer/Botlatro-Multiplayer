@@ -2,10 +2,15 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  CategoryChannel,
+  ChannelType,
   EmbedBuilder,
+  MessageComponentInteraction,
+  PermissionsBitField,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
   TextChannel,
+  VoiceChannel,
 } from 'discord.js'
 import { pool } from '../db'
 import { shuffle } from 'lodash-es'
@@ -15,12 +20,15 @@ import {
   getDecksInQueue,
   getMatchChannel,
   getMatchResultsChannel,
+  getMatchVoiceChannel,
   getQueueIdFromMatch,
   getQueueSettings,
+  getSettings,
   getStakeList,
   getUserQueueRole,
   getWinningTeamFromMatch,
   isQueueGlicko,
+  setMatchVoiceChannel,
 } from './queryDB'
 import { Decks, MatchUsers, Stakes, teamResults } from 'psqlDB'
 import dotenv from 'dotenv'
@@ -152,8 +160,6 @@ export async function sendMatchInitMessages(
   textChannel: TextChannel,
 ) {
   const teamData = await getTeamsInMatch(matchId)
-  // This is just for testing the layout, ^ the above does it properly
-  // const teamData = [{ team: 1, users: [{user_id: '122568101995872256', elo: 250}] }, {team: 2, users: [{user_id: '122568101995872256', elo: 500}] }];
   const queueTeamSelectOptions: any[] = []
   let teamPingString = ``
   const queueName = await getQueueSettings(queueId, ['queue_name'])
@@ -226,6 +232,10 @@ export async function sendMatchInitMessages(
       new ButtonBuilder()
         .setCustomId(`call-helpers-${matchId}`)
         .setLabel('Call Helpers')
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId(`setup-vc-${matchId}`)
+        .setLabel('Setup VC')
         .setStyle(ButtonStyle.Secondary),
     ),
   )
@@ -442,4 +452,34 @@ export async function deleteMatchChannel(matchId: number): Promise<boolean> {
     })
   }, 1000)
   return true
+}
+
+// Setup match vc
+export async function setupMatchVoiceChannel(interaction: MessageComponentInteraction, matchId: number): Promise<VoiceChannel> {
+  const matchUsers = await getTeamsInMatch(matchId)
+  const matchUsersArray = matchUsers.flatMap((t) =>
+    t.users.map((u) => u.user_id),
+  )
+  const channel: any = interaction.message.channel
+  const category = channel?.parent
+
+  const voiceChannel = (await interaction.guild?.channels.create({
+    name: `Match #${matchId}`,
+    type: ChannelType.GuildVoice,
+    parent: category,
+    permissionOverwrites: [
+      {
+        id: interaction.guild?.roles.everyone.id,
+        deny: [PermissionsBitField.Flags.Connect],
+      },
+      ...matchUsersArray.map((userId) => ({
+        id: userId,
+        allow: [PermissionsBitField.Flags.Connect, PermissionsBitField.Flags.ViewChannel],
+      })),
+    ],
+  })) as VoiceChannel
+
+  await setMatchVoiceChannel(matchId, voiceChannel.id);
+
+  return voiceChannel
 }
