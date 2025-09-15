@@ -26,6 +26,12 @@ export default {
         .setName('helper-role')
         .setDescription('The role for helpers')
         .setRequired(true),
+    )
+    .addRoleOption((option) =>
+      option
+        .setName('queue-helper-role')
+        .setDescription('The role for queue helpers, who can always see match channels')
+        .setRequired(true),
     ),
   async execute(interaction: ChatInputCommandInteraction) {
     // ensure settings row exists
@@ -35,14 +41,16 @@ export default {
         true,
       )?.id
       const helperRoleId = interaction.options.getRole('helper-role', true)?.id
+      const queueHelperRoleId = interaction.options.getRole('queue-helper-role', true)?.id
       if (queueCategoryId && helperRoleId) {
         pool.query(
           `
 					INSERT INTO settings (singleton, queue_category_id, helper_role_id) 
-					VALUES ($1, $2, $3) ON CONFLICT (singleton) DO UPDATE 
+					VALUES ($1, $2, $3, $4) ON CONFLICT (singleton) DO UPDATE 
 					SET queue_category_id = EXCLUDED.queue_category_id,
-						helper_role_id = EXCLUDED.helper_role_id;`,
-          [true, queueCategoryId, helperRoleId],
+						helper_role_id = EXCLUDED.helper_role_id,
+            queue_helper_role_id = EXCLUDED.queue_helper_role_id`,
+          [true, queueCategoryId, helperRoleId, queueHelperRoleId],
         )
       }
     } catch (err: any) {

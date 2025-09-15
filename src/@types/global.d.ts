@@ -96,6 +96,7 @@ declare module 'psqlDB' {
     queue_category_id: string
     queue_results_channel_id: string
     helper_role_id: string
+    queue_helper_role_id: string
     queue_message_id: string
     logs_channel_id: string
     queue_logs_channel_id: string
