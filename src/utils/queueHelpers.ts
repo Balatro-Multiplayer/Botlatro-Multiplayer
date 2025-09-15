@@ -11,9 +11,10 @@ import {
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
   APIEmbedField,
+  OverwriteType,
 } from 'discord.js'
 import { sendMatchInitMessages } from './matchHelpers'
-import { getUserPreviousQueueRole, getUserQueueRole, getUsersInQueue, userInQueue } from './queryDB'
+import { getSettings, getUserPreviousQueueRole, getUserQueueRole, getUsersInQueue, userInQueue } from './queryDB'
 import { Queues } from 'psqlDB'
 import { QueryResult } from 'pg'
 import { client } from '../client'
@@ -240,29 +241,40 @@ export async function createMatch(
     'SELECT id FROM queues WHERE id = $1',
     [queueId],
   )
-  const settings = await pool.query('SELECT * FROM settings')
+  const settings = await getSettings()
   if (!settings) return
-  const categoryId = settings.rows[0].queue_category_id
 
   const guild =
     client.guilds.cache.get(process.env.GUILD_ID!) ??
     (await client.guilds.fetch(process.env.GUILD_ID!))
   if (!guild) throw new Error('Guild not found')
+
+  const categoryId = settings.queue_category_id
+  const permissionOverwrites = [
+    {
+      id: guild.roles.everyone,
+      deny: [PermissionFlagsBits.ViewChannel],
+    },
+    ...userIds.map((userId) => ({
+      id: userId,
+      allow: [PermissionFlagsBits.ViewChannel],
+      type: OverwriteType.Member,
+    })),
+  ]
+
+  if (settings.queue_helper_role_id) {
+    permissionOverwrites.push({
+      id: settings.queue_helper_role_id,
+      allow: [PermissionFlagsBits.ViewChannel],
+      type: OverwriteType.Role
+    })
+  }
+  
   const channel = await guild.channels.create({
     name: 'reserved-match-channel',
     type: ChannelType.GuildText,
     parent: categoryId,
-    permissionOverwrites: [
-      {
-        id: guild.roles.everyone,
-        deny: [PermissionFlagsBits.ViewChannel],
-      },
-      ...userIds.map((userId) => ({
-        id: userId,
-        allow: [PermissionFlagsBits.ViewChannel],
-        type: 1,
-      })),
-    ],
+    permissionOverwrites: permissionOverwrites,
   })
 
   const response = await pool.query(
