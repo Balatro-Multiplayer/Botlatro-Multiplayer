@@ -45,6 +45,7 @@ declare module 'psqlDB' {
     open: boolean
     winning_team: number | null
     created_at: Date
+    match_vc_id: string
   }
 
   export interface Users {

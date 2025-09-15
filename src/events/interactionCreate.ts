@@ -18,6 +18,7 @@ import {
   endMatch,
   getTeamsInMatch,
   setupDeckSelect,
+  setupMatchVoiceChannel,
 } from '../utils/matchHelpers'
 import {
   getActiveQueues,
@@ -513,6 +514,20 @@ export default {
               })
             },
           })
+        }
+        if (interaction.customId.startsWith('setup-vc-')) {
+          const matchId = parseInt(interaction.customId.split('-')[2])
+          const rows = interaction.message.components.map(row => 
+            ActionRowBuilder.from(row as any)
+          ) as ActionRowBuilder<ButtonBuilder>[];
+
+          const vcButton = rows[1].components[2] as ButtonBuilder;
+          rows[1].components[2] = ButtonBuilder.from(vcButton).setDisabled(true);
+          
+          await interaction.update({ components: rows });
+
+          const voiceChannel = await setupMatchVoiceChannel(interaction, matchId);
+          await interaction.followUp({ content: `A VC has been made for this match: <#${voiceChannel.id}>` })
         }
       } catch (err) {
         console.error(err)
