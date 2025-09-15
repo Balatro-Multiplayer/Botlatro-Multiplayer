@@ -319,10 +319,12 @@ export async function getMatchVoiceChannel(matchId: number): Promise<VoiceChanne
     return null;
   }
 
-  const channel = await client.channels.fetch(res.rows[0].match_vc_id)
+  if (res.rows[0].match_vc_id) {
+    const channel = await client.channels.fetch(res.rows[0].match_vc_id)
 
-  if (channel instanceof VoiceChannel) {
-    return channel
+    if (channel instanceof VoiceChannel) {
+      return channel
+    }
   }
 
   return null;
@@ -398,7 +400,7 @@ export async function closeMatch(matchId: number): Promise<boolean> {
   // Delete match voice channel, if any
   const matchVoiceChannel = await getMatchVoiceChannel(matchId);
   if (matchVoiceChannel) {
-    await matchVoiceChannel.delete()
+    await matchVoiceChannel.delete().catch(() => {});
   }
 
   if (res.rowCount === 0) {

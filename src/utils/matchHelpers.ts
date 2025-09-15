@@ -266,12 +266,15 @@ export async function sendMatchInitMessages(
     deckList.map(deck => deck.id),
   )
 
-  await textChannel.send({
+  const mainMsg = await textChannel.send({
     content: `# ${teamPingString}`,
     embeds: [eloEmbed],
     components: queueGameComponents,
   })
-  await textChannel.send({ embeds: [deckEmbed], components: [deckSelMenu] })
+  const deckMsg = await textChannel.send({ embeds: [deckEmbed], components: [deckSelMenu] })
+
+  await mainMsg.pin();
+  await deckMsg.pin();
 }
 
 export async function endMatch(
