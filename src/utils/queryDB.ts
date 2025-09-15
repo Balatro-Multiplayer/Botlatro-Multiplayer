@@ -212,6 +212,28 @@ export async function getStakeList(
   return stakeList;
 }
 
+export async function getStake(
+  stakeId: number
+): Promise<Stakes | null> {
+  const res: QueryResult<Stakes> = await pool.query(
+    `SELECT * FROM stakes WHERE id = $1`, [stakeId]
+  )
+
+  if (res.rowCount == 0) return null;
+  return res.rows[0]; 
+}
+
+export async function getStakeByName(
+  stakeName: string
+): Promise<Stakes | null> {
+  const res: QueryResult<Stakes> = await pool.query(
+    `SELECT * FROM stakes WHERE stake_name = $1`, [stakeName]
+  )
+
+  if (res.rowCount == 0) return null;
+  return res.rows[0];
+}
+
 // get all available decks in a queue
 export async function getDecksInQueue(
   queueId: number,
@@ -249,6 +271,31 @@ export async function setQueueDeckBans(
     `, [queueId, deckId])
   }
 }
+
+// Set the picked deck in the match data
+export async function setPickedMatchDeck(
+  matchId: number,
+  deckName: string
+): Promise<void> {
+  await pool.query(`
+    UPDATE matches
+    SET deck = $2
+    WHERE id = $1
+  `, [matchId, deckName]);
+}
+
+// Set the picked stake in the match data
+export async function setPickedMatchStake(
+  matchId: number,
+  stakeName: string
+): Promise<void> {
+  await pool.query(`
+    UPDATE matches
+    SET stake = $2
+    WHERE id = $1
+  `, [matchId, stakeName]);
+}
+
 
 // get the match id from the match channel id
 export async function getMatchIdFromChannel(

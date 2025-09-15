@@ -20,12 +20,9 @@ import {
   getDecksInQueue,
   getMatchChannel,
   getMatchResultsChannel,
-  getMatchVoiceChannel,
   getQueueIdFromMatch,
   getQueueSettings,
-  getSettings,
   getStakeList,
-  getUserQueueRole,
   getWinningTeamFromMatch,
   isQueueGlicko,
   setMatchVoiceChannel,
@@ -98,9 +95,43 @@ export async function setupDeckSelect(
   return selectRow
 }
 
+export async function setupStakeButtons(matchId: number): Promise<ActionRowBuilder<ButtonBuilder>[]> {
+  const stakeRow: ActionRowBuilder<ButtonBuilder> = new ActionRowBuilder();
+  const vetoRow: ActionRowBuilder<ButtonBuilder> = new ActionRowBuilder();
+  let stakeList = await getStakeList();
+  // TODO: Make this queue dependent, maybe
+  stakeList = stakeList.filter(stake => 
+    stake.stake_name !== 'Red Stake'
+    && stake.stake_name !== 'Blue Stake'
+    && stake.stake_name !== 'Orange Stake'
+  )
+
+  if (stakeList.length < 5) throw new Error('Not enough stakes to do stake bans.');
+  
+  const whiteStake = stakeList.find(stake => stake.stake_name == 'White Stake') ?? stakeList[0];
+  const greenStake = stakeList.find(stake => stake.stake_name == 'Green Stake') ?? stakeList[1];
+  const blackStake = stakeList.find(stake => stake.stake_name == 'Black Stake') ?? stakeList[2];
+  const purpleStake = stakeList.find(stake => stake.stake_name == 'Purple Stake') ?? stakeList[3];
+  const goldStake = stakeList.find(stake => stake.stake_name == 'Gold Stake') ?? stakeList[4];
+
+  stakeRow.addComponents(
+    new ButtonBuilder().setCustomId(`stake-${whiteStake.id}-0-${matchId}`).setEmoji(whiteStake.stake_emote).setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(`stake-${greenStake.id}-1-${matchId}`).setEmoji(greenStake.stake_emote).setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(`stake-${blackStake.id}-2-${matchId}`).setEmoji(blackStake.stake_emote).setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(`stake-${purpleStake.id}-3-${matchId}`).setEmoji(purpleStake.stake_emote).setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(`stake-${goldStake.id}-4-${matchId}`).setEmoji(goldStake.stake_emote).setStyle(ButtonStyle.Secondary)
+  )
+
+  vetoRow.addComponents(
+    new ButtonBuilder().setCustomId(`veto-stake`).setLabel(`VETO`).setStyle(ButtonStyle.Danger)
+  )
+
+  return [stakeRow, vetoRow];
+}
+
 export async function getTeamsInMatch(
   matchId: number,
-): Promise<{ team: number; users: MatchUsers[]; winRes: number }[]> {
+): Promise<teamResults> {
   const matchUserRes: QueryResult<MatchUsers> = await pool.query(
     `
     SELECT * FROM match_users
@@ -132,26 +163,26 @@ export async function getTeamsInMatch(
   const winningTeamId = await getWinningTeamFromMatch(matchId)
 
   // if there is no matchUser instance then early return
-  if (matchUserRes.rowCount === 0) return []
+  if (matchUserRes.rowCount === 0) return { teams: [] }
 
-  type teamGroupType = { [key: number]: { users: any[]; winRes: number } }
+  type teamGroupType = { [key: number]: { users: any[]; score: number } }
   const teamGroups: teamGroupType = {}
 
   for (const user of userFull) {
     if (user.team === null) continue
 
     if (!teamGroups[user.team]) {
-      teamGroups[user.team] = { users: [], winRes: 0 }
+      teamGroups[user.team] = { users: [], score: 0 }
     }
     teamGroups[user.team].users.push(user)
-    teamGroups[user.team].winRes = user.team === winningTeamId ? 1 : 0
+    teamGroups[user.team].score = user.team === winningTeamId ? 1 : 0
   }
 
-  return Object.entries(teamGroups).map(([team, value]) => ({
-    team: Number(team),
-    users: value.users as MatchUsers[],
-    winRes: value.winRes,
-  }))
+  return { teams: Object.entries(teamGroups).map(([team, value]) => ({
+    id: Number(team),
+    players: value.users as MatchUsers[],
+    score: value.score,
+  })) }
 }
 
 export async function sendMatchInitMessages(
@@ -160,15 +191,15 @@ export async function sendMatchInitMessages(
   textChannel: TextChannel,
 ) {
   const teamData = await getTeamsInMatch(matchId)
-  const queueTeamSelectOptions: any[] = []
+  const queueTeamSelectOptions: StringSelectMenuOptionBuilder[] = []
   let teamPingString = ``
   const queueName = await getQueueSettings(queueId, ['queue_name'])
 
-  let teamFields: any[] = teamData.map(async (t: any, idx) => {
+  let teamFields: any = teamData.teams.map(async (t, idx) => {
     let teamQueueUsersData = await pool.query(
       `SELECT * FROM queue_users
       WHERE user_id = ANY($1) AND queue_id = $2`,
-      [t.users.map((u: any) => u.user_id), queueId],
+      [t.players.map((u) => u.user_id), queueId],
     )
 
     let teamString = ``
@@ -193,17 +224,17 @@ export async function sendMatchInitMessages(
     queueTeamSelectOptions.push(
       new StringSelectMenuOptionBuilder()
         .setLabel(
-          onePersonTeam == true ? `${onePersonTeamName}` : `Team ${t.team}`,
+          onePersonTeam == true ? `${onePersonTeamName}` : `Team ${t.id}`,
         )
         .setDescription(
-          `Select ${onePersonTeam == true ? `${onePersonTeamName}` : `team ${t.team}`} as the winner.`,
+          `Select ${onePersonTeam == true ? `${onePersonTeamName}` : `team ${t.id}`} as the winner.`,
         )
-        .setValue(`winmatch_${matchId}_${t.team}`),
+        .setValue(`winmatch_${matchId}_${t.id}`),
     )
 
     teamPingString += 'vs. '
     return {
-      name: onePersonTeam ? `${onePersonTeamName}` : `Team ${t.team}`,
+      name: onePersonTeam ? `${onePersonTeamName}` : `Team ${t.id}`,
       value: teamString,
       inline: true,
       teamIndex: idx,
@@ -266,15 +297,15 @@ export async function sendMatchInitMessages(
     deckList.map(deck => deck.id),
   )
 
-  const mainMsg = await textChannel.send({
+  const stakeBanButtons = await setupStakeButtons(matchId);
+
+  await textChannel.send({
     content: `# ${teamPingString}`,
     embeds: [eloEmbed],
     components: queueGameComponents,
   })
-  const deckMsg = await textChannel.send({ embeds: [deckEmbed], components: [deckSelMenu] })
-
-  await mainMsg.pin();
-  await deckMsg.pin();
+  await textChannel.send({ embeds: [deckEmbed], components: [deckSelMenu] })
+  await textChannel.send({ content: `Stake Bans:\n**${randomTeams[0].name}**'s turn`, components: stakeBanButtons });
 }
 
 export async function endMatch(
@@ -347,10 +378,10 @@ export async function endMatch(
   if (isGlicko) {
     // create our teamResults object here
     const teamResultsData: teamResults = {
-      teams: matchTeams.map((teamResult) => ({
-        id: teamResult.team,
-        score: teamResult.winRes as 0 | 0.5 | 1,
-        players: teamResult.users as MatchUsers[],
+      teams: matchTeams.teams.map((teamResult) => ({
+        id: teamResult.id,
+        score: teamResult.score as 0 | 0.5 | 1,
+        players: teamResult.players as MatchUsers[],
       })),
     }
 
@@ -460,8 +491,8 @@ export async function deleteMatchChannel(matchId: number): Promise<boolean> {
 // Setup match vc
 export async function setupMatchVoiceChannel(interaction: MessageComponentInteraction, matchId: number): Promise<VoiceChannel> {
   const matchUsers = await getTeamsInMatch(matchId)
-  const matchUsersArray = matchUsers.flatMap((t) =>
-    t.users.map((u) => u.user_id),
+  const matchUsersArray = matchUsers.teams.flatMap((t) =>
+    t.players.map((u) => u.user_id),
   )
   const channel: any = interaction.message.channel
   const category = channel?.parent

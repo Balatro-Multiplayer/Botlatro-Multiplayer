@@ -45,7 +45,7 @@ export default {
       if (queueCategoryId && helperRoleId) {
         pool.query(
           `
-					INSERT INTO settings (singleton, queue_category_id, helper_role_id) 
+					INSERT INTO settings (singleton, queue_category_id, helper_role_id, queue_helper_role_id) 
 					VALUES ($1, $2, $3, $4) ON CONFLICT (singleton) DO UPDATE 
 					SET queue_category_id = EXCLUDED.queue_category_id,
 						helper_role_id = EXCLUDED.helper_role_id,

@@ -6,6 +6,7 @@ import {
   MessageFlags,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
+  TextChannel,
 } from 'discord.js'
 import { pool } from '../db'
 import {
@@ -28,9 +29,13 @@ import {
   getMatchData,
   getQueueIdFromMatch,
   getQueueSettings,
+  getStake,
+  getStakeByName,
   getUserPriorityQueueId,
   getUserQueues,
   partyUtils,
+  setPickedMatchDeck,
+  setPickedMatchStake,
   setQueueDeckBans,
   setUserPriorityQueue,
   userInMatch,
@@ -39,6 +44,7 @@ import {
 import { QueryResult } from 'pg'
 import { Queues } from 'psqlDB'
 import { handleTwoPlayerMatchVoting, handleVoting } from '../utils/voteHelpers'
+import { channel } from 'diagnostics_channel'
 
 export default {
   name: Events.InteractionCreate,
@@ -163,9 +169,9 @@ export default {
 
         await pool.query(
           `
-                UPDATE queue_users
-                SET queue_join_time = NULL
-                WHERE user_id = $1`,
+            UPDATE queue_users
+            SET queue_join_time = NULL
+            WHERE user_id = $1`,
           [interaction.user.id],
         )
 
@@ -175,11 +181,11 @@ export default {
           const queue = allQueues.rows.find((q) => q.id === queueId)
           if (!queue) continue
 
-          const res = await pool.query(
-            `UPDATE queue_users
-                    SET queue_join_time = NOW()
-                    WHERE user_id = $1 AND queue_id = $2
-                    RETURNING *;`,
+          const res = await pool.query(`
+              UPDATE queue_users
+              SET queue_join_time = NOW()
+              WHERE user_id = $1 AND queue_id = $2
+              RETURNING *;`,
             [interaction.user.id, queueId],
           )
 
@@ -230,8 +236,8 @@ export default {
         const customSelId = interaction.values[0]
         const matchId = parseInt(customSelId.split('_')[1])
         const matchUsers = await getTeamsInMatch(matchId)
-        const matchUsersArray = matchUsers.flatMap((t) =>
-          t.users.map((u) => u.user_id),
+        const matchUsersArray = matchUsers.teams.flatMap((t) =>
+          t.players.map((u) => u.user_id),
         )
 
         await handleTwoPlayerMatchVoting(interaction, {
@@ -255,6 +261,7 @@ export default {
       }
 
       if (interaction.customId.includes('deck-bans-')) {
+        const channel = interaction.channel as TextChannel;
         const parts = interaction.customId.split('-');
         const step = parseInt(parts[2]);
         const matchId = parseInt(parts[3]);
@@ -263,10 +270,12 @@ export default {
         const matchTeams = await getTeamsInMatch(matchId);
         const deckOptions = await getDecksInQueue(queueId);
 
+        await interaction.message.delete();
+
         // Determine which team is active for this step
         const activeTeamId = (startingTeamId + step) % 2
 
-        if (interaction.user.id !== matchTeams[activeTeamId].users[0].user_id) {
+        if (interaction.user.id !== matchTeams.teams[activeTeamId].players[0].user_id) {
           return interaction.reply({
             content: `It's not your turn to vote for the decks!`,
             flags: MessageFlags.Ephemeral,
@@ -278,11 +287,9 @@ export default {
             (deck) => deck.id === parseInt(interaction.values[0]),
           )
 
-          await interaction.update({ components: [] })
-          await interaction.deleteReply()
-
           if (finalDeckPick) {
-            await interaction.followUp({
+            await setPickedMatchDeck(matchId, finalDeckPick.deck_name);
+            await channel.send({
               content: `## Selected Deck: ${finalDeckPick.deck_emote} ${finalDeckPick.deck_name}`,
             })
           }
@@ -294,14 +301,14 @@ export default {
         const nextTeamId = (startingTeamId + nextStep) % 2
         const nextMember = await interaction.client.guilds
           .fetch(process.env.GUILD_ID!)
-          .then((g) => g.members.fetch(matchTeams[nextTeamId].users[0].user_id))
+          .then((g) => g.members.fetch(matchTeams.teams[nextTeamId].players[0].user_id))
 
         const deckChoices = interaction.values.map(deckId => parseInt(deckId))
 
         const deckSelMenu = await setupDeckSelect(
           `deck-bans-${nextStep}-${matchId}-${startingTeamId}`,
-          matchTeams[nextTeamId].users.length > 1
-            ? `Team ${matchTeams[nextTeamId].team}: Select ${nextStep === 2 ? 3 : 1} decks to play.`
+          matchTeams.teams[nextTeamId].players.length > 1
+            ? `Team ${matchTeams.teams[nextTeamId].id}: Select ${nextStep === 2 ? 3 : 1} decks to play.`
             : `${nextMember.displayName}: Select ${nextStep === 2 ? 3 : 1} decks to play.`,
           nextStep === 2 ? 3 : 1,
           nextStep === 2 ? 3 : 1,
@@ -310,14 +317,13 @@ export default {
           nextStep === 3 ? deckChoices : deckOptions.map(deck => deck.id),
         )
 
-        await interaction.update({ components: [deckSelMenu] })
-
         const deckPicks = deckOptions
           .filter((deck) => interaction.values.includes(`${deck.id}`))
           .map((deck) => `${deck.deck_emote} - ${deck.deck_name}`)
 
-        await interaction.followUp({
+        await channel.send({
           content: `### ${step == 1 ? `Banned Decks:\n` : `Decks Picked:\n`}${deckPicks.join('\n')}`,
+          components: [deckSelMenu]
         })
       }
 
@@ -440,8 +446,8 @@ export default {
         if (interaction.customId.startsWith('cancel-')) {
           const matchId = parseInt(interaction.customId.split('-')[1])
           const matchUsers = await getTeamsInMatch(matchId)
-          const matchUsersArray = matchUsers.flatMap((t) =>
-            t.users.map((u) => u.user_id),
+          const matchUsersArray = matchUsers.teams.flatMap((t) =>
+            t.players.map((u) => u.user_id),
           )
 
           try {
@@ -497,8 +503,8 @@ export default {
           const matchId = parseInt(interaction.customId.split('-')[1])
           const matchData = await getMatchData(matchId)
           const matchUsers = await getTeamsInMatch(matchId)
-          const matchUsersArray = matchUsers.flatMap((t) =>
-            t.users.map((u) => u.user_id),
+          const matchUsersArray = matchUsers.teams.flatMap((t) =>
+            t.players.map((u) => u.user_id),
           )
 
           await handleVoting(interaction, {
@@ -515,6 +521,7 @@ export default {
             },
           })
         }
+
         if (interaction.customId.startsWith('setup-vc-')) {
           const matchId = parseInt(interaction.customId.split('-')[2])
           const rows = interaction.message.components.map(row => 
@@ -529,6 +536,51 @@ export default {
           const voiceChannel = await setupMatchVoiceChannel(interaction, matchId);
           await interaction.followUp({ content: `A VC has been made for this match: <#${voiceChannel.id}>` })
         }
+
+        if (interaction.customId.startsWith('stake-')) {
+          const channel = interaction.channel as TextChannel;
+          const stakeId = parseInt(interaction.customId.split('-')[1]);
+          const stakeComponentIdx = parseInt(interaction.customId.split('-')[2]);
+          const matchId = parseInt(interaction.customId.split('-')[3]);
+          const rows = interaction.message.components.map(row => 
+            ActionRowBuilder.from(row as any)
+          ) as ActionRowBuilder<ButtonBuilder>[];
+
+          const stakeButton = rows[0].components[stakeComponentIdx] as ButtonBuilder;
+            rows[0].components[stakeComponentIdx] = ButtonBuilder.from(stakeButton).setDisabled(true);
+
+          const enabledButtons = rows[0].components.filter(
+            (c) => !(c as ButtonBuilder).data.disabled
+          );
+          
+          // If only one left enabled, announce it
+          if (enabledButtons.length === 1) {
+            const stakeData = await getStake(stakeId);
+            if (stakeData) {
+              await setPickedMatchStake(matchId, stakeData.stake_name);
+              await interaction.message.delete();
+              await channel.send({ content: `## Selected Stake: ${stakeData.stake_emote} ${stakeData.stake_name} ` })
+            }
+          } else {
+            const stakeButton = rows[0].components[stakeComponentIdx] as ButtonBuilder;
+            rows[0].components[stakeComponentIdx] = ButtonBuilder.from(stakeButton).setDisabled(true);
+            await interaction.message.delete();
+            await channel.send({ components: rows });
+          }
+        }
+
+        if (interaction.customId == 'veto-stake') {
+          const channel = interaction.channel as TextChannel;
+          await interaction.message.delete();
+
+          const stakeData = await getStakeByName('White Stake');
+          if (stakeData) {
+            await channel.send({
+              content: `## Selected Stake: ${stakeData.stake_emote} ${stakeData.stake_name} `,
+            });
+          }
+        }
+
       } catch (err) {
         console.error(err)
         if (interaction.replied || interaction.deferred) {
