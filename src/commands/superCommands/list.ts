@@ -7,6 +7,8 @@ import {
 
 import listAllOpenParties from '../party/listAllOpenParties'
 import ListUsersInSpecificParty from '../party/listUsersInSpecificParty'
+import queue from './queue'
+import listQueueRoles from 'commands/moderation/listQueueRoles'
 
 export default {
   data: new SlashCommandBuilder()
@@ -27,6 +29,18 @@ export default {
             .setAutocomplete(true)
             .setRequired(true),
         ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('queue-roles')
+        .setDescription('[ADMIN] Lists queue roles in a queue.')
+        .addStringOption((option) =>
+          option
+            .setName('queue-name')
+            .setDescription('[ADMIN] lists users in the specified party')
+            .setAutocomplete(true)
+            .setRequired(true),
+        ),
     ),
 
   async execute(interaction: ChatInputCommandInteraction) {
@@ -34,6 +48,8 @@ export default {
       await listAllOpenParties.execute(interaction)
     } else if (interaction.options.getSubcommand() === 'users-in-party') {
       await ListUsersInSpecificParty.execute(interaction)
+    } else if (interaction.options.getSubcommand() === 'queue-roles') {
+      await listQueueRoles.execute(interaction);
     }
   },
 
@@ -42,6 +58,8 @@ export default {
 
     if (subcommand === 'users-in-party') {
       await ListUsersInSpecificParty.autocomplete(interaction)
+    } else if (subcommand === 'queue-roles') {
+      await queue.autocomplete(interaction);
     }
   },
 }

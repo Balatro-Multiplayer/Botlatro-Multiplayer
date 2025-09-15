@@ -12,6 +12,7 @@ import {
   updateQueueMessage,
   timeSpentInQueue,
   createMatch,
+  setUserQueueRole,
 } from '../utils/queueHelpers'
 import {
   endMatch,
@@ -188,6 +189,7 @@ export default {
                         VALUES ($1, $2::real, $2::real, $3, NOW())`,
               [interaction.user.id, queue.default_elo, queueId],
             )
+            await setUserQueueRole(queueId, interaction.user.id);
           }
 
           joinedQueues.push(queue.queue_name)

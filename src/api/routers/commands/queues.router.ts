@@ -103,4 +103,68 @@ queuesRouter.openapi(
   },
 )
 
+queuesRouter.openapi(
+  createRoute({
+    method: 'post',
+    path: '/roles/{id}',
+    description: 'Create and add a queue role.',
+    request: {
+      params: z.object({
+        id: z.number().openapi({
+          param: {
+            name: 'id',
+            in: 'path',
+          },
+          example: '1212121',
+        }),
+        role_id: z.string().openapi({
+          param: {
+            name: 'role_id',
+            in: 'path',
+          },
+          example: '1212121',
+        }),
+        mmr_threshold: z.number().openapi({
+          param: {
+            name: 'mmr_threshold',
+            in: 'path',
+          },
+          example: '1212121',
+        }),
+      }),
+    },
+    responses: {
+      200: {
+        content: {
+          'application/json': {
+            schema: z.object({
+              success: z.boolean(),
+            }),
+          },
+        },
+        description: 'Queue role created and added successfully.',
+      },
+    },
+  }),
+  async (c) => {
+    const { id, role_id, mmr_threshold } = c.req.valid('param')
+    //todo: add error handling
+    const success = await COMMAND_HANDLERS.MODERATION.ADD_QUEUE_ROLE(id, role_id, mmr_threshold)
+    if (success) {
+      return c.json(
+        {
+          success: true as const,
+        },
+        200,
+      )
+    }
+    return c.json(
+      {
+        success: false as const,
+      },
+      200,
+    )
+  },
+)
+
 export { queuesRouter }

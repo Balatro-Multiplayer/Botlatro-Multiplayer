@@ -5,6 +5,7 @@ import {
 } from 'discord.js'
 
 import setPriorityQueue from '../queues/setPriorityQueue'
+import queue from './queue'
 
 export default {
   data: new SlashCommandBuilder()
@@ -33,11 +34,6 @@ export default {
   },
 
   async autocomplete(interaction: AutocompleteInteraction) {
-    const subcommand = interaction.options.getSubcommand()
-
-    if (subcommand === 'priority-queue') {
-      const setPriorityQueue = require('../queues/setPriorityQueue').default;
-      await setPriorityQueue.autocomplete(interaction)
-    }
+    await queue.autocomplete(interaction);
   },
 }

@@ -17,6 +17,13 @@ declare module 'psqlDB' {
     locked: boolean
   }
 
+  export interface QueueRoles {
+    id: number,
+    queue_id: number,
+    role_id: string,
+    mmr_threshold: number
+  }
+
   export interface Parties {
     id: number
     name: string
