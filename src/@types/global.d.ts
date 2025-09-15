@@ -105,7 +105,7 @@ declare module 'psqlDB' {
   export type teamResults = {
     teams: {
       id: number
-      score: 0 | 0.5 | 1
+      score: number
       players: MatchUsers[]
     }[]
   }
@@ -114,7 +114,6 @@ declare module 'psqlDB' {
     id: number
     deck_name: string
     deck_emote: string
-    deck_value: string
     deck_desc: string
     custom: boolean
   }
@@ -123,7 +122,6 @@ declare module 'psqlDB' {
     id: number
     stake_name: string
     stake_emote: string
-    stake_value: string
     stake_desc: string
     custom: boolean
   }
