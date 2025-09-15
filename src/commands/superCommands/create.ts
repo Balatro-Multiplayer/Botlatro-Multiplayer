@@ -1,10 +1,14 @@
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  PermissionFlagsBits
+  PermissionFlagsBits,
+  AutocompleteInteraction
 } from 'discord.js'
 
 import newQueue from '../moderation/newQueue'
+import addQueueRole from 'commands/moderation/addQueueRole'
+import { getQueueNames } from 'utils/queryDB';
+import queue from './queue';
 
 export default {
   data: new SlashCommandBuilder()
@@ -94,10 +98,41 @@ export default {
             .setRequired(false)
             .setMinValue(1),
         ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('queue-role')
+        .setDescription(
+          'Create a queue rank role for use in a specific queue.',
+        )
+        .addStringOption((option) =>
+          option
+            .setName('queue-name')
+            .setDescription('The queue you would like to add the queue rank role to')
+            .setRequired(true)
+            .setAutocomplete(true),
+        )
+        .addRoleOption((option) =>
+          option
+            .setName('role')
+            .setDescription('The queue rank role in discord')
+            .setRequired(true),
+        )
+        .addNumberOption((option) =>
+          option
+            .setName('mmr-threshold')
+            .setDescription('The minimum MMR to gain to have this role')
+            .setRequired(true),
+        )
     ),
   async execute(interaction: ChatInputCommandInteraction) {
     if (interaction.options.getSubcommand() === 'queue') {
-      await newQueue.execute(interaction)
+      await newQueue.execute(interaction);
+    } else if (interaction.options.getSubcommand() === 'queue-role') {
+      await addQueueRole.execute(interaction);
     }
   },
+  async autocomplete(interaction: AutocompleteInteraction) {
+      await queue.autocomplete(interaction);
+    },
 }
