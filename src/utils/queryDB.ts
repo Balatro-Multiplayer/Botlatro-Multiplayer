@@ -1,4 +1,4 @@
-import { TextChannel } from 'discord.js'
+import { TextChannel, VoiceChannel } from 'discord.js'
 import { pool } from '../db'
 import { Decks, Matches, MatchUsers, QueueRoles, Queues, QueueUsers, Settings, Stakes, StatsCanvasPlayerData, teamResults } from 'psqlDB'
 import { client } from '../client'
@@ -160,7 +160,6 @@ export async function getUserQueueRole(
   `, [queueId, userElo]);
 
   if (res.rowCount === 0) return null;
-  console.log(res.rows);
 
   return res.rows[0];
 }
@@ -180,7 +179,6 @@ export async function getUserPreviousQueueRole(
   `, [queueId, userElo]);
 
   if (res.rowCount === 0) return null;
-  console.log(res.rows);
 
   return res.rows[0];
 }
@@ -308,6 +306,28 @@ export async function getMatchResultsChannel(): Promise<TextChannel | null> {
   throw new Error(`Channel is not a TextChannel.`)
 }
 
+// Set the match voice channel in the db
+export async function setMatchVoiceChannel(matchId: number, voiceChannelId: string): Promise<void> {
+  await pool.query(`UPDATE matches SET match_vc_id = $1 WHERE id = $2`, [voiceChannelId, matchId]);
+}
+
+// Get the match voice channel from the db
+export async function getMatchVoiceChannel(matchId: number): Promise<VoiceChannel | null> {
+  const res = await pool.query(`SELECT match_vc_id FROM matches WHERE id = $1`, [matchId]);
+
+   if (res.rowCount == 0) {
+    return null;
+  }
+
+  const channel = await client.channels.fetch(res.rows[0].match_vc_id)
+
+  if (channel instanceof VoiceChannel) {
+    return channel
+  }
+
+  return null;
+}
+
 // Get users in a specified queue
 export async function getUsersInQueue(queueId: number): Promise<string[]> {
   const response = await pool.query(
@@ -374,6 +394,13 @@ export async function closeMatch(matchId: number): Promise<boolean> {
     `UPDATE matches SET open = false WHERE id = $1`,
     [matchId],
   )
+
+  // Delete match voice channel, if any
+  const matchVoiceChannel = await getMatchVoiceChannel(matchId);
+  if (matchVoiceChannel) {
+    await matchVoiceChannel.delete()
+  }
+
   if (res.rowCount === 0) {
     return false
   }
@@ -937,6 +964,5 @@ export async function getStatsCanvasUserData(
     GROUP BY p.user_id, p.elo, p.peak_elo;
   `, [userId, queueId])
 
-  console.log(res.rows[0]);
   return res.rows[0];
 }
