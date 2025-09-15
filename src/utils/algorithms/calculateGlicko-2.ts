@@ -4,8 +4,10 @@ import {
   getMatchData,
   ratingUtils,
   getWinningTeamFromMatch,
+  getUserQueueRole,
 } from '.././queryDB'
 import type { teamResults } from 'psqlDB'
+import { setUserQueueRole } from 'utils/queueHelpers'
 
 // ONLY 1v1 games use this function - team and ffa games use openSkill
 export async function calculateGlicko2(
@@ -82,6 +84,9 @@ export async function calculateGlicko2(
       team.score = 0
     }
   }
+
+  await setUserQueueRole(queueId, teamResults.teams[0].players[0].user_id);
+  await setUserQueueRole(queueId, teamResults.teams[1].players[0].user_id);
 
   return teamResults
 }

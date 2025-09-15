@@ -1,6 +1,6 @@
 import { TextChannel } from 'discord.js'
 import { pool } from '../db'
-import { Decks, Matches, MatchUsers, Queues, Settings, Stakes, StatsCanvasPlayerData, teamResults } from 'psqlDB'
+import { Decks, Matches, MatchUsers, QueueRoles, Queues, QueueUsers, Settings, Stakes, StatsCanvasPlayerData, teamResults } from 'psqlDB'
 import { client } from '../client'
 import { QueryResult } from 'pg';
 
@@ -104,6 +104,87 @@ export async function getUserPriorityQueueId(
 
   return res.rows[0].priority_queue_id
 }
+
+// create a queue role
+export async function createQueueRole(
+  queueId: number,
+  roleId: string,
+  mmrThreshold: number
+): Promise<boolean> {
+  const res = await pool.query(`
+    INSERT INTO queue_roles (queue_id, role_id, mmr_threshold)
+    VALUES ($1, $2, $3)
+    RETURNING queue_id
+  `, [queueId, roleId, mmrThreshold])
+
+  if (res.rowCount == 0) {
+    return false;
+  }
+  return true;
+}
+
+// create a queue role
+export async function deleteQueueRole(
+  queueId: number,
+  roleId: string
+): Promise<void> {
+  await pool.query(`
+    DELETE FROM queue_roles
+    WHERE queue_id = $1 AND role_id = $2;
+  `, [queueId, roleId]);
+}
+
+export async function getAllQueueRoles(
+  queueId: number
+): Promise<QueueRoles[]> {
+  const res = await pool.query(`
+    SELECT * FROM queue_roles WHERE queue_id = $1
+  `, [queueId]);
+
+  return res.rows;
+}
+
+// get a users highest queue role
+export async function getUserQueueRole(
+  queueId: number,
+  userId: string
+): Promise<QueueRoles | null> {
+  const userElo = await getPlayerElo(userId, queueId);
+  
+  const res = await pool.query(`
+    SELECT *
+    FROM queue_roles
+    WHERE queue_id = $1 AND mmr_threshold <= $2
+    ORDER BY mmr_threshold DESC
+    LIMIT 1
+  `, [queueId, userElo]);
+
+  if (res.rowCount === 0) return null;
+  console.log(res.rows);
+
+  return res.rows[0];
+}
+
+export async function getUserPreviousQueueRole(
+  queueId: number,
+  userId: string
+): Promise<QueueRoles | null> {
+  const userElo = await getPlayerElo(userId, queueId);
+  
+  const res = await pool.query(`
+    SELECT *
+    FROM queue_roles
+    WHERE queue_id = $1 AND mmr_threshold < $2
+    ORDER BY mmr_threshold DESC
+    LIMIT 1
+  `, [queueId, userElo]);
+
+  if (res.rowCount === 0) return null;
+  console.log(res.rows);
+
+  return res.rows[0];
+}
+
 
 // Get all decks
 export async function getDeckList(

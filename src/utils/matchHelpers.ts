@@ -18,6 +18,7 @@ import {
   getQueueIdFromMatch,
   getQueueSettings,
   getStakeList,
+  getUserQueueRole,
   getWinningTeamFromMatch,
   isQueueGlicko,
 } from './queryDB'

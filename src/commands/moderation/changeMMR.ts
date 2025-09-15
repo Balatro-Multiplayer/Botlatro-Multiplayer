@@ -5,6 +5,7 @@ import {
 } from 'discord.js'
 import { getQueueNames, updatePlayerElo } from '../../utils/queryDB'
 import { pool } from '../../db'
+import { setUserQueueRole } from 'utils/queueHelpers'
 
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
@@ -26,6 +27,8 @@ export default {
 
       if (queueRes && queueRes.rowCount != 0) {
         await updatePlayerElo(queueRes.rows[0].id, user.id, newElo)
+        await setUserQueueRole(queueRes.rows[0].id, user.id);
+        
         interaction.reply({
           content: `Set **${member.displayName}**'s MMR in **${queueName}** to **${newElo}**.`,
           flags: MessageFlags.Ephemeral,
