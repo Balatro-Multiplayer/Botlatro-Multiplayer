@@ -3,6 +3,8 @@ import { pool } from '../db'
 import { Decks, Matches, MatchUsers, QueueRoles, Queues, QueueUsers, Settings, Stakes, StatsCanvasPlayerData, teamResults } from 'psqlDB'
 import { client } from '../client'
 import { QueryResult } from 'pg';
+import type { Strikes } from 'psqlDB'
+
 
 // Get the helper role
 export async function getHelperRoleId(): Promise<string | null> {
@@ -876,12 +878,15 @@ export async function getSettings(): Promise<Settings> {
   It's probably pretty bad as a result. I understand how it works,
   and it DOES work, but feel free to adjust this if it sucks lol
   - Jeff
+
+  this is very scary - casjb
 */
+
 export async function getStatsCanvasUserData(
   userId: string, 
   queueId: number
 ): Promise<StatsCanvasPlayerData> {
-  const res: QueryResult<StatsCanvasPlayerData> = await pool.query(`
+  const res: QueryResult<StatsCanvasPlayerData> = await pool.query(/* sql */`
     WITH player AS (
       SELECT
         qu.id,
@@ -967,4 +972,21 @@ export async function getStatsCanvasUserData(
   `, [userId, queueId])
 
   return res.rows[0];
+}
+
+
+// -- Rating Functions --
+export const strikeUtils = {
+  addStrike,
+}
+
+// add a strike to a user
+export async function addStrike(res: Strikes): Promise<void> {
+
+  await pool.query(/* sql */`
+    INSERT INTO strikes (user_id, reason, issued_by_id, issued_at, expires_at, amount)
+    VALUES ($1, $2, $3, $4, $5, $6)
+  `,
+    [res.user_id, res.reason, res.issued_by_id, res.issued_at, res.expires_at, res.amount],
+  )
 }

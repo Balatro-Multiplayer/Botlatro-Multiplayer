@@ -88,6 +88,19 @@ declare module 'psqlDB' {
     user_id: string
     reason: string
     expires_at?: Date | null
+    related_strike_ids?: number[] | null
+    allowed_queue_ids?: number[] | null
+  }
+
+  export interface Strikes {
+    id: number
+    user_id: string
+    reason: string
+    issued_by_id: string
+    issued_at: Date
+    expires_at: Date
+    amount: number
+    reference: string
   }
 
   export interface Settings {

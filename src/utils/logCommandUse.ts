@@ -2,7 +2,7 @@ import { ChatInputCommandInteraction, EmbedBuilder } from 'discord.js'
 import { getSettings } from './queryDB'
 import { client } from '../client'
 
-export async function logCommandUse(interaction: ChatInputCommandInteraction) {
+export async function logCommandUse(interaction: ChatInputCommandInteraction, threadId: string) {
   try {
     const settings = await getSettings()
     if (!settings || !settings.logs_channel_id) {
