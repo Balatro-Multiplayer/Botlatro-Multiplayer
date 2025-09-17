@@ -3,7 +3,7 @@ export async function parseLogLines(lines: string[]) {
   try {
     return lines
       .map((line) => {
-        const match = line.match(/^\[(.*?)\]\s+([^:]+):\s+(.*)$/)
+        const match = line.match(/^\[(.*?)]\s+([^:]+):\s+(.*)$/)
         if (!match) return null
         const content = match[3].replace(/https:\/\/\S+/g, '').trim()
         const attachments = match[3].match(/https:\/\/\S+/g) || []

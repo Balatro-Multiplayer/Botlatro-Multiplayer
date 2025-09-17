@@ -2,7 +2,6 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  CategoryChannel,
   ChannelType,
   EmbedBuilder,
   MessageComponentInteraction,
@@ -89,10 +88,7 @@ export async function setupDeckSelect(
   if (minSelect > 1) selectMenu.setMinValues(minSelect)
   if (maxSelect > 1) selectMenu.setMaxValues(maxSelect)
 
-  const selectRow =
-    new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu)
-
-  return selectRow
+  return new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu)
 }
 
 export async function setupStakeButtons(matchId: number): Promise<ActionRowBuilder<ButtonBuilder>[]> {
@@ -224,10 +220,10 @@ export async function sendMatchInitMessages(
     queueTeamSelectOptions.push(
       new StringSelectMenuOptionBuilder()
         .setLabel(
-          onePersonTeam == true ? `${onePersonTeamName}` : `Team ${t.id}`,
+          onePersonTeam ? `${onePersonTeamName}` : `Team ${t.id}`,
         )
         .setDescription(
-          `Select ${onePersonTeam == true ? `${onePersonTeamName}` : `team ${t.id}`} as the winner.`,
+          `Select ${onePersonTeam ? `${onePersonTeamName}` : `team ${t.id}`} as the winner.`,
         )
         .setValue(`winmatch_${matchId}_${t.id}`),
     )

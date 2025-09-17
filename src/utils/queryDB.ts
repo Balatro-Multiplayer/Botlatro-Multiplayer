@@ -569,7 +569,7 @@ export async function removeUserFromParty(userId: string): Promise<void> {
   // check if party is empty, if so delete it
   const partyMembersCount = await getPartyUserList(partyId)
   if (partyMembersCount && partyMembersCount.length === 0) {
-    deleteParty(partyId)
+    await deleteParty(partyId)
   }
 }
 
@@ -693,7 +693,7 @@ export async function updatePlayerElo(
   userId: string,
   newElo: number,
 ): Promise<void> {
-  const res = await pool.query(
+  await pool.query(
     `UPDATE queue_users SET elo = $1 WHERE user_id = $2 AND queue_id = $3 RETURNING id`,
     [Math.round(newElo), userId, queueId],
   )
@@ -771,14 +771,8 @@ export async function isQueueGlicko(queueId: number): Promise<boolean> {
   if (response.rowCount === 0)
     throw new Error(`Queue with id ${queueId} does not exist.`)
   let isGlicko: boolean
-  if (
-    response.rows[0].number_of_teams === 2 &&
-    response.rows[0].members_per_team === 1
-  ) {
-    isGlicko = true
-  } else {
-    isGlicko = false
-  }
+  isGlicko = response.rows[0].number_of_teams === 2 &&
+    response.rows[0].members_per_team === 1;
   return isGlicko
 }
 
