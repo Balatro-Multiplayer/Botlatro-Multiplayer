@@ -1,3 +1,5 @@
+// noinspection JSUnusedLocalSymbols
+
 import {
   Embed,
   MessageComponentInteraction,
