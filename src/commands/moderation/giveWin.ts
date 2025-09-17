@@ -60,7 +60,7 @@ export default {
           content: `Failed to assign win. Reason: ${err}`,
         })
       } else {
-        interaction.reply({
+        await interaction.reply({
           content: `Failed to assign win. Reason: ${err}`,
           flags: MessageFlags.Ephemeral,
         })

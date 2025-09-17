@@ -46,6 +46,7 @@ declare module 'psqlDB' {
     winning_team: number | null
     created_at: Date
     match_vc_id: string
+    stake_vote_team_id: number
   }
 
   export interface Users {
