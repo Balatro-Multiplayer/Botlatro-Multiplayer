@@ -1,27 +1,34 @@
 import { TextChannel, VoiceChannel } from 'discord.js'
 import { pool } from '../db'
-import { Decks, Matches, MatchUsers, QueueRoles, Queues, QueueUsers, Settings, Stakes, StatsCanvasPlayerData, teamResults } from 'psqlDB'
-import { client } from '../client'
-import { QueryResult } from 'pg';
 import type { Strikes } from 'psqlDB'
-
+import {
+  Decks,
+  Matches,
+  MatchUsers,
+  QueueRoles,
+  Queues,
+  Settings,
+  Stakes,
+  StatsCanvasPlayerData,
+  teamResults,
+} from 'psqlDB'
+import { client } from '../client'
+import { QueryResult } from 'pg'
 
 // Get the helper role
 export async function getHelperRoleId(): Promise<string | null> {
-  const res = await pool.query('SELECT helper_role_id FROM settings');
-  return res.rows[0].helper_role_id;
+  const res = await pool.query('SELECT helper_role_id FROM settings')
+  return res.rows[0].helper_role_id
 }
 
 // Lock/unlock a queue
 export async function queueChangeLock(queueId: number, lock: boolean = true) {
   const res = await pool.query(
-    `UPDATE queues SET locked = $2 WHERE id = $1 RETURNING id`, [queueId, lock]
+    `UPDATE queues SET locked = $2 WHERE id = $1 RETURNING id`,
+    [queueId, lock],
   )
 
-  if (res.rowCount === 0) {
-    return false
-  }
-  return true
+  return res.rowCount !== 0
 }
 
 // Get the queue names of all queues that exist
@@ -85,10 +92,7 @@ export async function setUserPriorityQueue(
     )
   }
 
-  if (response.rowCount === 0) {
-    return false
-  }
-  return true
+  return response.rowCount !== 0
 }
 
 // get the queue id that the user has set as their priority queue
@@ -111,113 +115,112 @@ export async function getUserPriorityQueueId(
 export async function createQueueRole(
   queueId: number,
   roleId: string,
-  mmrThreshold: number
+  mmrThreshold: number,
 ): Promise<boolean> {
-  const res = await pool.query(`
+  const res = await pool.query(
+    `
     INSERT INTO queue_roles (queue_id, role_id, mmr_threshold)
     VALUES ($1, $2, $3)
     RETURNING queue_id
-  `, [queueId, roleId, mmrThreshold])
+  `,
+    [queueId, roleId, mmrThreshold],
+  )
 
-  if (res.rowCount == 0) {
-    return false;
-  }
-  return true;
+  return res.rowCount != 0
 }
 
 // create a queue role
 export async function deleteQueueRole(
   queueId: number,
-  roleId: string
+  roleId: string,
 ): Promise<void> {
-  await pool.query(`
+  await pool.query(
+    `
     DELETE FROM queue_roles
     WHERE queue_id = $1 AND role_id = $2;
-  `, [queueId, roleId]);
+  `,
+    [queueId, roleId],
+  )
 }
 
-export async function getAllQueueRoles(
-  queueId: number
-): Promise<QueueRoles[]> {
-  const res = await pool.query(`
+export async function getAllQueueRoles(queueId: number): Promise<QueueRoles[]> {
+  const res = await pool.query(
+    `
     SELECT * FROM queue_roles WHERE queue_id = $1
-  `, [queueId]);
+  `,
+    [queueId],
+  )
 
-  return res.rows;
+  return res.rows
 }
 
 // get a users highest queue role
 export async function getUserQueueRole(
   queueId: number,
-  userId: string
+  userId: string,
 ): Promise<QueueRoles | null> {
-  const userElo = await getPlayerElo(userId, queueId);
-  
-  const res = await pool.query(`
+  const userElo = await getPlayerElo(userId, queueId)
+
+  const res = await pool.query(
+    `
     SELECT *
     FROM queue_roles
     WHERE queue_id = $1 AND mmr_threshold <= $2
     ORDER BY mmr_threshold DESC
     LIMIT 1
-  `, [queueId, userElo]);
+  `,
+    [queueId, userElo],
+  )
 
-  if (res.rowCount === 0) return null;
+  if (res.rowCount === 0) return null
 
-  return res.rows[0];
+  return res.rows[0]
 }
 
 export async function getUserPreviousQueueRole(
   queueId: number,
-  userId: string
+  userId: string,
 ): Promise<QueueRoles | null> {
-  const userElo = await getPlayerElo(userId, queueId);
-  
-  const res = await pool.query(`
+  const userElo = await getPlayerElo(userId, queueId)
+
+  const res = await pool.query(
+    `
     SELECT *
     FROM queue_roles
     WHERE queue_id = $1 AND mmr_threshold < $2
     ORDER BY mmr_threshold DESC
     LIMIT 1
-  `, [queueId, userElo]);
-
-  if (res.rowCount === 0) return null;
-
-  return res.rows[0];
-}
-
-
-// Get all decks
-export async function getDeckList(
-  custom: boolean = true,
-): Promise<Decks[]> {
-  const res: QueryResult<Decks> = await pool.query(
-    `SELECT * FROM decks`
+  `,
+    [queueId, userElo],
   )
 
-  let deckList = res.rows;
-  if (!custom) deckList = deckList.filter(deck => deck.custom == false);
+  if (res.rowCount === 0) return null
 
-  return deckList;
+  return res.rows[0]
+}
+
+// Get all decks
+export async function getDeckList(custom: boolean = true): Promise<Decks[]> {
+  const res: QueryResult<Decks> = await pool.query(`SELECT * FROM decks`)
+
+  let deckList = res.rows
+  if (!custom) deckList = deckList.filter((deck) => !deck.custom)
+
+  return deckList
 }
 
 // Get all stakes
-export async function getStakeList(
-  custom: boolean = true,
-): Promise<Stakes[]> {
-  const res: QueryResult<Stakes> = await pool.query(
-    `SELECT * FROM stakes`
-  )
+export async function getStakeList(custom: boolean = true): Promise<Stakes[]> {
+  const res: QueryResult<Stakes> = await pool.query(`SELECT * FROM stakes`)
 
-  let stakeList = res.rows;
-  if (!custom) stakeList = stakeList.filter(stake => stake.custom == false);
+  let stakeList = res.rows
+  if (!custom) stakeList = stakeList.filter((stake) => !stake.custom)
 
-  return stakeList;
+  return stakeList
 }
 
 // get all available decks in a queue
-export async function getDecksInQueue(
-  queueId: number,
-): Promise<Decks[]> {
+export async function getDecksInQueue(queueId: number): Promise<Decks[]> {
   const res = await pool.query<Decks>(
     `
       SELECT d.*
@@ -227,28 +230,33 @@ export async function getDecksInQueue(
       WHERE b.deck_id IS NULL;
     `,
     [queueId],
-  );
+  )
 
-  return res.rows;
+  return res.rows
 }
 
 // set queue deck bans
 export async function setQueueDeckBans(
   queueId: number,
-  deckList: string[]
+  deckList: string[],
 ): Promise<void> {
-  
-  await pool.query(`
+  await pool.query(
+    `
     DELETE FROM banned_decks
     WHERE queue_id = $1;
-  `, [queueId]);
+  `,
+    [queueId],
+  )
 
   for (const deckId of deckList) {
-    await pool.query(`
+    await pool.query(
+      `
       INSERT INTO banned_decks (queue_id, deck_id)
       VALUES ($1, $2)
       ON CONFLICT DO NOTHING;
-    `, [queueId, deckId])
+    `,
+      [queueId, deckId],
+    )
   }
 }
 
@@ -309,16 +317,27 @@ export async function getMatchResultsChannel(): Promise<TextChannel | null> {
 }
 
 // Set the match voice channel in the db
-export async function setMatchVoiceChannel(matchId: number, voiceChannelId: string): Promise<void> {
-  await pool.query(`UPDATE matches SET match_vc_id = $1 WHERE id = $2`, [voiceChannelId, matchId]);
+export async function setMatchVoiceChannel(
+  matchId: number,
+  voiceChannelId: string,
+): Promise<void> {
+  await pool.query(`UPDATE matches SET match_vc_id = $1 WHERE id = $2`, [
+    voiceChannelId,
+    matchId,
+  ])
 }
 
 // Get the match voice channel from the db
-export async function getMatchVoiceChannel(matchId: number): Promise<VoiceChannel | null> {
-  const res = await pool.query(`SELECT match_vc_id FROM matches WHERE id = $1`, [matchId]);
+export async function getMatchVoiceChannel(
+  matchId: number,
+): Promise<VoiceChannel | null> {
+  const res = await pool.query(
+    `SELECT match_vc_id FROM matches WHERE id = $1`,
+    [matchId],
+  )
 
-   if (res.rowCount == 0) {
-    return null;
+  if (res.rowCount == 0) {
+    return null
   }
 
   if (res.rows[0].match_vc_id) {
@@ -329,7 +348,7 @@ export async function getMatchVoiceChannel(matchId: number): Promise<VoiceChanne
     }
   }
 
-  return null;
+  return null
 }
 
 // Get users in a specified queue
@@ -363,10 +382,7 @@ export async function removeUserFromQueue(
     [userId, queueId],
   )
 
-  if (response.rowCount === 0) {
-    return false
-  }
-  return true
+  return response.rowCount !== 0
 }
 
 // Checks if a user is in a match
@@ -400,15 +416,12 @@ export async function closeMatch(matchId: number): Promise<boolean> {
   )
 
   // Delete match voice channel, if any
-  const matchVoiceChannel = await getMatchVoiceChannel(matchId);
+  const matchVoiceChannel = await getMatchVoiceChannel(matchId)
   if (matchVoiceChannel) {
-    await matchVoiceChannel.delete().catch(() => {});
+    await matchVoiceChannel.delete().catch(() => {})
   }
 
-  if (res.rowCount === 0) {
-    return false
-  }
-  return true
+  return res.rowCount !== 0
 }
 
 // -- Party Functions --
@@ -658,7 +671,7 @@ export async function updatePlayerElo(
   userId: string,
   newElo: number,
 ): Promise<void> {
-  const res = await pool.query(
+  await pool.query(
     `UPDATE queue_users SET elo = $1 WHERE user_id = $2 AND queue_id = $3 RETURNING id`,
     [Math.round(newElo), userId, queueId],
   )
@@ -736,14 +749,9 @@ export async function isQueueGlicko(queueId: number): Promise<boolean> {
   if (response.rowCount === 0)
     throw new Error(`Queue with id ${queueId} does not exist.`)
   let isGlicko: boolean
-  if (
+  isGlicko =
     response.rows[0].number_of_teams === 2 &&
     response.rows[0].members_per_team === 1
-  ) {
-    isGlicko = true
-  } else {
-    isGlicko = false
-  }
   return isGlicko
 }
 
@@ -883,10 +891,11 @@ export async function getSettings(): Promise<Settings> {
 */
 
 export async function getStatsCanvasUserData(
-  userId: string, 
-  queueId: number
+  userId: string,
+  queueId: number,
 ): Promise<StatsCanvasPlayerData> {
-  const res: QueryResult<StatsCanvasPlayerData> = await pool.query(/* sql */`
+  const res: QueryResult<StatsCanvasPlayerData> = await pool.query(
+    /* sql */ `
     WITH player AS (
       SELECT
         qu.id,
@@ -969,24 +978,44 @@ export async function getStatsCanvasUserData(
         ('WIN STREAK', p.win_streak::text)
     ) AS s(label, value)
     GROUP BY p.user_id, p.elo, p.peak_elo;
-  `, [userId, queueId])
+  `,
+    [userId, queueId],
+  )
 
-  return res.rows[0];
+  return res.rows[0]
 }
-
 
 // -- Rating Functions --
 export const strikeUtils = {
   addStrike,
+  getUserStrikes,
 }
 
 // add a strike to a user
 export async function addStrike(res: Strikes): Promise<void> {
-
-  await pool.query(/* sql */`
+  await pool.query(
+    /* sql */ `
     INSERT INTO strikes (user_id, reason, issued_by_id, issued_at, expires_at, amount)
     VALUES ($1, $2, $3, $4, $5, $6)
   `,
-    [res.user_id, res.reason, res.issued_by_id, res.issued_at, res.expires_at, res.amount],
+    [
+      res.user_id,
+      res.reason,
+      res.issued_by_id,
+      res.issued_at,
+      res.expires_at,
+      res.amount,
+    ],
   )
+}
+
+// get all the strikes for a certain user
+export async function getUserStrikes(user_id: string): Promise<string[]> {
+  const res = await pool.query(
+    `
+    SELECT * FROM strikes WHERE user_id = $1
+  `,
+    [user_id],
+  )
+  return res.rows
 }
