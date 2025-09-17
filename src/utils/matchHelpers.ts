@@ -24,6 +24,7 @@ import {
   getStakeList,
   getWinningTeamFromMatch,
   isQueueGlicko,
+  setMatchStakeVoteTeam,
   setMatchVoiceChannel,
 } from './queryDB'
 import { Decks, MatchUsers, Stakes, teamResults } from 'psqlDB'
@@ -40,13 +41,17 @@ require('dotenv').config()
 
 dotenv.config()
 
-export async function getRandomDeck(includeCustomDecks: boolean = false): Promise<Decks> {
-  const randomDecks = await getDeckList(includeCustomDecks);
+export async function getRandomDeck(
+  includeCustomDecks: boolean = false,
+): Promise<Decks> {
+  const randomDecks = await getDeckList(includeCustomDecks)
   return randomDecks[Math.floor(Math.random() * randomDecks.length)]
 }
 
-export async function getRandomStake(includeCustomStakes: boolean = false): Promise<Stakes> {
-  const randomStakes = await getStakeList(includeCustomStakes);
+export async function getRandomStake(
+  includeCustomStakes: boolean = false,
+): Promise<Stakes> {
+  const randomStakes = await getStakeList(includeCustomStakes)
   return randomStakes[Math.floor(Math.random() * randomStakes.length)]
 }
 
@@ -59,15 +64,11 @@ export async function setupDeckSelect(
   bannedDecks: number[] = [],
   overrideDecks: number[] = [],
 ): Promise<ActionRowBuilder<StringSelectMenuBuilder>> {
-  let deckChoices = await getDeckList(includeCustomDecks);
-  deckChoices = deckChoices.filter(
-    (deck) => !bannedDecks.includes(deck.id),
-  )
+  let deckChoices = await getDeckList(includeCustomDecks)
+  deckChoices = deckChoices.filter((deck) => !bannedDecks.includes(deck.id))
 
   if (overrideDecks.length > 0) {
-    deckChoices = deckChoices.filter((deck) =>
-      overrideDecks.includes(deck.id),
-    )
+    deckChoices = deckChoices.filter((deck) => overrideDecks.includes(deck.id))
   }
 
   const options: StringSelectMenuOptionBuilder[] = deckChoices.map(
@@ -88,46 +89,74 @@ export async function setupDeckSelect(
   if (minSelect > 1) selectMenu.setMinValues(minSelect)
   if (maxSelect > 1) selectMenu.setMaxValues(maxSelect)
 
-  return new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu)
+  return new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
+    selectMenu,
+  )
 }
 
-export async function setupStakeButtons(matchId: number): Promise<ActionRowBuilder<ButtonBuilder>[]> {
-  const stakeRow: ActionRowBuilder<ButtonBuilder> = new ActionRowBuilder();
-  const vetoRow: ActionRowBuilder<ButtonBuilder> = new ActionRowBuilder();
-  let stakeList = await getStakeList();
+export async function setupStakeButtons(
+  matchId: number,
+): Promise<ActionRowBuilder<ButtonBuilder>[]> {
+  const stakeRow: ActionRowBuilder<ButtonBuilder> = new ActionRowBuilder()
+  const vetoRow: ActionRowBuilder<ButtonBuilder> = new ActionRowBuilder()
+  let stakeList = await getStakeList()
   // TODO: Make this queue dependent, maybe
-  stakeList = stakeList.filter(stake => 
-    stake.stake_name !== 'Red Stake'
-    && stake.stake_name !== 'Blue Stake'
-    && stake.stake_name !== 'Orange Stake'
+  stakeList = stakeList.filter(
+    (stake) =>
+      stake.stake_name !== 'Red Stake' &&
+      stake.stake_name !== 'Blue Stake' &&
+      stake.stake_name !== 'Orange Stake',
   )
 
-  if (stakeList.length < 5) throw new Error('Not enough stakes to do stake bans.');
-  
-  const whiteStake = stakeList.find(stake => stake.stake_name == 'White Stake') ?? stakeList[0];
-  const greenStake = stakeList.find(stake => stake.stake_name == 'Green Stake') ?? stakeList[1];
-  const blackStake = stakeList.find(stake => stake.stake_name == 'Black Stake') ?? stakeList[2];
-  const purpleStake = stakeList.find(stake => stake.stake_name == 'Purple Stake') ?? stakeList[3];
-  const goldStake = stakeList.find(stake => stake.stake_name == 'Gold Stake') ?? stakeList[4];
+  if (stakeList.length < 5)
+    throw new Error('Not enough stakes to do stake bans.')
+
+  const whiteStake =
+    stakeList.find((stake) => stake.stake_name == 'White Stake') ?? stakeList[0]
+  const greenStake =
+    stakeList.find((stake) => stake.stake_name == 'Green Stake') ?? stakeList[1]
+  const blackStake =
+    stakeList.find((stake) => stake.stake_name == 'Black Stake') ?? stakeList[2]
+  const purpleStake =
+    stakeList.find((stake) => stake.stake_name == 'Purple Stake') ??
+    stakeList[3]
+  const goldStake =
+    stakeList.find((stake) => stake.stake_name == 'Gold Stake') ?? stakeList[4]
 
   stakeRow.addComponents(
-    new ButtonBuilder().setCustomId(`stake-${whiteStake.id}-0-${matchId}`).setEmoji(whiteStake.stake_emote).setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(`stake-${greenStake.id}-1-${matchId}`).setEmoji(greenStake.stake_emote).setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(`stake-${blackStake.id}-2-${matchId}`).setEmoji(blackStake.stake_emote).setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(`stake-${purpleStake.id}-3-${matchId}`).setEmoji(purpleStake.stake_emote).setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(`stake-${goldStake.id}-4-${matchId}`).setEmoji(goldStake.stake_emote).setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder()
+      .setCustomId(`stake-${whiteStake.id}-0-${matchId}`)
+      .setEmoji(whiteStake.stake_emote)
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(`stake-${greenStake.id}-1-${matchId}`)
+      .setEmoji(greenStake.stake_emote)
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(`stake-${blackStake.id}-2-${matchId}`)
+      .setEmoji(blackStake.stake_emote)
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(`stake-${purpleStake.id}-3-${matchId}`)
+      .setEmoji(purpleStake.stake_emote)
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(`stake-${goldStake.id}-4-${matchId}`)
+      .setEmoji(goldStake.stake_emote)
+      .setStyle(ButtonStyle.Secondary),
   )
 
   vetoRow.addComponents(
-    new ButtonBuilder().setCustomId(`veto-stake`).setLabel(`VETO`).setStyle(ButtonStyle.Danger)
+    new ButtonBuilder()
+      .setCustomId(`veto-stake`)
+      .setLabel(`VETO`)
+      .setStyle(ButtonStyle.Danger),
   )
 
-  return [stakeRow, vetoRow];
+  return [stakeRow, vetoRow]
 }
 
-export async function getTeamsInMatch(
-  matchId: number,
-): Promise<teamResults> {
+export async function getTeamsInMatch(matchId: number): Promise<teamResults> {
   const matchUserRes: QueryResult<MatchUsers> = await pool.query(
     `
     SELECT * FROM match_users
@@ -174,11 +203,13 @@ export async function getTeamsInMatch(
     teamGroups[user.team].score = user.team === winningTeamId ? 1 : 0
   }
 
-  return { teams: Object.entries(teamGroups).map(([team, value]) => ({
-    id: Number(team),
-    players: value.users as MatchUsers[],
-    score: value.score,
-  })) }
+  return {
+    teams: Object.entries(teamGroups).map(([team, value]) => ({
+      id: Number(team),
+      players: value.users as MatchUsers[],
+      score: value.score,
+    })),
+  }
 }
 
 export async function sendMatchInitMessages(
@@ -219,9 +250,7 @@ export async function sendMatchInitMessages(
 
     queueTeamSelectOptions.push(
       new StringSelectMenuOptionBuilder()
-        .setLabel(
-          onePersonTeam ? `${onePersonTeamName}` : `Team ${t.id}`,
-        )
+        .setLabel(onePersonTeam ? `${onePersonTeamName}` : `Team ${t.id}`)
         .setDescription(
           `Select ${onePersonTeam ? `${onePersonTeamName}` : `team ${t.id}`} as the winner.`,
         )
@@ -231,6 +260,7 @@ export async function sendMatchInitMessages(
     teamPingString += 'vs. '
     return {
       name: onePersonTeam ? `${onePersonTeamName}` : `Team ${t.id}`,
+      players: t.players,
       value: teamString,
       inline: true,
       teamIndex: idx,
@@ -281,7 +311,7 @@ export async function sendMatchInitMessages(
     )
     .setColor(0xff0000)
 
-  const deckList = await getDecksInQueue(queueId);
+  const deckList = await getDecksInQueue(queueId)
 
   const deckSelMenu = await setupDeckSelect(
     `deck-bans-1-${matchId}-${randomTeams[1].teamIndex}`,
@@ -290,10 +320,14 @@ export async function sendMatchInitMessages(
     5,
     true,
     [],
-    deckList.map(deck => deck.id),
+    deckList.map((deck) => deck.id),
   )
 
-  const stakeBanButtons = await setupStakeButtons(matchId);
+  await setMatchStakeVoteTeam(matchId, randomTeams[0].teamIndex)
+  const stakeBanButtons = await setupStakeButtons(matchId)
+  const teamUsers = randomTeams[0].players
+    .map((user: MatchUsers) => `<@${user.user_id}>`)
+    .join('\n')
 
   await textChannel.send({
     content: `# ${teamPingString}`,
@@ -301,7 +335,10 @@ export async function sendMatchInitMessages(
     components: queueGameComponents,
   })
   await textChannel.send({ embeds: [deckEmbed], components: [deckSelMenu] })
-  await textChannel.send({ content: `Stake Bans:\n**${randomTeams[0].name}**'s turn`, components: stakeBanButtons });
+  await textChannel.send({
+    content: `Stake Bans:\n${teamUsers}`,
+    components: stakeBanButtons,
+  })
 }
 
 export async function endMatch(
@@ -381,11 +418,7 @@ export async function endMatch(
       })),
     }
 
-    teamResults = await calculateGlicko2(
-      queueId,
-      matchId,
-      teamResultsData,
-    )
+    teamResults = await calculateGlicko2(queueId, matchId, teamResultsData)
   }
 
   // build results embed
@@ -485,7 +518,10 @@ export async function deleteMatchChannel(matchId: number): Promise<boolean> {
 }
 
 // Setup match vc
-export async function setupMatchVoiceChannel(interaction: MessageComponentInteraction, matchId: number): Promise<VoiceChannel> {
+export async function setupMatchVoiceChannel(
+  interaction: MessageComponentInteraction,
+  matchId: number,
+): Promise<VoiceChannel> {
   const matchUsers = await getTeamsInMatch(matchId)
   const matchUsersArray = matchUsers.teams.flatMap((t) =>
     t.players.map((u) => u.user_id),
@@ -504,12 +540,15 @@ export async function setupMatchVoiceChannel(interaction: MessageComponentIntera
       },
       ...matchUsersArray.map((userId) => ({
         id: userId,
-        allow: [PermissionsBitField.Flags.Connect, PermissionsBitField.Flags.ViewChannel],
+        allow: [
+          PermissionsBitField.Flags.Connect,
+          PermissionsBitField.Flags.ViewChannel,
+        ],
       })),
     ],
   })) as VoiceChannel
 
-  await setMatchVoiceChannel(matchId, voiceChannel.id);
+  await setMatchVoiceChannel(matchId, voiceChannel.id)
 
   return voiceChannel
 }
