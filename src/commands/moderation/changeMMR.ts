@@ -29,7 +29,7 @@ export default {
         await updatePlayerElo(queueRes.rows[0].id, user.id, newElo)
         await setUserQueueRole(queueRes.rows[0].id, user.id);
         
-        interaction.reply({
+        await interaction.reply({
           content: `Set **${member.displayName}**'s MMR in **${queueName}** to **${newElo}**.`,
           flags: MessageFlags.Ephemeral,
         })
