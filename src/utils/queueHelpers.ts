@@ -199,7 +199,7 @@ export async function matchUpGames(): Promise<void> {
       // Mark users as used
       users.forEach((u: Record<string, any>) => usedUsers.add(u.user_id))
 
-      createMatch(
+      await createMatch(
         users.map((u: Record<string, any>) => u.user_id),
         queueId,
       )
@@ -306,7 +306,7 @@ export async function createMatch(
 
     const member = await guild.members.fetch(userId)
     try {
-      member.send({
+      await member.send({
         embeds: [
           new EmbedBuilder()
             .setTitle('Match Found!')
@@ -317,7 +317,7 @@ export async function createMatch(
     } catch (err) {}
   }
 
-  updateQueueMessage()
+  await updateQueueMessage()
 
   // Send queue start messages
   await sendMatchInitMessages(queueId, matchId, channel)
@@ -352,6 +352,6 @@ export async function setUserQueueRole(queueId: number, userId: string): Promise
     (await client.guilds.fetch(process.env.GUILD_ID!))
   const member = await guild.members.fetch(userId);
 
-  if (currentRole) member.roles.add(currentRole.role_id);
-  if (previousRole) member.roles.remove(previousRole.role_id);
+  if (currentRole) await member.roles.add(currentRole.role_id);
+  if (previousRole) await member.roles.remove(previousRole.role_id);
 }

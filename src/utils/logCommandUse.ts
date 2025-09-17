@@ -14,7 +14,7 @@ export async function logCommandUse(interaction: ChatInputCommandInteraction) {
       client.guilds.cache.get(process.env.GUILD_ID!) ??
       (await client.guilds.fetch(process.env.GUILD_ID!))
     if (!guild) {
-      throw new Error('Guild not found.')
+      console.error('Guild ID not found.')
       return
     }
 

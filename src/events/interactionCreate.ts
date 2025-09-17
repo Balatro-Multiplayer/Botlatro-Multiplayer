@@ -44,7 +44,6 @@ import {
 import { QueryResult } from 'pg'
 import { Queues } from 'psqlDB'
 import { handleTwoPlayerMatchVoting, handleVoting } from '../utils/voteHelpers'
-import { channel } from 'diagnostics_channel'
 
 export default {
   name: Events.InteractionCreate,

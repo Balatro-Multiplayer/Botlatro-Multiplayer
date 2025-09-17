@@ -1,6 +1,6 @@
 import { TextChannel, VoiceChannel } from 'discord.js'
 import { pool } from '../db'
-import { Decks, Matches, MatchUsers, QueueRoles, Queues, QueueUsers, Settings, Stakes, StatsCanvasPlayerData, teamResults } from 'psqlDB'
+import { Decks, Matches, MatchUsers, QueueRoles, Queues, Settings, Stakes, StatsCanvasPlayerData, teamResults } from 'psqlDB'
 import { client } from '../client'
 import { QueryResult } from 'pg';
 
@@ -16,10 +16,8 @@ export async function queueChangeLock(queueId: number, lock: boolean = true) {
     `UPDATE queues SET locked = $2 WHERE id = $1 RETURNING id`, [queueId, lock]
   )
 
-  if (res.rowCount === 0) {
-    return false
-  }
-  return true
+  return res.rowCount !== 0;
+
 }
 
 // Get the queue names of all queues that exist
@@ -83,10 +81,8 @@ export async function setUserPriorityQueue(
     )
   }
 
-  if (response.rowCount === 0) {
-    return false
-  }
-  return true
+  return response.rowCount !== 0;
+
 }
 
 // get the queue id that the user has set as their priority queue
@@ -117,10 +113,8 @@ export async function createQueueRole(
     RETURNING queue_id
   `, [queueId, roleId, mmrThreshold])
 
-  if (res.rowCount == 0) {
-    return false;
-  }
-  return true;
+  return res.rowCount != 0;
+
 }
 
 // create a queue role
@@ -193,7 +187,7 @@ export async function getDeckList(
   )
 
   let deckList = res.rows;
-  if (!custom) deckList = deckList.filter(deck => deck.custom == false);
+  if (!custom) deckList = deckList.filter(deck => !deck.custom);
 
   return deckList;
 }
@@ -207,7 +201,7 @@ export async function getStakeList(
   )
 
   let stakeList = res.rows;
-  if (!custom) stakeList = stakeList.filter(stake => stake.custom == false);
+  if (!custom) stakeList = stakeList.filter(stake => !stake.custom);
 
   return stakeList;
 }
@@ -408,10 +402,8 @@ export async function removeUserFromQueue(
     [userId, queueId],
   )
 
-  if (response.rowCount === 0) {
-    return false
-  }
-  return true
+  return response.rowCount !== 0;
+
 }
 
 // Checks if a user is in a match
@@ -450,10 +442,8 @@ export async function closeMatch(matchId: number): Promise<boolean> {
     await matchVoiceChannel.delete().catch(() => {});
   }
 
-  if (res.rowCount === 0) {
-    return false
-  }
-  return true
+  return res.rowCount !== 0;
+
 }
 
 // -- Party Functions --

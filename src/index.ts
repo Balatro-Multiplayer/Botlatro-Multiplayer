@@ -33,9 +33,9 @@ for (const file of eventFiles) {
   }
 }
 
-client.login(token)
+void client.login(token)
 setupClientCommands(client, false)
-partyDeleteCronJob()
-deleteOldTranscriptsCronJob()
+void partyDeleteCronJob()
+void deleteOldTranscriptsCronJob()
 
 export default app
