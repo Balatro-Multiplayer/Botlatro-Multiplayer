@@ -989,6 +989,7 @@ export async function getStatsCanvasUserData(
 export const strikeUtils = {
   addStrike,
   getUserStrikes,
+  getUserIdsWithStrikes,
 }
 
 // add a strike to a user
@@ -1010,12 +1011,22 @@ export async function addStrike(res: Strikes): Promise<void> {
 }
 
 // get all the strikes for a certain user
-export async function getUserStrikes(user_id: string): Promise<string[]> {
+export async function getUserStrikes(userId: string): Promise<Strikes[]> {
   const res = await pool.query(
     `
     SELECT * FROM strikes WHERE user_id = $1
   `,
-    [user_id],
+    [userId],
   )
   return res.rows
+}
+
+// get all users with strikes
+export async function getUserIdsWithStrikes(): Promise<string[]> {
+  const res = await pool.query(
+    `
+    SELECT user_id FROM strikes
+    `,
+  )
+  return res.rows.map((user) => user.user_id)
 }
