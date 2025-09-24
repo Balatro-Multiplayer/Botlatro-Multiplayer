@@ -10,7 +10,7 @@ export const shorthands = undefined;
  */
 export const up = (pgm) => {
   pgm.alterColumn('queue_roles', 'mmr_threshold', { type: 'real', notNull: false, default: null })
-  pgm.addColumn('queue_roles', { 'leaderboard_threshold': { type: 'real', notNull: false, default: null }})
+  pgm.addColumn('queue_roles', { 'leaderboard_min': { type: 'real', notNull: false }, 'leaderboard_max': { type: 'real', notNull: false }});
 };
 
 /**
@@ -19,6 +19,6 @@ export const up = (pgm) => {
  * @returns {Promise<void> | void}
  */
 export const down = (pgm) => {
-  pgm.dropColumn('queue_roles', 'leaderboard_threshold')
+  pgm.dropColumn('queue_roles', 'leaderboard_min, leaderboard_max');
   pgm.alterColumn('queue_roles', 'mmr_threshold', { type: 'real', notNull: true })
 };
