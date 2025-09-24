@@ -9,21 +9,30 @@ export default {
       const queueName = interaction.options.getString('queue-name', true)
       const queueId = await getQueueIdFromName(queueName)
       const role = interaction.options.getRole('role', true)
-      const mmrThreshold = interaction.options.getNumber('mmr-threshold', true)
-
-      const queueRoleCheck = await COMMAND_HANDLERS.MODERATION.ADD_QUEUE_ROLE(
-        queueId,
-        role.id,
-        mmrThreshold,
+      const leaderboardMin = interaction.options.getNumber(
+        'leaderboard-min',
+        true,
       )
+      const leaderboardMax = interaction.options.getNumber(
+        'leaderboard-max',
+        true,
+      )
+
+      const queueRoleCheck =
+        await COMMAND_HANDLERS.MODERATION.ADD_LEADERBOARD_ROLE(
+          queueId,
+          role.id,
+          leaderboardMin,
+          leaderboardMax,
+        )
 
       if (queueRoleCheck) {
         await interaction.editReply({
-          content: `Successfully added ${role.name} as a queue role to ${queueName}.`,
+          content: `Successfully added ${role.name} as a leaderboard role to ${queueName}.`,
         })
       } else {
         await interaction.editReply({
-          content: `Failed to added ${role.name} as a queue role.`,
+          content: `Failed to added ${role.name} as a leaderboard role.`,
         })
       }
     } catch (err: any) {
@@ -31,11 +40,11 @@ export default {
       const errorMsg = err.detail || err.message || 'Unknown'
       if (interaction.deferred || interaction.replied) {
         await interaction.editReply({
-          content: `Failed to add queue role. Reason: ${errorMsg}`,
+          content: `Failed to add leaderboard role. Reason: ${errorMsg}`,
         })
       } else {
         await interaction.reply({
-          content: `Failed to add queue role. Reason: ${errorMsg}`,
+          content: `Failed to add leaderboard role. Reason: ${errorMsg}`,
           flags: MessageFlags.Ephemeral,
         })
       }

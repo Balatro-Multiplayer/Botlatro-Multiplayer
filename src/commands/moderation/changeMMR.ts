@@ -27,8 +27,8 @@ export default {
 
       if (queueRes && queueRes.rowCount != 0) {
         await updatePlayerElo(queueRes.rows[0].id, user.id, newElo)
-        await setUserQueueRole(queueRes.rows[0].id, user.id);
-        
+        await setUserQueueRole(queueRes.rows[0].id, user.id)
+
         await interaction.reply({
           content: `Set **${member.displayName}**'s MMR in **${queueName}** to **${newElo}**.`,
           flags: MessageFlags.Ephemeral,
@@ -41,11 +41,11 @@ export default {
       const errorMsg = err.detail || err.message || 'Unknown'
       if (interaction.deferred || interaction.replied) {
         await interaction.editReply({
-          content: `Failed to cancel match. Reason: ${errorMsg}`,
+          content: `Failed to change MMR. Reason: ${errorMsg}`,
         })
       } else {
         await interaction.reply({
-          content: `Failed to cancel match. Reason: ${errorMsg}`,
+          content: `Failed to change MMR. Reason: ${errorMsg}`,
           flags: MessageFlags.Ephemeral,
         })
       }
