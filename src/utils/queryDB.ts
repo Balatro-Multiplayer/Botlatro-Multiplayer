@@ -128,7 +128,26 @@ export async function createQueueRole(
   return res.rowCount != 0
 }
 
-// create a queue role
+// create a leaderboard role
+export async function createLeaderboardRole(
+  queueId: number,
+  roleId: string,
+  leaderboardMin: number,
+  leaderboardMax: number,
+): Promise<boolean> {
+  const res = await pool.query(
+    `
+    INSERT INTO queue_roles (queue_id, role_id, leaderboard_min, leaderboard_max)
+    VALUES ($1, $2, $3, $4)
+    RETURNING queue_id
+  `,
+    [queueId, roleId, leaderboardMin, leaderboardMax],
+  )
+
+  return res.rowCount != 0
+}
+
+// delete a queue role
 export async function deleteQueueRole(
   queueId: number,
   roleId: string,
@@ -142,13 +161,28 @@ export async function deleteQueueRole(
   )
 }
 
-export async function getAllQueueRoles(queueId: number): Promise<QueueRoles[]> {
-  const res = await pool.query(
-    `
-    SELECT * FROM queue_roles WHERE queue_id = $1
-  `,
-    [queueId],
-  )
+export async function getAllQueueRoles(
+  queueId: number,
+  leaderboardOnly: boolean = false,
+): Promise<QueueRoles[]> {
+  let res
+  if (leaderboardOnly) {
+    res = await pool.query(
+      `
+      SELECT * FROM queue_roles
+      WHERE queue_id = $1 AND leaderboard_min IS NOT NULL
+    `,
+      [queueId],
+    )
+  } else {
+    res = await pool.query(
+      `
+      SELECT * FROM queue_roles
+      WHERE queue_id = $1
+    `,
+      [queueId],
+    )
+  }
 
   return res.rows
 }
@@ -174,6 +208,42 @@ export async function getUserQueueRole(
   if (res.rowCount === 0) return null
 
   return res.rows[0]
+}
+
+export async function getLeaderboardQueueRole(
+  queueId: number,
+  userId: string,
+): Promise<QueueRoles | null> {
+  const playersRes = await pool.query(
+    `
+    SELECT user_id
+    FROM queue_users
+    WHERE queue_id = $1
+    ORDER BY elo DESC
+    `,
+    [queueId],
+  )
+
+  if (playersRes.rowCount === 0) return null
+
+  const players: { user_id: string }[] = playersRes.rows
+  const rank = players.findIndex((p) => p.user_id === userId) + 1
+  if (rank === 0) return null
+
+  const roleRes = await pool.query(
+    `
+    SELECT *
+    FROM queue_roles
+    WHERE queue_id = $1
+      AND leaderboard_min <= $2
+      AND leaderboard_max >= $2
+    LIMIT 1
+    `,
+    [queueId, rank],
+  )
+
+  if (roleRes.rowCount === 0) return null
+  return roleRes.rows[0]
 }
 
 export async function getUserPreviousQueueRole(
@@ -804,15 +874,27 @@ export async function getPlayerElo(
 // gets a player's current volatility
 export async function getPlayerVolatility(
   userId: string,
+  queueId: number,
 ): Promise<number | null> {
-  return null
+  const response = await pool.query(
+    `SELECT volatility FROM queue_users WHERE user_id = $1 AND queue_id = $2`,
+    [userId, queueId],
+  )
+  if (response.rowCount === 0) return null
+  return response.rows[0].elo
 }
 
 // gets a player's current rating deviation
 export async function getPlayerDeviation(
   userId: string,
+  queueId: number,
 ): Promise<number | null> {
-  return null
+  const response = await pool.query(
+    `SELECT rating_deviation FROM queue_users WHERE user_id = $1 AND queue_id = $2`,
+    [userId, queueId],
+  )
+  if (response.rowCount === 0) return null
+  return response.rows[0].elo
 }
 
 // return whether a queue is glicko or openskill
