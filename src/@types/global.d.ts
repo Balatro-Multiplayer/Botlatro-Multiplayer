@@ -18,10 +18,12 @@ declare module 'psqlDB' {
   }
 
   export interface QueueRoles {
-    id: number,
-    queue_id: number,
-    role_id: string,
-    mmr_threshold: number
+    id: number
+    queue_id: number
+    role_id: string
+    mmr_threshold: number | null
+    leaderboard_min: number | null
+    leaderboard_max: number | null
   }
 
   export interface Parties {
@@ -128,12 +130,12 @@ declare module 'psqlDB' {
   }
 
   export type StatsCanvasPlayerData = {
-    user_id: string,
-    name: string,
-    mmr: number,
-    peak_mmr: number,
-    stats: { label: string, value: string, percentile: string }[],
-    previous_games: { change: number, time: Date }[],
-    elo_graph_data: { date: Date, rating: number }[],
+    user_id: string
+    name: string
+    mmr: number
+    peak_mmr: number
+    stats: { label: string; value: string; percentile: string }[]
+    previous_games: { change: number; time: Date }[]
+    elo_graph_data: { date: Date; rating: number }[]
   }
 }
