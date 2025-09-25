@@ -43,7 +43,7 @@ export default {
       const helperRoleId = interaction.options.getRole('helper-role', true)?.id
       const queueHelperRoleId = interaction.options.getRole('queue-helper-role', true)?.id
       if (queueCategoryId && helperRoleId) {
-        pool.query(
+        await pool.query(
           `
 					INSERT INTO settings (singleton, queue_category_id, helper_role_id, queue_helper_role_id) 
 					VALUES ($1, $2, $3, $4) ON CONFLICT (singleton) DO UPDATE 
