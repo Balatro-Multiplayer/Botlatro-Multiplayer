@@ -29,12 +29,12 @@ export async function handleVoting(
   if (!fields[embedFieldIndex]) {
     fields[embedFieldIndex] = { name: `${voteType}:`, value: '' }
   } else if (fields[embedFieldIndex].value == '-') {
-    fields[embedFieldIndex].value = '';
+    fields[embedFieldIndex].value = ''
   }
 
   const field = fields[embedFieldIndex]
   const votes = field.value
-    ? field.value.split('\n').filter((v) => v.trim() !== '')
+    ? field.value.split('\n').filter((v) => v.trim() !== '' && v.trim() !== '-')
     : []
 
   // Check if user already voted
@@ -100,6 +100,12 @@ export async function handleTwoPlayerMatchVoting(
   }
 
   for (let i = 0; i < fields.length; i++) {
+    if (
+      fields[i].name.includes('Cancel Match') ||
+      fields[i].name.includes('Votes')
+    )
+      continue
+
     const lines = fields[i].value?.split('\n') || []
 
     const mmrLine = lines.find((l) => l.includes('MMR')) || ''

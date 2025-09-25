@@ -51,6 +51,7 @@ declare module 'psqlDB' {
     created_at: Date
     match_vc_id: string
     stake_vote_team_id: number
+    best_of_3: boolean
   }
 
   export interface Users {
