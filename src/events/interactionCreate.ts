@@ -1,3 +1,5 @@
+// noinspection JSUnusedGlobalSymbols
+
 import {
   ActionRowBuilder,
   ButtonBuilder,
@@ -462,7 +464,7 @@ export default {
 
           try {
             await handleVoting(interaction, {
-              voteType: 'Cancel Match?',
+              voteType: 'Cancel Match Votes',
               embedFieldIndex: 2,
               participants: matchUsersArray,
               onComplete: async (interaction) => {
@@ -532,6 +534,35 @@ export default {
                 embeds: [embed],
                 components: [],
               })
+            },
+          })
+        }
+
+        if (interaction.customId.startsWith('bo-vote-')) {
+          const matchId = parseInt(interaction.customId.split('-')[2])
+          const matchUsers = await getTeamsInMatch(matchId)
+          const matchUsersArray = matchUsers.teams.flatMap((t) =>
+            t.players.map((u) => u.user_id),
+          )
+
+          await handleVoting(interaction, {
+            voteType: 'Best of 3 Votes',
+            embedFieldIndex: 3,
+            participants: matchUsersArray,
+            onComplete: async (interaction, { embed }) => {
+              const rows = interaction.message.components.map((row) =>
+                ActionRowBuilder.from(row as any),
+              ) as ActionRowBuilder<ButtonBuilder>[]
+
+              const bo3Button = rows[1].components[3] as ButtonBuilder
+              rows[1].components[3] = ButtonBuilder.from(bo3Button).setDisabled(true)
+
+              await interaction.update({ embeds: [embed], components: rows })
+              if (interaction.channel) {
+                await (interaction.channel as TextChannel).send(
+                  `A Best of 3 has begun for this match!`,
+                )
+              }
             },
           })
         }
