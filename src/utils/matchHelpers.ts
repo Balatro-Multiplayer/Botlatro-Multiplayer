@@ -294,6 +294,10 @@ export async function sendMatchInitMessages(
         .setCustomId(`setup-vc-${matchId}`)
         .setLabel('Setup VC')
         .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`bo-vote-${matchId}`)
+        .setLabel('Vote BO3')
+        .setStyle(ButtonStyle.Success),
     ),
   )
 
@@ -301,6 +305,11 @@ export async function sendMatchInitMessages(
     .setTitle(`${queueName.queue_name} Match #${matchId}`)
     .setFields(teamFields)
     .setColor(0xff0000)
+
+  eloEmbed.addFields(
+    { name: 'Cancel Match Votes:', value: '-' },
+    { name: 'Best of 3 Votes:', value: '-', inline: true }
+  )
 
   const randomTeams: any[] = shuffle(teamFields)
 

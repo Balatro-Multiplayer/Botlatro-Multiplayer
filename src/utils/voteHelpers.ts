@@ -28,6 +28,8 @@ export async function handleVoting(
   // Ensure vote field exists
   if (!fields[embedFieldIndex]) {
     fields[embedFieldIndex] = { name: `${voteType}:`, value: '' }
+  } else if (fields[embedFieldIndex].value == '-') {
+    fields[embedFieldIndex].value = '';
   }
 
   const field = fields[embedFieldIndex]
@@ -37,10 +39,12 @@ export async function handleVoting(
 
   // Check if user already voted
   if (votes.includes(`<@${interaction.user.id}>`)) {
-    return interaction.reply({
-      content: `You've already voted!`,
-      flags: MessageFlags.Ephemeral,
-    })
+    const updatedVotes = votes.filter((v) => v !== `<@${interaction.user.id}>`)
+    fields[embedFieldIndex].value = updatedVotes.join('\n')
+    if (fields[embedFieldIndex].value == '') fields[embedFieldIndex].value = '-'
+    interaction.message.embeds[0] = embed
+    await interaction.update({ embeds: interaction.message.embeds })
+    return
   }
 
   // Check if user is allowed to vote
