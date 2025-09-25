@@ -220,7 +220,7 @@ export async function sendMatchInitMessages(
   const teamData = await getTeamsInMatch(matchId)
   const queueTeamSelectOptions: StringSelectMenuOptionBuilder[] = []
   let teamPingString = ``
-  const queueName = await getQueueSettings(queueId, ['queue_name'])
+  const queueSettings = await getQueueSettings(queueId)
 
   let teamFields: any = teamData.teams.map(async (t, idx) => {
     let teamQueueUsersData = await pool.query(
@@ -280,36 +280,44 @@ export async function sendMatchInitMessages(
   // Slice off the last vs.
   teamPingString = teamPingString.slice(0, -4)
 
-  queueGameComponents.push(
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`cancel-${matchId}`)
-        .setLabel('Cancel Match')
-        .setStyle(ButtonStyle.Danger),
-      new ButtonBuilder()
-        .setCustomId(`call-helpers-${matchId}`)
-        .setLabel('Call Helpers')
-        .setStyle(ButtonStyle.Primary),
-      new ButtonBuilder()
-        .setCustomId(`setup-vc-${matchId}`)
-        .setLabel('Setup VC')
-        .setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder()
-        .setCustomId(`bo-vote-${matchId}`)
-        .setLabel('Vote BO3')
-        .setStyle(ButtonStyle.Success),
-    ),
-  )
-
   const eloEmbed = new EmbedBuilder()
-    .setTitle(`${queueName.queue_name} Match #${matchId}`)
+    .setTitle(`${queueSettings.queue_name} Match #${matchId}`)
     .setFields(teamFields)
     .setColor(0xff0000)
 
   eloEmbed.addFields(
-    { name: 'Cancel Match Votes:', value: '-' },
-    { name: 'Best of 3 Votes:', value: '-', inline: true }
+    { name: 'Cancel Match Votes:', value: '-' }
   )
+
+  const actionRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`cancel-${matchId}`)
+      .setLabel('Cancel Match')
+      .setStyle(ButtonStyle.Danger),
+    new ButtonBuilder()
+      .setCustomId(`call-helpers-${matchId}`)
+      .setLabel('Call Helpers')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId(`setup-vc-${matchId}`)
+      .setLabel('Setup VC')
+      .setStyle(ButtonStyle.Secondary),
+  ) as ActionRowBuilder<ButtonBuilder>
+
+  if (queueSettings.best_of_allowed) {
+    actionRow.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`bo-vote-${matchId}`)
+        .setLabel('Vote BO3')
+        .setStyle(ButtonStyle.Success),
+    )
+
+    eloEmbed.addFields(
+      { name: 'Best of 3 Votes:', value: '-', inline: true }
+    )
+  }
+
+  queueGameComponents.push(actionRow)
 
   const randomTeams: any[] = shuffle(teamFields)
 

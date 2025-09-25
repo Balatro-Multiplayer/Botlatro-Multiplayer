@@ -656,7 +656,7 @@ export default {
           const stakeData = await getStakeByName('White Stake')
           if (stakeData) {
             await channel.send({
-              content: `## Selected Stake: ${stakeData.stake_emote} ${stakeData.stake_name} `,
+              content: `## VETO: ${stakeData.stake_emote} ${stakeData.stake_name} `,
             })
           }
         }

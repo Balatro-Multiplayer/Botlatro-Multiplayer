@@ -15,6 +15,8 @@ declare module 'psqlDB' {
     maximum_elo?: number | null
     max_party_elo_difference?: number | null
     locked: boolean
+    best_of_allowed: boolean
+    glicko_tau: number
   }
 
   export interface QueueRoles {
