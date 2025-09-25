@@ -93,8 +93,6 @@ export async function incrementEloCronJobAllQueues() {
           const newRange = (currentRange ?? start) + increment
           await updateCurrentEloRangeForUser(userId, queue.id, newRange)
 
-          console.log(elo, newRange);
-
           candidates.push({
             range: newRange,
             userId,

@@ -244,7 +244,7 @@ export async function sendMatchInitMessages(
         teamString += `\`${user.elo} MMR\`\n`
         onePersonTeamName = userDiscordInfo.displayName
       } else {
-        teamString += `**${userDiscordInfo.displayName}** - ${user.elo}\n`
+        teamString += `**${userDiscordInfo.displayName}** - ${user.elo} MMR\n`
       }
     }
 
