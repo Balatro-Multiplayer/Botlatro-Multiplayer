@@ -62,6 +62,9 @@ export async function handleVoting(
   // Check if voting is complete
   if (participants.length > 0 && votes.length === participants.length) {
     if (interaction.message) {
+      fields.splice(embedFieldIndex, 1)
+      interaction.message.embeds[0] = embed
+
       await onComplete(interaction, { votes, embed })
     }
     return
@@ -152,4 +155,18 @@ export async function handleTwoPlayerMatchVoting(
 
   // Update the message with new embed
   await interaction.update({ embeds: interaction.message.embeds })
+}
+
+export function getBestOfMatchScores(
+  fields: { name: string; value?: string }[],
+): number[] {
+  const scores: number[] = [0, 0]
+  for (let i = 0; i < Math.min(2, fields.length); i++) {
+    const val = fields[i].value || ''
+    const lines = val.split('\n')
+    const mmrLine = lines.find((l) => l.includes('MMR')) || ''
+    const m = mmrLine.match(/Score:\s*(\d+)/i)
+    scores[i] = m ? parseInt(m[1], 10) || 0 : 0
+  }
+  return scores
 }
