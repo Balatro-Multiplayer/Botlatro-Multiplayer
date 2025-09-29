@@ -1,6 +1,9 @@
+// noinspection JSUnusedGlobalSymbols
+
 import {
   ActionRowBuilder,
   ButtonBuilder,
+  ButtonStyle,
   Events,
   Interaction,
   MessageFlags,
@@ -18,8 +21,8 @@ import {
 import {
   endMatch,
   getTeamsInMatch,
+  setMatchWinner,
   setupDeckSelect,
-  setupMatchVoiceChannel,
 } from '../utils/matchHelpers'
 import {
   getActiveQueues,
@@ -40,12 +43,17 @@ import {
   setPickedMatchStake,
   setQueueDeckBans,
   setUserPriorityQueue,
+  setMatchBestOf,
   userInMatch,
   userInQueue,
 } from '../utils/queryDB'
 import { QueryResult } from 'pg'
 import { Queues } from 'psqlDB'
-import { handleTwoPlayerMatchVoting, handleVoting } from '../utils/voteHelpers'
+import {
+  handleTwoPlayerMatchVoting,
+  handleVoting,
+  getBestOfMatchScores,
+} from '../utils/voteHelpers'
 
 export default {
   name: Events.InteractionCreate,
@@ -246,18 +254,66 @@ export default {
           participants: matchUsersArray,
           onComplete: async (interaction, winner) => {
             const customSelId = interaction.values[0]
-            const matchData: string[] = customSelId.split('_')
-            const matchId = matchData[1]
-            await pool.query(
-              `UPDATE matches SET winning_team = $1 WHERE id = $2`,
-              [winner, matchId],
-            )
-            await endMatch(parseInt(matchId))
-            interaction.update({
-              content: 'The match has ended!',
-              embeds: [],
-              components: [],
-            })
+            const matchDataParts: string[] = customSelId.split('_')
+            const matchId = parseInt(matchDataParts[1])
+
+            // Check if this match is Best of 3 or 5
+            const matchDataObj = await getMatchData(matchId)
+            const isBo3 = matchDataObj.best_of_3
+            const isBo5 = matchDataObj.best_of_5
+
+            if (!isBo3 && !isBo5) {
+              await setMatchWinner(interaction, matchId, winner)
+              return
+            }
+
+            const embed = interaction.message.embeds[0]
+            const fields = embed.data.fields || []
+
+            // Update Best of scores and check for match winner
+            const winnerIndex = winner === 1 ? 0 : 1
+            for (let i = 0; i < Math.min(2, fields.length); i++) {
+              const val = fields[i].value || ''
+              const lines = val.split('\n')
+
+              const cleaned = lines.filter(
+                (l) => !l.includes('Win Votes') && !l.includes('<@'),
+              )
+
+              const mmrIdx = cleaned.findIndex((l) => l.includes('MMR'))
+              if (mmrIdx !== -1) {
+                const mmrLine = cleaned[mmrIdx]
+                const m = mmrLine.match(/Score:\s*(\d+)/i)
+                let score = m ? parseInt(m[1], 10) || 0 : 0
+
+                if (i === winnerIndex) score += 1
+
+                cleaned[mmrIdx] =
+                  mmrLine.replace(/\s*-?\s*Score:\s*\d+/i, '').trimEnd() +
+                  ` - Score: ${score}`
+              }
+
+              fields[i].value = cleaned.join('\n')
+            }
+
+            const scores = getBestOfMatchScores(fields)
+            const requiredWins = isBo5 ? 3 : isBo3 ? 2 : 1
+            const [team1Wins, team2Wins] = scores
+
+            let winningTeam = 0
+            if (team1Wins >= requiredWins) {
+              winningTeam = 1
+            } else if (team2Wins >= requiredWins) {
+              winningTeam = 2
+            }
+
+            if (winningTeam) {
+              await setMatchWinner(interaction, matchId, winningTeam)
+              return
+            }
+
+            interaction.message.embeds[0] = embed
+            await interaction.update({ embeds: interaction.message.embeds })
           },
         })
       }
@@ -272,8 +328,6 @@ export default {
         const matchTeams = await getTeamsInMatch(matchId)
         const deckOptions = await getDecksInQueue(queueId)
 
-        await interaction.message.delete()
-
         // Determine which team is active for this step
         const activeTeamId = (startingTeamId + step) % 2
 
@@ -286,6 +340,8 @@ export default {
             flags: MessageFlags.Ephemeral,
           })
         }
+
+        await interaction.message.delete()
 
         if (step === 3) {
           const finalDeckPick = deckOptions.find(
@@ -462,7 +518,7 @@ export default {
 
           try {
             await handleVoting(interaction, {
-              voteType: 'Cancel Match?',
+              voteType: 'Cancel Match Votes',
               embedFieldIndex: 2,
               participants: matchUsersArray,
               onComplete: async (interaction) => {
@@ -526,33 +582,82 @@ export default {
             embedFieldIndex: 2,
             participants: matchUsersArray,
             onComplete: async (interaction, { embed }) => {
-              await createMatch(matchUsersArray, matchData.queue_id)
               await interaction.update({
                 content: 'A Rematch for this matchup has begun!',
                 embeds: [embed],
                 components: [],
               })
+              await createMatch(matchUsersArray, matchData.queue_id)
             },
           })
         }
 
-        if (interaction.customId.startsWith('setup-vc-')) {
-          const matchId = parseInt(interaction.customId.split('-')[2])
-          const rows = interaction.message.components.map((row) =>
-            ActionRowBuilder.from(row as any),
-          ) as ActionRowBuilder<ButtonBuilder>[]
+        if (interaction.customId.startsWith('bo-vote-')) {
+          const parts = interaction.customId.split('-') // bo-vote-N-matchId
+          const bestOf = parseInt(parts[2], 10) as 3 | 5
+          const matchId = parseInt(parts[3], 10)
 
-          const vcButton = rows[1].components[2] as ButtonBuilder
-          rows[1].components[2] = ButtonBuilder.from(vcButton).setDisabled(true)
-
-          await interaction.update({ components: rows })
-
-          const voiceChannel = await setupMatchVoiceChannel(
-            interaction,
-            matchId,
+          const matchUsers = await getTeamsInMatch(matchId)
+          const matchUsersArray = matchUsers.teams.flatMap((t) =>
+            t.players.map((u) => u.user_id),
           )
-          await interaction.followUp({
-            content: `A VC has been made for this match: <#${voiceChannel.id}>`,
+
+          const embed = interaction.message.embeds[0]
+          const fields = embed.data.fields || []
+          const voteFieldName =
+            bestOf === 3 ? 'Best of 3 Votes' : 'Best of 5 Votes'
+          if (!fields.find((f) => f.name === voteFieldName)) {
+            fields.push({ name: voteFieldName, value: '-', inline: false })
+          }
+
+          await handleVoting(interaction, {
+            voteType: voteFieldName,
+            embedFieldIndex: 3,
+            participants: matchUsersArray,
+            onComplete: async (interaction, { embed }) => {
+              const rows = interaction.message.components.map((row) =>
+                ActionRowBuilder.from(row as any),
+              ) as ActionRowBuilder<ButtonBuilder>[]
+
+              if (bestOf === 3) {
+                rows[1].components[2] = new ButtonBuilder()
+                  .setLabel('Vote BO5')
+                  .setCustomId(`bo-vote-5-${matchId}`)
+                  .setStyle(ButtonStyle.Success)
+              } else {
+                const bo5Button = rows[1].components[2] as ButtonBuilder
+                rows[1].components[2] =
+                  ButtonBuilder.from(bo5Button).setDisabled(true)
+              }
+
+              await setMatchBestOf(matchId, bestOf)
+
+              // Initialize per-team score only on the MMR line (same for both)
+              const fields = embed.data.fields || []
+              for (let i = 0; i < Math.min(2, fields.length); i++) {
+                const val = fields[i].value || ''
+                const lines = val.split('\n')
+                const mmrIdx = lines.findIndex((l) => l.includes('MMR'))
+                if (mmrIdx !== -1) {
+                  lines[mmrIdx] = lines[mmrIdx].replace(
+                    /\s*-?\s*Score:\s*\d+/i,
+                    '',
+                  )
+                  lines[mmrIdx] = `${lines[mmrIdx]} - Score: 0`
+                  fields[i].value = lines.join('\n')
+                }
+              }
+
+              await interaction.update({ embeds: [embed], components: rows })
+              if (interaction.channel) {
+                await (interaction.channel as TextChannel).send({
+                  content:
+                    bestOf === 3
+                      ? `## This match has been set to a best of 3!`
+                      : `## This match has been set to a best of 5!`,
+                })
+              }
+            },
           })
         }
 
@@ -625,7 +730,7 @@ export default {
           const stakeData = await getStakeByName('White Stake')
           if (stakeData) {
             await channel.send({
-              content: `## Selected Stake: ${stakeData.stake_emote} ${stakeData.stake_name} `,
+              content: `## VETO: ${stakeData.stake_emote} ${stakeData.stake_name} `,
             })
           }
         }

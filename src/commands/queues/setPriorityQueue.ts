@@ -1,8 +1,6 @@
 import {
-  SlashCommandBuilder,
   ChatInputCommandInteraction,
   MessageFlags,
-  PermissionFlagsBits,
   AutocompleteInteraction,
 } from 'discord.js'
 import {
