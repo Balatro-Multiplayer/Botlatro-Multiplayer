@@ -10,6 +10,7 @@ export const shorthands = undefined;
  */
 export const up = (pgm) => {
   pgm.addColumn('matches', { best_of_3: { type: 'boolean', notNull: true, default: false } })
+  pgm.addColumn('matches', { best_of_5: { type: 'boolean', notNull: true, default: false } })
 };
 
 /**
@@ -19,4 +20,5 @@ export const up = (pgm) => {
  */
 export const down = (pgm) => {
   pgm.dropColumn('matches', 'best_of_3');
+  pgm.dropColumn('matches', 'best_of_5');
 };

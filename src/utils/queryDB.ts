@@ -405,15 +405,20 @@ export async function setMatchStakeVoteTeam(
   )
 }
 
-export async function setMatchBestOf3(
+export async function setMatchBestOf(
   matchId: number,
-  bestOf3: boolean,
+  bestOf: 3 | 5,
 ): Promise<void> {
+  const isBo3 = bestOf === 3
+  const isBo5 = bestOf === 5
   await pool.query(
     `
-    UPDATE matches SET best_of_3 = $2 WHERE id = $1
+    UPDATE matches
+    SET best_of_3 = $2,
+        best_of_5 = $3
+    WHERE id = $1
   `,
-    [matchId, bestOf3],
+    [matchId, isBo3, isBo5],
   )
 }
 
