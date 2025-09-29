@@ -1,7 +1,4 @@
-import {
-  ChatInputCommandInteraction,
-  MessageFlags,
-} from 'discord.js'
+import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
 import { drawPlayerStatsCanvas } from 'utils/canvasHelpers'
 import { getQueueIdFromName, getStatsCanvasUserData } from 'utils/queryDB'
 
@@ -10,12 +7,15 @@ export default {
     try {
       await interaction.deferReply()
 
-      const queueName = interaction.options.getString('queue-name', true);
-      const queueId = await getQueueIdFromName(queueName);
-      const playerStats = await getStatsCanvasUserData(interaction.user.id, queueId)
-      const statFile = await drawPlayerStatsCanvas(playerStats);
+      const queueName = interaction.options.getString('queue-name', true)
+      const queueId = await getQueueIdFromName(queueName)
+      const playerStats = await getStatsCanvasUserData(
+        interaction.user.id,
+        queueId,
+      )
+      const statFile = await drawPlayerStatsCanvas(playerStats)
 
-      await interaction.editReply({ files: [statFile] });
+      await interaction.editReply({ files: [statFile] })
     } catch (err: any) {
       console.error(err)
       const errorMsg = err.detail || err.message || 'Unknown'

@@ -31,30 +31,30 @@ const config = {
 }
 
 function timeAgo(date: Date) {
-  const now = new Date();
-  const past = new Date(date);
-  const diffMs = now.getTime() - past.getTime();
+  const now = new Date()
+  const past = new Date(date)
+  const diffMs = now.getTime() - past.getTime()
 
-  const seconds = Math.floor(diffMs / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-  const weeks = Math.floor(days / 7);
-  const months = Math.floor(days / 30);
-  const years = Math.floor(days / 365);
+  const seconds = Math.floor(diffMs / 1000)
+  const minutes = Math.floor(seconds / 60)
+  const hours = Math.floor(minutes / 60)
+  const days = Math.floor(hours / 24)
+  const weeks = Math.floor(days / 7)
+  const months = Math.floor(days / 30)
+  const years = Math.floor(days / 365)
 
-  if (years > 0) return `${years} year${years > 1 ? 's' : ''} ago`;
-  if (months > 0) return `${months} month${months > 1 ? 's' : ''} ago`;
-  if (weeks > 0) return `${weeks} week${weeks > 1 ? 's' : ''} ago`;
-  if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
-  if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
-  if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
-  return `${seconds} second${seconds !== 1 ? 's' : ''} ago`;
+  if (years > 0) return `${years} year${years > 1 ? 's' : ''} ago`
+  if (months > 0) return `${months} month${months > 1 ? 's' : ''} ago`
+  if (weeks > 0) return `${weeks} week${weeks > 1 ? 's' : ''} ago`
+  if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`
+  if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`
+  if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`
+  return `${seconds} second${seconds !== 1 ? 's' : ''} ago`
 }
 
 // --- Drawing Functions ---
 
-function drawBackground(ctx: CanvasRenderingContext2D, playerData: StatsCanvasPlayerData) {
+function drawBackground(ctx: CanvasRenderingContext2D) {
   ctx.fillStyle = config.colors.background
   ctx.fillRect(0, 0, config.width, config.height)
 
@@ -77,14 +77,17 @@ async function drawAvatar(
   x: number,
   y: number,
   size: number,
-  playerData: StatsCanvasPlayerData
+  playerData: StatsCanvasPlayerData,
 ) {
-  const user = await client.users.fetch(playerData.user_id);
-  const avatar = await loadImage(user.avatarURL({ extension: "png" }));
-  ctx.drawImage(avatar, x, y, size, size);
+  const user = await client.users.fetch(playerData.user_id)
+  const avatar = await loadImage(user.avatarURL({ extension: 'png' }))
+  ctx.drawImage(avatar, x, y, size, size)
 }
 
-async function drawHeader(ctx: CanvasRenderingContext2D, playerData: StatsCanvasPlayerData) {
+async function drawHeader(
+  ctx: CanvasRenderingContext2D,
+  playerData: StatsCanvasPlayerData,
+) {
   const { padding } = config
 
   const guild =
@@ -106,20 +109,23 @@ async function drawHeader(ctx: CanvasRenderingContext2D, playerData: StatsCanvas
   ctx.fillStyle = config.colors.textPrimary
   ctx.textBaseline = 'middle'
   ctx.fillText(member.displayName, padding + 95, 80)
-  
-  // Rank Bar (TODO: MAKE THIS WORK WITH THE DATABASE)
-  ctx.fillStyle = config.colors.textTertiary;
-  const barHeight = 20;
-  ctx.fillRect(
-    padding + 180,
-    115,
-    padding + 180 * 2,
-    barHeight
-  );
 
-  ctx.fillStyle = config.colors.textPrimary;
-  ctx.font = 'bold 20px Arial';
-  ctx.fillText('STONE', padding + 95, 125); 
+  // Rank Bar (dynamic from DB)
+  const barHeight = 22
+  const barWidth = padding + 180 * 2
+  const barX = padding + 160
+  const barY = 115
+  const rankColor = playerData.rank_color || config.colors.textTertiary
+  const rankName = (playerData.rank_name || 'UNRANKED').toUpperCase()
+
+  // draw bar background
+  ctx.fillStyle = rankColor
+  ctx.fillRect(barX, barY, barWidth, barHeight)
+
+  // rank label
+  ctx.fillStyle = rankColor
+  ctx.font = 'bold 18px Arial'
+  ctx.fillText(rankName, padding + 95, barY + barHeight - 12)
 
   // MMR
   ctx.textAlign = 'right'
@@ -139,40 +145,43 @@ async function drawHeader(ctx: CanvasRenderingContext2D, playerData: StatsCanvas
   ctx.textAlign = 'left'
 }
 
-function drawStats(ctx: CanvasRenderingContext2D, playerData: StatsCanvasPlayerData) {
+function drawStats(
+  ctx: CanvasRenderingContext2D,
+  playerData: StatsCanvasPlayerData,
+) {
   const { padding } = config
   const startX = padding
   const startY = 170
   const panelWidth = 450
 
   const cellWidth = panelWidth / 4
+  const valueOffsetY = 64
 
   playerData.stats.forEach((stat, i) => {
-    const x = startX + i * cellWidth + 10
-    const y = startY + 35
+    const cx = startX + i * cellWidth + cellWidth / 2
+    const y = startY + 30
 
-    // Label
+    // Label (centered)
+    ctx.textAlign = 'center'
     ctx.font = config.fonts.label
     ctx.fillStyle = config.colors.textSecondary
-    ctx.fillText(stat.label, x, y)
+    ctx.fillText(stat.label, cx, y)
 
-    // Value
+    // Value (centered)
     ctx.font = config.fonts.value
     ctx.fillStyle = config.colors.textPrimary
-    ctx.fillText(stat.value, x, y + 40)
-
-    // // Sub-label (like Peak Win Streak)
-    // if (stat.subLabel) {
-    //   ctx.font = config.fonts.small
-    //   ctx.fillStyle = config.colors.textTertiary
-    //   ctx.fillText(stat.subLabel, x, y + 75)
-    // }
+    ctx.fillText(stat.value, cx, y + valueOffsetY)
   })
 
-  ctx.textBaseline = 'top';
+  // reset text align
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'top'
 }
 
-function drawPreviousGames(ctx: CanvasRenderingContext2D, playerData: StatsCanvasPlayerData) {
+function drawPreviousGames(
+  ctx: CanvasRenderingContext2D,
+  playerData: StatsCanvasPlayerData,
+) {
   const statsPanelWidth = 550
   const spacing = -10
   const startX = config.padding + statsPanelWidth + spacing
@@ -187,6 +196,11 @@ function drawPreviousGames(ctx: CanvasRenderingContext2D, playerData: StatsCanva
   // Game List
   ctx.font = config.fonts.gameList
   const lineHeight = 22
+
+  playerData.previous_games = playerData.previous_games.filter(
+    (game) => game.change !== 0,
+  )
+
   playerData.previous_games.forEach((game, i) => {
     const y = startY + 50 + i * lineHeight
     const numberText = `${i + 1}.`
@@ -198,25 +212,31 @@ function drawPreviousGames(ctx: CanvasRenderingContext2D, playerData: StatsCanva
     ctx.fillText(numberText, startX, y)
 
     // Result
-    ctx.fillStyle =
-      game.change > 0 ? config.colors.win : config.colors.lose
+    ctx.fillStyle = game.change > 0 ? config.colors.win : config.colors.lose
     const numberWidth = ctx.measureText(numberText).width
     ctx.fillText(resultText, startX + numberWidth + 5, y)
 
     // Change
     const resultWidth = ctx.measureText(resultText).width
-    ctx.fillText(changeText.toString(), startX + resultWidth + numberWidth + 13, y)
+    ctx.fillText(
+      changeText.toString(),
+      startX + resultWidth + numberWidth + 13,
+      y,
+    )
 
     // Time
     ctx.fillStyle = config.colors.textSecondary
     ctx.textAlign = 'right'
-    const gameTimeDate = new Date(game.time);
+    const gameTimeDate = new Date(game.time)
     ctx.fillText(timeAgo(gameTimeDate), startX + panelWidth - 35, y)
     ctx.textAlign = 'left' // Reset
   })
 }
 
-function drawGraph(ctx: CanvasRenderingContext2D, playerData: StatsCanvasPlayerData) {
+function drawGraph(
+  ctx: CanvasRenderingContext2D,
+  playerData: StatsCanvasPlayerData,
+) {
   const { padding } = config
   const area = {
     x: padding + 75,
@@ -303,14 +323,12 @@ function drawGraph(ctx: CanvasRenderingContext2D, playerData: StatsCanvasPlayerD
   })
 }
 
-// --- Main Execution ---
-
 export async function drawPlayerStatsCanvas(playerData: StatsCanvasPlayerData) {
   const canvas = new Canvas(config.width, config.height)
   const ctx = canvas.getContext('2d')
 
   // Drawing calls in order
-  drawBackground(ctx, playerData)
+  drawBackground(ctx)
   await drawHeader(ctx, playerData)
   drawStats(ctx, playerData)
   drawPreviousGames(ctx, playerData)

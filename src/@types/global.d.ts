@@ -138,8 +138,10 @@ declare module 'psqlDB' {
     name: string
     mmr: number
     peak_mmr: number
-    stats: { label: string; value: string; percentile: string }[]
+    stats: { label: string; value: string }[]
     previous_games: { change: number; time: Date }[]
     elo_graph_data: { date: Date; rating: number }[]
+    rank_name?: string | null
+    rank_color?: string | null
   }
 }
