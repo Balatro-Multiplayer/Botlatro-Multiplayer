@@ -409,14 +409,19 @@ export async function endMatch(
     return false
   }
 
-  // build rematch button row
-  const rematchButtonRow: ActionRowBuilder<ButtonBuilder> =
+  // build results button row
+  const resultsButtonRow: ActionRowBuilder<ButtonBuilder> =
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder()
         .setCustomId(`rematch-${matchId}`)
         .setLabel('Rematch')
         .setEmoji('⚔️')
         .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId(`contest-${matchId}`)
+        .setLabel('Contest Match')
+        .setEmoji('📩')
+        .setStyle(ButtonStyle.Danger),
     )
 
   const matchTeams = await getTeamsInMatch(matchId)
@@ -517,7 +522,7 @@ export async function endMatch(
 
   await resultsChannel.send({
     embeds: [resultsEmbed],
-    components: [rematchButtonRow],
+    components: [resultsButtonRow],
   })
   return true
 }

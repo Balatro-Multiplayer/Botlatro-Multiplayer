@@ -592,6 +592,10 @@ export default {
           })
         }
 
+        if (interaction.customId.startsWith('contest-')) {
+          // TODO: Add support for this
+        }
+
         if (interaction.customId.startsWith('bo-vote-')) {
           const parts = interaction.customId.split('-') // bo-vote-N-matchId
           const bestOf = parseInt(parts[2], 10) as 3 | 5
