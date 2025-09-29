@@ -1055,103 +1055,128 @@ export async function getSettings(): Promise<Settings> {
 }
 
 // get the data for the statistics canvas display
-/* 
-  I'm gonna be real, I had ChatGPT help me with this horrific query.
-  It's probably pretty bad as a result. I understand how it works,
-  and it DOES work, but feel free to adjust this if it sucks lol
-  - Jeff
-*/
 export async function getStatsCanvasUserData(
   userId: string,
   queueId: number,
 ): Promise<StatsCanvasPlayerData> {
-  const res: QueryResult<StatsCanvasPlayerData> = await pool.query(
+  // 1) Core player stats for this queue
+  const playerRes = await pool.query(
     `
-    WITH player AS (
-      SELECT
-        qu.id,
-        qu.user_id,
-        qu.elo,
-        qu.peak_elo,
-        qu.wins,
-        qu.losses,
-        qu.games_played,
-        qu.win_streak,
-        qu.peak_win_streak
-      FROM queue_users qu
-      WHERE qu.user_id = $1
-        AND qu.queue_id = $2
-    ),
-    previous_games AS (
-      SELECT
-        mu.user_id,
-        mu.elo_change AS change,
-        m.created_at AS time,
-        m.id AS match_id
-      FROM match_users mu
-      JOIN matches m ON m.id = mu.match_id
-      WHERE mu.user_id = $1 AND m.winning_team IS NOT NULL
-      ORDER BY m.id DESC
-      LIMIT 6
-    ),
-    elo_graph AS (
-      SELECT
-        mu.user_id,
-        m.id AS match_id,
-        SUM(mu.elo_change) OVER (
-          PARTITION BY mu.user_id ORDER BY m.id
-          ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-        )
-        + (
-          SELECT p.elo
-          FROM player p
-        ) AS rating,
-        m.created_at::timestamp AS date
-      FROM match_users mu
-      JOIN matches m ON m.id = mu.match_id
-      WHERE mu.user_id = $1 AND m.winning_team IS NOT NULL
-      ORDER BY m.id
-      LIMIT 50
-    )
     SELECT
-      p.user_id,
-      p.elo AS mmr,
-      p.peak_elo AS peak_mmr,
-      COALESCE(
-        json_agg(
-          json_build_object(
-            'label', s.label,
-            'value', s.value
-          )
-        ) FILTER (WHERE s.label IS NOT NULL),
-        '[]'::json
-      ) AS stats,
-      COALESCE(
-        (SELECT json_agg(json_build_object(
-          'change', change,
-          'time', time
-        )) FROM previous_games),
-        '[]'::json
-      ) AS previous_games,
-      COALESCE(
-        (SELECT json_agg(json_build_object(
-          'date', date,
-          'rating', rating
-        )) FROM elo_graph),
-        '[]'::json
-      ) AS elo_graph_data
-    FROM player p
-    CROSS JOIN LATERAL (
-      VALUES
-        ('WINS', p.wins::text),
-        ('LOSSES', p.losses::text),
-        ('GAMES', p.games_played::text),
-        ('WIN STREAK', p.win_streak::text)
-    ) AS s(label, value)
-    GROUP BY p.user_id, p.elo, p.peak_elo;
-  `,
+      qu.user_id,
+      qu.elo,
+      qu.peak_elo,
+      qu.wins,
+      qu.losses,
+      qu.games_played,
+      qu.win_streak,
+      qu.peak_win_streak
+    FROM queue_users qu
+    WHERE qu.user_id = $1 AND qu.queue_id = $2
+    `,
     [userId, queueId],
   )
 
-  return res.rows[0]
+  if (playerRes.rowCount === 0) {
+    throw new Error(
+      'No player data found for this user in the specified queue.',
+    )
+  }
+
+  const p = playerRes.rows[0] as {
+    user_id: string
+    elo: number
+    peak_elo: number
+    wins: number
+    losses: number
+    games_played: number
+    win_streak: number
+    peak_win_streak: number
+  }
+
+  const previousRes = await pool.query(
+    `
+    SELECT
+      mu.elo_change AS change,
+      m.created_at   AS time
+    FROM match_users mu
+    JOIN matches m ON m.id = mu.match_id
+    WHERE mu.user_id = $1 AND m.winning_team IS NOT NULL
+    ORDER BY m.id DESC
+    LIMIT 6
+    `,
+    [userId],
+  )
+
+  const previous_games = previousRes.rows as { change: number; time: Date }[]
+
+  const eloRes = await pool.query(
+    `
+    SELECT
+      mu.elo_change,
+      m.created_at AS date
+    FROM match_users mu
+    JOIN matches m ON m.id = mu.match_id
+    WHERE mu.user_id = $1 AND m.winning_team IS NOT NULL
+    ORDER BY m.id
+    LIMIT 50
+    `,
+    [userId],
+  )
+
+  let eloChanges = eloRes.rows.map((r: any) => ({
+    change: Number(r.elo_change) || 0,
+    date: r.date as Date,
+  }))
+
+  eloChanges = eloChanges.filter((r) => r.change !== 0)
+
+  const totalChange = eloChanges.reduce((sum, r) => sum + r.change, 0)
+  let running = (p.elo ?? 0) - totalChange
+  const elo_graph_data = eloChanges.map((r) => {
+    running += r.change
+    return { date: r.date, rating: running }
+  })
+
+  const stats: { label: string; value: string }[] = [
+    { label: 'WINS', value: String(p.wins ?? 0) },
+    { label: 'LOSSES', value: String(p.losses ?? 0) },
+    { label: 'GAMES', value: String(p.games_played ?? 0) },
+    { label: 'WIN STREAK', value: String(p.win_streak ?? 0) },
+  ]
+
+  const data: StatsCanvasPlayerData = {
+    user_id: p.user_id,
+    name: '',
+    mmr: p.elo,
+    peak_mmr: p.peak_elo,
+    stats,
+    previous_games,
+    elo_graph_data,
+    rank_name: null,
+    rank_color: null,
+  }
+
+  try {
+    const queueRole = await getUserQueueRole(queueId, userId)
+    if (queueRole) {
+      const guild =
+        client.guilds.cache.get(process.env.GUILD_ID!) ??
+        (await client.guilds.fetch(process.env.GUILD_ID!))
+      const role =
+        guild.roles.cache.get(queueRole.role_id) ||
+        (await guild.roles.fetch(queueRole.role_id))
+      if (role) {
+        const colorNumber = (role as any).color as number
+        const hex =
+          `#${colorNumber.toString(16).padStart(6, '0')}`.toUpperCase()
+        data.rank_name = role.name
+        data.rank_color = hex
+      }
+    }
+  } catch {
+    // ignore errors; leave rank fields null
+  }
+
+  return data
 }
