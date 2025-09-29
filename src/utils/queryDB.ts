@@ -405,6 +405,23 @@ export async function setMatchStakeVoteTeam(
   )
 }
 
+export async function setMatchBestOf(
+  matchId: number,
+  bestOf: 3 | 5,
+): Promise<void> {
+  const isBo3 = bestOf === 3
+  const isBo5 = bestOf === 5
+  await pool.query(
+    `
+    UPDATE matches
+    SET best_of_3 = $2,
+        best_of_5 = $3
+    WHERE id = $1
+  `,
+    [matchId, isBo3, isBo5],
+  )
+}
+
 // get the match id from the match channel id
 export async function getMatchIdFromChannel(
   channelId: string,

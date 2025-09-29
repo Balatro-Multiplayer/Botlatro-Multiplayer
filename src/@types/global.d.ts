@@ -15,6 +15,8 @@ declare module 'psqlDB' {
     maximum_elo?: number | null
     max_party_elo_difference?: number | null
     locked: boolean
+    best_of_allowed: boolean
+    glicko_tau: number
   }
 
   export interface QueueRoles {
@@ -49,6 +51,8 @@ declare module 'psqlDB' {
     created_at: Date
     match_vc_id: string
     stake_vote_team_id: number
+    best_of_3: boolean
+    best_of_5: boolean
   }
 
   export interface Users {

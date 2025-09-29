@@ -28,19 +28,23 @@ export async function handleVoting(
   // Ensure vote field exists
   if (!fields[embedFieldIndex]) {
     fields[embedFieldIndex] = { name: `${voteType}:`, value: '' }
+  } else if (fields[embedFieldIndex].value == '-') {
+    fields[embedFieldIndex].value = ''
   }
 
   const field = fields[embedFieldIndex]
   const votes = field.value
-    ? field.value.split('\n').filter((v) => v.trim() !== '')
+    ? field.value.split('\n').filter((v) => v.trim() !== '' && v.trim() !== '-')
     : []
 
   // Check if user already voted
   if (votes.includes(`<@${interaction.user.id}>`)) {
-    return interaction.reply({
-      content: `You've already voted!`,
-      flags: MessageFlags.Ephemeral,
-    })
+    const updatedVotes = votes.filter((v) => v !== `<@${interaction.user.id}>`)
+    fields[embedFieldIndex].value = updatedVotes.join('\n')
+    if (fields[embedFieldIndex].value == '') fields[embedFieldIndex].value = '-'
+    interaction.message.embeds[0] = embed
+    await interaction.update({ embeds: interaction.message.embeds })
+    return
   }
 
   // Check if user is allowed to vote
@@ -58,6 +62,9 @@ export async function handleVoting(
   // Check if voting is complete
   if (participants.length > 0 && votes.length === participants.length) {
     if (interaction.message) {
+      fields.splice(embedFieldIndex, 1)
+      interaction.message.embeds[0] = embed
+
       await onComplete(interaction, { votes, embed })
     }
     return
@@ -96,6 +103,12 @@ export async function handleTwoPlayerMatchVoting(
   }
 
   for (let i = 0; i < fields.length; i++) {
+    if (
+      fields[i].name.includes('Cancel Match') ||
+      fields[i].name.includes('Votes')
+    )
+      continue
+
     const lines = fields[i].value?.split('\n') || []
 
     const mmrLine = lines.find((l) => l.includes('MMR')) || ''
@@ -142,4 +155,18 @@ export async function handleTwoPlayerMatchVoting(
 
   // Update the message with new embed
   await interaction.update({ embeds: interaction.message.embeds })
+}
+
+export function getBestOfMatchScores(
+  fields: { name: string; value?: string }[],
+): number[] {
+  const scores: number[] = [0, 0]
+  for (let i = 0; i < Math.min(2, fields.length); i++) {
+    const val = fields[i].value || ''
+    const lines = val.split('\n')
+    const mmrLine = lines.find((l) => l.includes('MMR')) || ''
+    const m = mmrLine.match(/Score:\s*(\d+)/i)
+    scores[i] = m ? parseInt(m[1], 10) || 0 : 0
+  }
+  return scores
 }

@@ -4,7 +4,6 @@ import {
   ButtonStyle,
   ChannelType,
   EmbedBuilder,
-  MessageComponentInteraction,
   PermissionsBitField,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
@@ -220,7 +219,7 @@ export async function sendMatchInitMessages(
   const teamData = await getTeamsInMatch(matchId)
   const queueTeamSelectOptions: StringSelectMenuOptionBuilder[] = []
   let teamPingString = ``
-  const queueName = await getQueueSettings(queueId, ['queue_name'])
+  const queueSettings = await getQueueSettings(queueId)
 
   let teamFields: any = teamData.teams.map(async (t, idx) => {
     let teamQueueUsersData = await pool.query(
@@ -244,7 +243,7 @@ export async function sendMatchInitMessages(
         teamString += `\`${user.elo} MMR\`\n`
         onePersonTeamName = userDiscordInfo.displayName
       } else {
-        teamString += `**${userDiscordInfo.displayName}** - ${user.elo}\n`
+        teamString += `**${userDiscordInfo.displayName}** - ${user.elo} MMR\n`
       }
     }
 
@@ -280,27 +279,34 @@ export async function sendMatchInitMessages(
   // Slice off the last vs.
   teamPingString = teamPingString.slice(0, -4)
 
-  queueGameComponents.push(
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`cancel-${matchId}`)
-        .setLabel('Cancel Match')
-        .setStyle(ButtonStyle.Danger),
-      new ButtonBuilder()
-        .setCustomId(`call-helpers-${matchId}`)
-        .setLabel('Call Helpers')
-        .setStyle(ButtonStyle.Primary),
-      new ButtonBuilder()
-        .setCustomId(`setup-vc-${matchId}`)
-        .setLabel('Setup VC')
-        .setStyle(ButtonStyle.Secondary),
-    ),
-  )
-
   const eloEmbed = new EmbedBuilder()
-    .setTitle(`${queueName.queue_name} Match #${matchId}`)
+    .setTitle(`${queueSettings.queue_name} Match #${matchId}`)
     .setFields(teamFields)
     .setColor(0xff0000)
+
+  eloEmbed.addFields({ name: 'Cancel Match Votes:', value: '-' })
+
+  const actionRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`cancel-${matchId}`)
+      .setLabel('Cancel Match')
+      .setStyle(ButtonStyle.Danger),
+    new ButtonBuilder()
+      .setCustomId(`call-helpers-${matchId}`)
+      .setLabel('Call Helpers')
+      .setStyle(ButtonStyle.Primary),
+  ) as ActionRowBuilder<ButtonBuilder>
+
+  if (queueSettings.best_of_allowed) {
+    actionRow.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`bo-vote-3-${matchId}`)
+        .setLabel('Vote BO3')
+        .setStyle(ButtonStyle.Success),
+    )
+  }
+
+  queueGameComponents.push(actionRow)
 
   const randomTeams: any[] = shuffle(teamFields)
 
@@ -338,6 +344,23 @@ export async function sendMatchInitMessages(
   await textChannel.send({
     content: `Stake Bans:\n${teamUsers}`,
     components: stakeBanButtons,
+  })
+}
+
+export async function setMatchWinner(
+  interaction: any,
+  matchId: number,
+  winningTeam: number,
+) {
+  await pool.query(`UPDATE matches SET winning_team = $1 WHERE id = $2`, [
+    winningTeam,
+    matchId,
+  ])
+  await endMatch(matchId)
+  await interaction.update({
+    content: 'The match has ended!',
+    embeds: [],
+    components: [],
   })
 }
 
@@ -519,7 +542,7 @@ export async function deleteMatchChannel(matchId: number): Promise<boolean> {
 
 // Setup match vc
 export async function setupMatchVoiceChannel(
-  interaction: MessageComponentInteraction,
+  interaction: any,
   matchId: number,
 ): Promise<VoiceChannel> {
   const matchUsers = await getTeamsInMatch(matchId)

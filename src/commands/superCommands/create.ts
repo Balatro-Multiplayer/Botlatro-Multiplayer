@@ -97,6 +97,19 @@ export default {
             .setDescription('Maximum ELO')
             .setRequired(false)
             .setMinValue(1),
+        )
+        .addBooleanOption((option) =>
+          option
+            .setName('allow-best-of')
+            .setDescription('Allow best of 3 or 5 matches in queues.')
+            .setRequired(false)
+        )
+        .addNumberOption((option) =>
+          option
+            .setName('glicko-tau')
+            .setDescription('Custom glicko tau value for the queue, for glicko2 ELO calculation')
+            .setRequired(false)
+            .setMinValue(0.1)
         ),
     )
     .addSubcommand((sub) =>
