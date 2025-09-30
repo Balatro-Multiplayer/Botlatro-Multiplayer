@@ -29,7 +29,8 @@ export async function strikeSearchAutoComplete(
       }),
     )
     const response = filteredStrikes.map(
-      (fs) => `${fs.id} | ${fs.reason} | ${fs.ref} | ${fs.issuedBy}`,
+      (fs) =>
+        `${fs.id ?? ''} | ${fs.reason ?? ''} | ${fs.ref ?? ''} | ${fs.issuedBy ?? ''}`,
     )
     await interaction.respond(
       response.slice(0, 25).map((res) => ({

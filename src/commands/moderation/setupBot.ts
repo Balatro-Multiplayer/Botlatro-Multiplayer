@@ -1,13 +1,21 @@
 import {
-  SlashCommandBuilder,
-  ChatInputCommandInteraction,
-  PermissionFlagsBits,
-  MessageFlags,
-  TextChannel,
   ChannelType,
+  ChatInputCommandInteraction,
+  MessageFlags,
+  PermissionFlagsBits,
+  SlashCommandBuilder,
+  TextChannel,
 } from 'discord.js'
 import { pool } from '../../db'
 import { client } from '../../client'
+
+interface OldChannels {
+  q: string
+  qr: string
+  l: string
+  ql: string
+}
+let oldChannels: OldChannels
 
 export default {
   data: new SlashCommandBuilder()
@@ -30,7 +38,9 @@ export default {
     .addRoleOption((option) =>
       option
         .setName('queue-helper-role')
-        .setDescription('The role for queue helpers, who can always see match channels')
+        .setDescription(
+          'The role for queue helpers, who can always see match channels',
+        )
         .setRequired(true),
     ),
   async execute(interaction: ChatInputCommandInteraction) {
@@ -41,8 +51,29 @@ export default {
         true,
       )?.id
       const helperRoleId = interaction.options.getRole('helper-role', true)?.id
-      const queueHelperRoleId = interaction.options.getRole('queue-helper-role', true)?.id
-      if (queueCategoryId && helperRoleId) {
+      const queueHelperRoleId = interaction.options.getRole(
+        'queue-helper-role',
+        true,
+      )?.id
+      if (queueCategoryId && helperRoleId && queueHelperRoleId) {
+        // store old channels
+        const oldSettings = await pool.query(`
+          SELECT * FROM settings WHERE singleton = true
+        `)
+
+        const {
+          queue_channel_id,
+          queue_results_channel_id,
+          logs_channel_id,
+          queue_logs_channel_id,
+        } = oldSettings.rows[0]
+        oldChannels = {
+          q: queue_channel_id,
+          qr: queue_results_channel_id,
+          l: logs_channel_id,
+          ql: queue_logs_channel_id,
+        }
+
         await pool.query(
           `
 					INSERT INTO settings (singleton, queue_category_id, helper_role_id, queue_helper_role_id) 
@@ -52,6 +83,7 @@ export default {
             queue_helper_role_id = EXCLUDED.queue_helper_role_id`,
           [true, queueCategoryId, helperRoleId, queueHelperRoleId],
         )
+        console.log('updated db')
       }
     } catch (err: any) {
       console.error(err)
@@ -72,25 +104,23 @@ export default {
         channelName: string,
         permissionOverwrites: any,
         databaseEntry: string,
+        oldChannel: OldChannels | null = null,
       ) {
         let existingChannel: any = null
 
         // if channel id is in db, try to fetch channel from discord
         if (channelId) {
-          existingChannel = interaction.guild?.channels.cache.get(channelId)
-          if (!existingChannel) {
-            try {
-              ;(await interaction.guild?.channels.fetch(
-                channelId,
-              )) as TextChannel
-            } catch (err) {
-              existingChannel = null
-            }
+          console.log('in db')
+          existingChannel = client.channels.fetch(channelId)
+          if (!existingChannel.id) {
+            console.log('channel doesnt exist')
+            existingChannel = null
           }
         }
 
         // if there is no channel id in db, create channel and add to db
         else {
+          console.log('not in db')
           const newChannel = (await interaction.guild?.channels.create({
             name: channelName,
             type: ChannelType.GuildText,
@@ -105,8 +135,27 @@ export default {
           return newChannel
         }
 
-        // if the channel that the db references doesn't exist, create it and overwrite the db entry
-        if (!existingChannel) {
+        // if the channel that the db references doesn't exist, create it and overwrite the db entry + the possible old channels
+        if (!existingChannel || !existingChannel.id) {
+          if (oldChannel) {
+            try {
+              for (const channelId of Object.values(oldChannel)) {
+                let channel: any = null
+                console.log(channelId)
+                try {
+                  channel = await client.channels.fetch(channelId.toString())
+                } catch {
+                  channel = null
+                }
+                console.log('deleting channel')
+                if (channel) channel.delete()
+              }
+            } catch (e) {
+              console.error(e)
+            }
+          }
+
+          console.log('creating channel')
           const newChannel = (await interaction.guild?.channels.create({
             name: channelName,
             type: ChannelType.GuildText,
@@ -127,7 +176,10 @@ export default {
         }
       }
 
+      const delay = (ms: any) =>
+        new Promise((resolve) => setTimeout(resolve, ms))
       const helperRole = interaction.options.getRole('helper-role', true)
+      await delay(2000)
       const settingsRes = await pool.query(
         'SELECT * FROM settings WHERE singleton = true',
       )
@@ -158,30 +210,32 @@ export default {
       }
 
       // Get or create all channels
-      ;(await getOrCreateChannel(
+      console.log(settings)
+      await getOrCreateChannel(
         settings.queue_channel_id,
         'queue',
         everyonePermsSend,
         'queue_channel_id',
-      ),
-        await getOrCreateChannel(
-          settings.queue_results_channel_id,
-          'queue-results',
-          [everyonePermsSend[0], botPerms],
-          'queue_results_channel_id',
-        ),
-        await getOrCreateChannel(
-          settings.logs_channel_id,
-          'activity-log',
-          [everyonePermsView[0], helperPerms, botPerms],
-          'logs_channel_id',
-        ),
-        await getOrCreateChannel(
-          settings.queue_logs_channel_id,
-          'queue-log',
-          [everyonePermsView[0], helperPerms],
-          'queue_logs_channel_id',
-        ))
+        oldChannels,
+      )
+      await getOrCreateChannel(
+        settings.queue_results_channel_id,
+        'queue-results',
+        [everyonePermsSend[0], botPerms],
+        'queue_results_channel_id',
+      )
+      await getOrCreateChannel(
+        settings.logs_channel_id,
+        'activity-log',
+        [everyonePermsView[0], helperPerms, botPerms],
+        'logs_channel_id',
+      )
+      await getOrCreateChannel(
+        settings.queue_logs_channel_id,
+        'queue-log',
+        [everyonePermsView[0], helperPerms],
+        'queue_logs_channel_id',
+      )
 
       await interaction.reply({
         content:
