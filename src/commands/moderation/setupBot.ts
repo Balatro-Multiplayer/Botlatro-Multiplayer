@@ -44,6 +44,7 @@ export default {
         .setRequired(true),
     ),
   async execute(interaction: ChatInputCommandInteraction) {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral })
     // ensure settings row exists
     try {
       const queueCategoryId = interaction.options.getChannel(
@@ -111,11 +112,9 @@ export default {
         // if channel id is in db, try to fetch channel from discord
         if (channelId) {
           console.log('in db')
-          existingChannel = client.channels.fetch(channelId)
-          if (!existingChannel.id) {
-            console.log('channel doesnt exist')
-            existingChannel = null
-          }
+          existingChannel = await client.channels.fetch(channelId).catch(() => {
+            console.log('Channel not found, skipping')
+          })
         }
 
         // if there is no channel id in db, create channel and add to db
@@ -141,7 +140,6 @@ export default {
             try {
               for (const channelId of Object.values(oldChannel)) {
                 let channel: any = null
-                console.log(channelId)
                 try {
                   channel = await client.channels.fetch(channelId.toString())
                 } catch {
@@ -237,10 +235,9 @@ export default {
         'queue_logs_channel_id',
       )
 
-      await interaction.reply({
+      await interaction.editReply({
         content:
           'Successfully setup queue bot! Use </create queue:1414248501742669938> to setup a queue and queue message.',
-        flags: MessageFlags.Ephemeral,
       })
     } catch (err: any) {
       console.error(err)
