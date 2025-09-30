@@ -2,13 +2,13 @@ import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  AutocompleteInteraction
+  AutocompleteInteraction,
 } from 'discord.js'
 
 import newQueue from '../moderation/newQueue'
 import addQueueRole from 'commands/moderation/addQueueRole'
-import { getQueueNames } from 'utils/queryDB';
-import queue from './queue';
+import queue from './queue'
+import addLeaderboardRole from '../moderation/addLeaderboardRole'
 
 export default {
   data: new SlashCommandBuilder()
@@ -97,18 +97,69 @@ export default {
             .setDescription('Maximum ELO')
             .setRequired(false)
             .setMinValue(1),
+        )
+        .addBooleanOption((option) =>
+          option
+            .setName('allow-best-of')
+            .setDescription('Allow best of 3 or 5 matches in queues.')
+            .setRequired(false)
+        )
+        .addNumberOption((option) =>
+          option
+            .setName('glicko-tau')
+            .setDescription('Custom glicko tau value for the queue, for glicko2 ELO calculation')
+            .setRequired(false)
+            .setMinValue(0.1)
+        ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('queue-leaderboard-role')
+        .setDescription(
+          'Create a queue leaderboard role for use in a specific queue.',
+        )
+        .addStringOption((option) =>
+          option
+            .setName('queue-name')
+            .setDescription(
+              'The queue you would like to add the queue leaderboard role to',
+            )
+            .setRequired(true)
+            .setAutocomplete(true),
+        )
+        .addRoleOption((option) =>
+          option
+            .setName('role')
+            .setDescription('The queue leaderboard role in discord')
+            .setRequired(true),
+        )
+        .addNumberOption((option) =>
+          option
+            .setName('leaderboard-min')
+            .setDescription(
+              'The minimum leaderboard rank to gain to have this role',
+            )
+            .setRequired(true),
+        )
+        .addNumberOption((option) =>
+          option
+            .setName('leaderboard-max')
+            .setDescription(
+              'The maximum leaderboard rank a user can have to have this role',
+            )
+            .setRequired(true),
         ),
     )
     .addSubcommand((sub) =>
       sub
         .setName('queue-role')
-        .setDescription(
-          'Create a queue rank role for use in a specific queue.',
-        )
+        .setDescription('Create a queue rank role for use in a specific queue.')
         .addStringOption((option) =>
           option
             .setName('queue-name')
-            .setDescription('The queue you would like to add the queue rank role to')
+            .setDescription(
+              'The queue you would like to add the queue rank role to',
+            )
             .setRequired(true)
             .setAutocomplete(true),
         )
@@ -123,16 +174,20 @@ export default {
             .setName('mmr-threshold')
             .setDescription('The minimum MMR to gain to have this role')
             .setRequired(true),
-        )
+        ),
     ),
   async execute(interaction: ChatInputCommandInteraction) {
     if (interaction.options.getSubcommand() === 'queue') {
-      await newQueue.execute(interaction);
+      await newQueue.execute(interaction)
     } else if (interaction.options.getSubcommand() === 'queue-role') {
-      await addQueueRole.execute(interaction);
+      await addQueueRole.execute(interaction)
+    } else if (
+      interaction.options.getSubcommand() === 'queue-leaderboard-role'
+    ) {
+      await addLeaderboardRole.execute(interaction)
     }
   },
   async autocomplete(interaction: AutocompleteInteraction) {
-      await queue.autocomplete(interaction);
-    },
+    await queue.autocomplete(interaction)
+  },
 }

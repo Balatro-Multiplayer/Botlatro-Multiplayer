@@ -1,4 +1,4 @@
-import { createQueueRole } from "../../utils/queryDB";
+import { createQueueRole } from '../../utils/queryDB'
 
 /**
  * Creates and adds a queue rank role to a queue.
@@ -8,7 +8,10 @@ import { createQueueRole } from "../../utils/queryDB";
  * @param {number} mmrThreshold - The minimum amount of MMR required to gain this role in the queue.
  * @return {Promise<boolean>} A promise that resolves to true if the queue role was created and added, otherwise false.
  */
-export async function addQueueRole(queueId: number, roleId: string, mmrThreshold: number): Promise<boolean> {
-    const roleCheck = await createQueueRole(queueId, roleId, mmrThreshold);
-    return roleCheck;
+export async function addQueueRole(
+  queueId: number,
+  roleId: string,
+  mmrThreshold: number,
+): Promise<boolean> {
+  return await createQueueRole(queueId, roleId, mmrThreshold)
 }

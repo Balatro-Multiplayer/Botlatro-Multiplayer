@@ -9,7 +9,7 @@ export default {
     try {
       const stakeChoice = await getRandomStake()
       const stakeStr = `${stakeChoice.stake_emote} ${stakeChoice.stake_name}`
-      interaction.reply({ content: stakeStr })
+      await interaction.reply({ content: stakeStr })
     } catch (err: any) {
       console.error(err)
       const errorMsg = err.detail || err.message || 'Unknown'

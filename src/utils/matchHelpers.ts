@@ -2,10 +2,8 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  CategoryChannel,
   ChannelType,
   EmbedBuilder,
-  MessageComponentInteraction,
   PermissionsBitField,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
@@ -20,14 +18,12 @@ import {
   getDecksInQueue,
   getMatchChannel,
   getMatchResultsChannel,
-  getMatchVoiceChannel,
   getQueueIdFromMatch,
   getQueueSettings,
-  getSettings,
   getStakeList,
-  getUserQueueRole,
   getWinningTeamFromMatch,
   isQueueGlicko,
+  setMatchStakeVoteTeam,
   setMatchVoiceChannel,
 } from './queryDB'
 import { Decks, MatchUsers, Stakes, teamResults } from 'psqlDB'
@@ -44,13 +40,17 @@ require('dotenv').config()
 
 dotenv.config()
 
-export async function getRandomDeck(includeCustomDecks: boolean = false): Promise<Decks> {
-  const randomDecks = await getDeckList(includeCustomDecks);
+export async function getRandomDeck(
+  includeCustomDecks: boolean = false,
+): Promise<Decks> {
+  const randomDecks = await getDeckList(includeCustomDecks)
   return randomDecks[Math.floor(Math.random() * randomDecks.length)]
 }
 
-export async function getRandomStake(includeCustomStakes: boolean = false): Promise<Stakes> {
-  const randomStakes = await getStakeList(includeCustomStakes);
+export async function getRandomStake(
+  includeCustomStakes: boolean = false,
+): Promise<Stakes> {
+  const randomStakes = await getStakeList(includeCustomStakes)
   return randomStakes[Math.floor(Math.random() * randomStakes.length)]
 }
 
@@ -63,15 +63,11 @@ export async function setupDeckSelect(
   bannedDecks: number[] = [],
   overrideDecks: number[] = [],
 ): Promise<ActionRowBuilder<StringSelectMenuBuilder>> {
-  let deckChoices = await getDeckList(includeCustomDecks);
-  deckChoices = deckChoices.filter(
-    (deck) => !bannedDecks.includes(deck.id),
-  )
+  let deckChoices = await getDeckList(includeCustomDecks)
+  deckChoices = deckChoices.filter((deck) => !bannedDecks.includes(deck.id))
 
   if (overrideDecks.length > 0) {
-    deckChoices = deckChoices.filter((deck) =>
-      overrideDecks.includes(deck.id),
-    )
+    deckChoices = deckChoices.filter((deck) => overrideDecks.includes(deck.id))
   }
 
   const options: StringSelectMenuOptionBuilder[] = deckChoices.map(
@@ -92,15 +88,74 @@ export async function setupDeckSelect(
   if (minSelect > 1) selectMenu.setMinValues(minSelect)
   if (maxSelect > 1) selectMenu.setMaxValues(maxSelect)
 
-  const selectRow =
-    new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu)
-
-  return selectRow
+  return new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
+    selectMenu,
+  )
 }
 
-export async function getTeamsInMatch(
+export async function setupStakeButtons(
   matchId: number,
-): Promise<{ team: number; users: MatchUsers[]; winRes: number }[]> {
+): Promise<ActionRowBuilder<ButtonBuilder>[]> {
+  const stakeRow: ActionRowBuilder<ButtonBuilder> = new ActionRowBuilder()
+  const vetoRow: ActionRowBuilder<ButtonBuilder> = new ActionRowBuilder()
+  let stakeList = await getStakeList()
+  // TODO: Make this queue dependent, maybe
+  stakeList = stakeList.filter(
+    (stake) =>
+      stake.stake_name !== 'Red Stake' &&
+      stake.stake_name !== 'Blue Stake' &&
+      stake.stake_name !== 'Orange Stake',
+  )
+
+  if (stakeList.length < 5)
+    throw new Error('Not enough stakes to do stake bans.')
+
+  const whiteStake =
+    stakeList.find((stake) => stake.stake_name == 'White Stake') ?? stakeList[0]
+  const greenStake =
+    stakeList.find((stake) => stake.stake_name == 'Green Stake') ?? stakeList[1]
+  const blackStake =
+    stakeList.find((stake) => stake.stake_name == 'Black Stake') ?? stakeList[2]
+  const purpleStake =
+    stakeList.find((stake) => stake.stake_name == 'Purple Stake') ??
+    stakeList[3]
+  const goldStake =
+    stakeList.find((stake) => stake.stake_name == 'Gold Stake') ?? stakeList[4]
+
+  stakeRow.addComponents(
+    new ButtonBuilder()
+      .setCustomId(`stake-${whiteStake.id}-0-${matchId}`)
+      .setEmoji(whiteStake.stake_emote)
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(`stake-${greenStake.id}-1-${matchId}`)
+      .setEmoji(greenStake.stake_emote)
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(`stake-${blackStake.id}-2-${matchId}`)
+      .setEmoji(blackStake.stake_emote)
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(`stake-${purpleStake.id}-3-${matchId}`)
+      .setEmoji(purpleStake.stake_emote)
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(`stake-${goldStake.id}-4-${matchId}`)
+      .setEmoji(goldStake.stake_emote)
+      .setStyle(ButtonStyle.Secondary),
+  )
+
+  vetoRow.addComponents(
+    new ButtonBuilder()
+      .setCustomId(`veto-stake`)
+      .setLabel(`VETO`)
+      .setStyle(ButtonStyle.Danger),
+  )
+
+  return [stakeRow, vetoRow]
+}
+
+export async function getTeamsInMatch(matchId: number): Promise<teamResults> {
   const matchUserRes: QueryResult<MatchUsers> = await pool.query(
     `
     SELECT * FROM match_users
@@ -132,26 +187,28 @@ export async function getTeamsInMatch(
   const winningTeamId = await getWinningTeamFromMatch(matchId)
 
   // if there is no matchUser instance then early return
-  if (matchUserRes.rowCount === 0) return []
+  if (matchUserRes.rowCount === 0) return { teams: [] }
 
-  type teamGroupType = { [key: number]: { users: any[]; winRes: number } }
+  type teamGroupType = { [key: number]: { users: any[]; score: number } }
   const teamGroups: teamGroupType = {}
 
   for (const user of userFull) {
     if (user.team === null) continue
 
     if (!teamGroups[user.team]) {
-      teamGroups[user.team] = { users: [], winRes: 0 }
+      teamGroups[user.team] = { users: [], score: 0 }
     }
     teamGroups[user.team].users.push(user)
-    teamGroups[user.team].winRes = user.team === winningTeamId ? 1 : 0
+    teamGroups[user.team].score = user.team === winningTeamId ? 1 : 0
   }
 
-  return Object.entries(teamGroups).map(([team, value]) => ({
-    team: Number(team),
-    users: value.users as MatchUsers[],
-    winRes: value.winRes,
-  }))
+  return {
+    teams: Object.entries(teamGroups).map(([team, value]) => ({
+      id: Number(team),
+      players: value.users as MatchUsers[],
+      score: value.score,
+    })),
+  }
 }
 
 export async function sendMatchInitMessages(
@@ -160,15 +217,15 @@ export async function sendMatchInitMessages(
   textChannel: TextChannel,
 ) {
   const teamData = await getTeamsInMatch(matchId)
-  const queueTeamSelectOptions: any[] = []
+  const queueTeamSelectOptions: StringSelectMenuOptionBuilder[] = []
   let teamPingString = ``
-  const queueName = await getQueueSettings(queueId, ['queue_name'])
+  const queueSettings = await getQueueSettings(queueId)
 
-  let teamFields: any[] = teamData.map(async (t: any, idx) => {
+  let teamFields: any = teamData.teams.map(async (t, idx) => {
     let teamQueueUsersData = await pool.query(
       `SELECT * FROM queue_users
       WHERE user_id = ANY($1) AND queue_id = $2`,
-      [t.users.map((u: any) => u.user_id), queueId],
+      [t.players.map((u) => u.user_id), queueId],
     )
 
     let teamString = ``
@@ -186,24 +243,23 @@ export async function sendMatchInitMessages(
         teamString += `\`${user.elo} MMR\`\n`
         onePersonTeamName = userDiscordInfo.displayName
       } else {
-        teamString += `**${userDiscordInfo.displayName}** - ${user.elo}\n`
+        teamString += `**${userDiscordInfo.displayName}** - ${user.elo} MMR\n`
       }
     }
 
     queueTeamSelectOptions.push(
       new StringSelectMenuOptionBuilder()
-        .setLabel(
-          onePersonTeam == true ? `${onePersonTeamName}` : `Team ${t.team}`,
-        )
+        .setLabel(onePersonTeam ? `${onePersonTeamName}` : `Team ${t.id}`)
         .setDescription(
-          `Select ${onePersonTeam == true ? `${onePersonTeamName}` : `team ${t.team}`} as the winner.`,
+          `Select ${onePersonTeam ? `${onePersonTeamName}` : `team ${t.id}`} as the winner.`,
         )
-        .setValue(`winmatch_${matchId}_${t.team}`),
+        .setValue(`winmatch_${matchId}_${t.id}`),
     )
 
     teamPingString += 'vs. '
     return {
-      name: onePersonTeam ? `${onePersonTeamName}` : `Team ${t.team}`,
+      name: onePersonTeam ? `${onePersonTeamName}` : `Team ${t.id}`,
+      players: t.players,
       value: teamString,
       inline: true,
       teamIndex: idx,
@@ -223,27 +279,34 @@ export async function sendMatchInitMessages(
   // Slice off the last vs.
   teamPingString = teamPingString.slice(0, -4)
 
-  queueGameComponents.push(
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`cancel-${matchId}`)
-        .setLabel('Cancel Match')
-        .setStyle(ButtonStyle.Danger),
-      new ButtonBuilder()
-        .setCustomId(`call-helpers-${matchId}`)
-        .setLabel('Call Helpers')
-        .setStyle(ButtonStyle.Primary),
-      new ButtonBuilder()
-        .setCustomId(`setup-vc-${matchId}`)
-        .setLabel('Setup VC')
-        .setStyle(ButtonStyle.Secondary),
-    ),
-  )
-
   const eloEmbed = new EmbedBuilder()
-    .setTitle(`${queueName.queue_name} Match #${matchId}`)
+    .setTitle(`${queueSettings.queue_name} Match #${matchId}`)
     .setFields(teamFields)
     .setColor(0xff0000)
+
+  eloEmbed.addFields({ name: 'Cancel Match Votes:', value: '-' })
+
+  const actionRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`cancel-${matchId}`)
+      .setLabel('Cancel Match')
+      .setStyle(ButtonStyle.Danger),
+    new ButtonBuilder()
+      .setCustomId(`call-helpers-${matchId}`)
+      .setLabel('Call Helpers')
+      .setStyle(ButtonStyle.Primary),
+  ) as ActionRowBuilder<ButtonBuilder>
+
+  if (queueSettings.best_of_allowed) {
+    actionRow.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`bo-vote-3-${matchId}`)
+        .setLabel('Vote BO3')
+        .setStyle(ButtonStyle.Success),
+    )
+  }
+
+  queueGameComponents.push(actionRow)
 
   const randomTeams: any[] = shuffle(teamFields)
 
@@ -254,7 +317,7 @@ export async function sendMatchInitMessages(
     )
     .setColor(0xff0000)
 
-  const deckList = await getDecksInQueue(queueId);
+  const deckList = await getDecksInQueue(queueId)
 
   const deckSelMenu = await setupDeckSelect(
     `deck-bans-1-${matchId}-${randomTeams[1].teamIndex}`,
@@ -263,18 +326,42 @@ export async function sendMatchInitMessages(
     5,
     true,
     [],
-    deckList.map(deck => deck.id),
+    deckList.map((deck) => deck.id),
   )
 
-  const mainMsg = await textChannel.send({
+  await setMatchStakeVoteTeam(matchId, randomTeams[0].teamIndex)
+  const stakeBanButtons = await setupStakeButtons(matchId)
+  const teamUsers = randomTeams[0].players
+    .map((user: MatchUsers) => `<@${user.user_id}>`)
+    .join('\n')
+
+  await textChannel.send({
     content: `# ${teamPingString}`,
     embeds: [eloEmbed],
     components: queueGameComponents,
   })
-  const deckMsg = await textChannel.send({ embeds: [deckEmbed], components: [deckSelMenu] })
+  await textChannel.send({ embeds: [deckEmbed], components: [deckSelMenu] })
+  await textChannel.send({
+    content: `Stake Bans:\n${teamUsers}`,
+    components: stakeBanButtons,
+  })
+}
 
-  await mainMsg.pin();
-  await deckMsg.pin();
+export async function setMatchWinner(
+  interaction: any,
+  matchId: number,
+  winningTeam: number,
+) {
+  await pool.query(`UPDATE matches SET winning_team = $1 WHERE id = $2`, [
+    winningTeam,
+    matchId,
+  ])
+  await endMatch(matchId)
+  await interaction.update({
+    content: 'The match has ended!',
+    embeds: [],
+    components: [],
+  })
 }
 
 export async function endMatch(
@@ -347,18 +434,14 @@ export async function endMatch(
   if (isGlicko) {
     // create our teamResults object here
     const teamResultsData: teamResults = {
-      teams: matchTeams.map((teamResult) => ({
-        id: teamResult.team,
-        score: teamResult.winRes as 0 | 0.5 | 1,
-        players: teamResult.users as MatchUsers[],
+      teams: matchTeams.teams.map((teamResult) => ({
+        id: teamResult.id,
+        score: teamResult.score as 0 | 0.5 | 1,
+        players: teamResult.players as MatchUsers[],
       })),
     }
 
-    teamResults = await calculateGlicko2(
-      queueId,
-      matchId,
-      teamResultsData,
-    )
+    teamResults = await calculateGlicko2(queueId, matchId, teamResultsData)
   }
 
   // build results embed
@@ -458,10 +541,13 @@ export async function deleteMatchChannel(matchId: number): Promise<boolean> {
 }
 
 // Setup match vc
-export async function setupMatchVoiceChannel(interaction: MessageComponentInteraction, matchId: number): Promise<VoiceChannel> {
+export async function setupMatchVoiceChannel(
+  interaction: any,
+  matchId: number,
+): Promise<VoiceChannel> {
   const matchUsers = await getTeamsInMatch(matchId)
-  const matchUsersArray = matchUsers.flatMap((t) =>
-    t.users.map((u) => u.user_id),
+  const matchUsersArray = matchUsers.teams.flatMap((t) =>
+    t.players.map((u) => u.user_id),
   )
   const channel: any = interaction.message.channel
   const category = channel?.parent
@@ -477,12 +563,15 @@ export async function setupMatchVoiceChannel(interaction: MessageComponentIntera
       },
       ...matchUsersArray.map((userId) => ({
         id: userId,
-        allow: [PermissionsBitField.Flags.Connect, PermissionsBitField.Flags.ViewChannel],
+        allow: [
+          PermissionsBitField.Flags.Connect,
+          PermissionsBitField.Flags.ViewChannel,
+        ],
       })),
     ],
   })) as VoiceChannel
 
-  await setMatchVoiceChannel(matchId, voiceChannel.id);
+  await setMatchVoiceChannel(matchId, voiceChannel.id)
 
   return voiceChannel
 }

@@ -129,7 +129,26 @@ export async function createQueueRole(
   return res.rowCount != 0
 }
 
-// create a queue role
+// create a leaderboard role
+export async function createLeaderboardRole(
+  queueId: number,
+  roleId: string,
+  leaderboardMin: number,
+  leaderboardMax: number,
+): Promise<boolean> {
+  const res = await pool.query(
+    `
+    INSERT INTO queue_roles (queue_id, role_id, leaderboard_min, leaderboard_max)
+    VALUES ($1, $2, $3, $4)
+    RETURNING queue_id
+  `,
+    [queueId, roleId, leaderboardMin, leaderboardMax],
+  )
+
+  return res.rowCount != 0
+}
+
+// delete a queue role
 export async function deleteQueueRole(
   queueId: number,
   roleId: string,
@@ -143,13 +162,28 @@ export async function deleteQueueRole(
   )
 }
 
-export async function getAllQueueRoles(queueId: number): Promise<QueueRoles[]> {
-  const res = await pool.query(
-    `
-    SELECT * FROM queue_roles WHERE queue_id = $1
-  `,
-    [queueId],
-  )
+export async function getAllQueueRoles(
+  queueId: number,
+  leaderboardOnly: boolean = false,
+): Promise<QueueRoles[]> {
+  let res
+  if (leaderboardOnly) {
+    res = await pool.query(
+      `
+      SELECT * FROM queue_roles
+      WHERE queue_id = $1 AND leaderboard_min IS NOT NULL
+    `,
+      [queueId],
+    )
+  } else {
+    res = await pool.query(
+      `
+      SELECT * FROM queue_roles
+      WHERE queue_id = $1
+    `,
+      [queueId],
+    )
+  }
 
   return res.rows
 }
@@ -175,6 +209,42 @@ export async function getUserQueueRole(
   if (res.rowCount === 0) return null
 
   return res.rows[0]
+}
+
+export async function getLeaderboardQueueRole(
+  queueId: number,
+  userId: string,
+): Promise<QueueRoles | null> {
+  const playersRes = await pool.query(
+    `
+    SELECT user_id
+    FROM queue_users
+    WHERE queue_id = $1
+    ORDER BY elo DESC
+    `,
+    [queueId],
+  )
+
+  if (playersRes.rowCount === 0) return null
+
+  const players: { user_id: string }[] = playersRes.rows
+  const rank = players.findIndex((p) => p.user_id === userId) + 1
+  if (rank === 0) return null
+
+  const roleRes = await pool.query(
+    `
+    SELECT *
+    FROM queue_roles
+    WHERE queue_id = $1
+      AND leaderboard_min <= $2
+      AND leaderboard_max >= $2
+    LIMIT 1
+    `,
+    [queueId, rank],
+  )
+
+  if (roleRes.rowCount === 0) return null
+  return roleRes.rows[0]
 }
 
 export async function getUserPreviousQueueRole(
@@ -219,6 +289,28 @@ export async function getStakeList(custom: boolean = true): Promise<Stakes[]> {
   return stakeList
 }
 
+export async function getStake(stakeId: number): Promise<Stakes | null> {
+  const res: QueryResult<Stakes> = await pool.query(
+    `SELECT * FROM stakes WHERE id = $1`,
+    [stakeId],
+  )
+
+  if (res.rowCount == 0) return null
+  return res.rows[0]
+}
+
+export async function getStakeByName(
+  stakeName: string,
+): Promise<Stakes | null> {
+  const res: QueryResult<Stakes> = await pool.query(
+    `SELECT * FROM stakes WHERE stake_name = $1`,
+    [stakeName],
+  )
+
+  if (res.rowCount == 0) return null
+  return res.rows[0]
+}
+
 // get all available decks in a queue
 export async function getDecksInQueue(queueId: number): Promise<Decks[]> {
   const res = await pool.query<Decks>(
@@ -258,6 +350,77 @@ export async function setQueueDeckBans(
       [queueId, deckId],
     )
   }
+}
+
+// Set the picked deck in the match data
+export async function setPickedMatchDeck(
+  matchId: number,
+  deckName: string,
+): Promise<void> {
+  await pool.query(
+    `
+    UPDATE matches
+    SET deck = $2
+    WHERE id = $1
+  `,
+    [matchId, deckName],
+  )
+}
+
+// Set the picked stake in the match data
+export async function setPickedMatchStake(
+  matchId: number,
+  stakeName: string,
+): Promise<void> {
+  await pool.query(
+    `
+    UPDATE matches
+    SET stake = $2
+    WHERE id = $1
+  `,
+    [matchId, stakeName],
+  )
+}
+
+// get stake voting team id
+export async function getMatchStakeVoteTeam(matchId: number): Promise<number> {
+  const res = await pool.query(
+    `
+    SELECT stake_vote_team_id FROM matches WHERE id = $1
+  `,
+    [matchId],
+  )
+
+  return res.rows[0].stake_vote_team_id
+}
+
+export async function setMatchStakeVoteTeam(
+  matchId: number,
+  teamId: number,
+): Promise<void> {
+  await pool.query(
+    `
+    UPDATE matches SET stake_vote_team_id = $2 WHERE id = $1
+  `,
+    [matchId, teamId],
+  )
+}
+
+export async function setMatchBestOf(
+  matchId: number,
+  bestOf: 3 | 5,
+): Promise<void> {
+  const isBo3 = bestOf === 3
+  const isBo5 = bestOf === 5
+  await pool.query(
+    `
+    UPDATE matches
+    SET best_of_3 = $2,
+        best_of_5 = $3
+    WHERE id = $1
+  `,
+    [matchId, isBo3, isBo5],
+  )
 }
 
 // get the match id from the match channel id
@@ -547,7 +710,7 @@ export async function removeUserFromParty(userId: string): Promise<void> {
   // check if party is empty, if so delete it
   const partyMembersCount = await getPartyUserList(partyId)
   if (partyMembersCount && partyMembersCount.length === 0) {
-    deleteParty(partyId)
+    await deleteParty(partyId)
   }
 }
 
@@ -729,15 +892,27 @@ export async function getPlayerElo(
 // gets a player's current volatility
 export async function getPlayerVolatility(
   userId: string,
+  queueId: number,
 ): Promise<number | null> {
-  return null
+  const response = await pool.query(
+    `SELECT volatility FROM queue_users WHERE user_id = $1 AND queue_id = $2`,
+    [userId, queueId],
+  )
+  if (response.rowCount === 0) return null
+  return response.rows[0].elo
 }
 
 // gets a player's current rating deviation
 export async function getPlayerDeviation(
   userId: string,
+  queueId: number,
 ): Promise<number | null> {
-  return null
+  const response = await pool.query(
+    `SELECT rating_deviation FROM queue_users WHERE user_id = $1 AND queue_id = $2`,
+    [userId, queueId],
+  )
+  if (response.rowCount === 0) return null
+  return response.rows[0].elo
 }
 
 // return whether a queue is glicko or openskill
@@ -895,7 +1070,7 @@ export async function getStatsCanvasUserData(
   queueId: number,
 ): Promise<StatsCanvasPlayerData> {
   const res: QueryResult<StatsCanvasPlayerData> = await pool.query(
-    /* sql */ `
+    `
     WITH player AS (
       SELECT
         qu.id,
