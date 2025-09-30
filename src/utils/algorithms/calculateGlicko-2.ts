@@ -4,8 +4,7 @@ import {
   getMatchData,
   ratingUtils,
   getWinningTeamFromMatch,
-  getUserQueueRole,
-} from '.././queryDB'
+} from '../queryDB'
 import type { teamResults } from 'psqlDB'
 import { setUserQueueRole } from 'utils/queueHelpers'
 
@@ -19,7 +18,7 @@ export async function calculateGlicko2(
   const settings = await getQueueSettings(matchData.queue_id)
 
   const glick = new Glicko2({
-    tau: 0.35,
+    tau: settings.glicko_tau,
     rating: settings.default_elo,
     rd: 100,
     vol: 0.08,

@@ -1,6 +1,6 @@
 import { Canvas, CanvasRenderingContext2D, loadImage } from 'skia-canvas'
 import { StatsCanvasPlayerData } from 'psqlDB'
-import { client } from 'client';
+import { client } from 'client'
 
 // --- Configuration & Data ---
 const config = {
@@ -316,6 +316,5 @@ export async function drawPlayerStatsCanvas(playerData: StatsCanvasPlayerData) {
   drawPreviousGames(ctx, playerData)
   drawGraph(ctx, playerData)
 
-  let pngData = await canvas.png;
-  return pngData;
+  return await canvas.png
 }

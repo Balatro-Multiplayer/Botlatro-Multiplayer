@@ -14,7 +14,15 @@ import {
   OverwriteType,
 } from 'discord.js'
 import { sendMatchInitMessages } from './matchHelpers'
-import { getSettings, getUserPreviousQueueRole, getUserQueueRole, getUsersInQueue, userInQueue } from './queryDB'
+import {
+  getAllQueueRoles,
+  getLeaderboardQueueRole,
+  getSettings,
+  getUserPreviousQueueRole,
+  getUserQueueRole,
+  getUsersInQueue,
+  userInQueue,
+} from './queryDB'
 import { Queues } from 'psqlDB'
 import { QueryResult } from 'pg'
 import { client } from '../client'
@@ -26,7 +34,9 @@ export async function updateQueueMessage(): Promise<Message | undefined> {
   )
 
   if (response.rows[0].queue_channel_id === null) {
-    throw new Error("No queue channel set in settings, try using '</setup-bot:1414248501956575232>' ")
+    throw new Error(
+      "No queue channel set in settings, try using '</setup-bot:1414248501956575232>' ",
+    )
   }
 
   const { queue_channel_id: queueChannelId, queue_message_id: queueMessageId } =
@@ -199,7 +209,7 @@ export async function matchUpGames(): Promise<void> {
       // Mark users as used
       users.forEach((u: Record<string, any>) => usedUsers.add(u.user_id))
 
-      createMatch(
+      await createMatch(
         users.map((u: Record<string, any>) => u.user_id),
         queueId,
       )
@@ -266,10 +276,10 @@ export async function createMatch(
     permissionOverwrites.push({
       id: settings.queue_helper_role_id,
       allow: [PermissionFlagsBits.ViewChannel],
-      type: OverwriteType.Role
+      type: OverwriteType.Role,
     })
   }
-  
+
   const channel = await guild.channels.create({
     name: 'reserved-match-channel',
     type: ChannelType.GuildText,
@@ -306,7 +316,7 @@ export async function createMatch(
 
     const member = await guild.members.fetch(userId)
     try {
-      member.send({
+      await member.send({
         embeds: [
           new EmbedBuilder()
             .setTitle('Match Found!')
@@ -317,7 +327,7 @@ export async function createMatch(
     } catch (err) {}
   }
 
-  updateQueueMessage()
+  await updateQueueMessage()
 
   // Send queue start messages
   await sendMatchInitMessages(queueId, matchId, channel)
@@ -341,17 +351,29 @@ export async function timeSpentInQueue(
   const timeSpent = Math.floor(joinTime.getTime() / 1000) // Convert to seconds for Discord timestamp
   return `<t:${timeSpent}:R>`
 }
-  
+
 // set queue roles
-export async function setUserQueueRole(queueId: number, userId: string): Promise<void> {
-  const currentRole = await getUserQueueRole(queueId, userId);
-  const previousRole = await getUserPreviousQueueRole(queueId, userId);
+export async function setUserQueueRole(
+  queueId: number,
+  userId: string,
+): Promise<void> {
+  const currentRole = await getUserQueueRole(queueId, userId)
+  const previousRole = await getUserPreviousQueueRole(queueId, userId)
+  const leaderboardRole = await getLeaderboardQueueRole(queueId, userId)
+  const allLeaderboardRoles = await getAllQueueRoles(queueId, true)
 
   const guild =
     client.guilds.cache.get(process.env.GUILD_ID!) ??
     (await client.guilds.fetch(process.env.GUILD_ID!))
-  const member = await guild.members.fetch(userId);
+  const member = await guild.members.fetch(userId)
 
-  if (currentRole) member.roles.add(currentRole.role_id);
-  if (previousRole) member.roles.remove(previousRole.role_id);
+  if (currentRole) await member.roles.add(currentRole.role_id)
+  if (previousRole) await member.roles.remove(previousRole.role_id)
+  if (leaderboardRole) {
+    await member.roles.add(leaderboardRole.role_id)
+  } else {
+    for (const lbRole of allLeaderboardRoles) {
+      await member.roles.remove(lbRole.role_id)
+    }
+  }
 }

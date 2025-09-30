@@ -28,6 +28,8 @@ export default {
     const maxPartyEloDifference =
       interaction.options.getInteger('max-party-elo-difference', false) ??
       Math.floor(defaultElo / 2)
+    const bestOf = interaction.options.getBoolean('allow-best-of', false) ?? false
+    const glickoTau = interaction.options.getNumber('glicko-tau', false) ?? 0.35
 
     try {
       const nameCheck = await pool.query(
@@ -45,8 +47,12 @@ export default {
       await pool.query(
         `
                 INSERT INTO queues
-				(queue_name, queue_desc, members_per_team, number_of_teams, elo_search_start, elo_search_increment, elo_search_speed, default_elo, minimum_elo, maximum_elo, max_party_elo_difference, locked)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+				(queue_name, queue_desc, members_per_team, number_of_teams, 
+				 elo_search_start, elo_search_increment, 
+				 elo_search_speed, default_elo, minimum_elo, 
+				 maximum_elo, max_party_elo_difference, locked,
+				 best_of_allowed, glicko_tau)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
                 `,
         [
           queueName,
@@ -61,6 +67,8 @@ export default {
           maximumElo ?? null,
           maxPartyEloDifference ?? null,
           false,
+          bestOf,
+          glickoTau,
         ],
       )
 

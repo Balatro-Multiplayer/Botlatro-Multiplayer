@@ -16,8 +16,6 @@ import * as path from 'path'
 import { glob } from 'glob'
 import { client } from '../client'
 
-const lockedUsers = new Set<string>()
-
 // delete old parties every 5 minutes
 export async function partyDeleteCronJob() {
   setInterval(

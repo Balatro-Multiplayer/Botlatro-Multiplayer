@@ -15,13 +15,17 @@ declare module 'psqlDB' {
     maximum_elo?: number | null
     max_party_elo_difference?: number | null
     locked: boolean
+    best_of_allowed: boolean
+    glicko_tau: number
   }
 
   export interface QueueRoles {
-    id: number,
-    queue_id: number,
-    role_id: string,
-    mmr_threshold: number
+    id: number
+    queue_id: number
+    role_id: string
+    mmr_threshold: number | null
+    leaderboard_min: number | null
+    leaderboard_max: number | null
   }
 
   export interface Parties {
@@ -46,6 +50,9 @@ declare module 'psqlDB' {
     winning_team: number | null
     created_at: Date
     match_vc_id: string
+    stake_vote_team_id: number
+    best_of_3: boolean
+    best_of_5: boolean
   }
 
   export interface Users {
@@ -118,7 +125,7 @@ declare module 'psqlDB' {
   export type teamResults = {
     teams: {
       id: number
-      score: 0 | 0.5 | 1
+      score: number
       players: MatchUsers[]
     }[]
   }
@@ -127,7 +134,6 @@ declare module 'psqlDB' {
     id: number
     deck_name: string
     deck_emote: string
-    deck_value: string
     deck_desc: string
     custom: boolean
   }
@@ -136,18 +142,17 @@ declare module 'psqlDB' {
     id: number
     stake_name: string
     stake_emote: string
-    stake_value: string
     stake_desc: string
     custom: boolean
   }
 
   export type StatsCanvasPlayerData = {
-    user_id: string,
-    name: string,
-    mmr: number,
-    peak_mmr: number,
-    stats: { label: string, value: string, percentile: string }[],
-    previous_games: { change: number, time: Date }[],
-    elo_graph_data: { date: Date, rating: number }[],
+    user_id: string
+    name: string
+    mmr: number
+    peak_mmr: number
+    stats: { label: string; value: string; percentile: string }[]
+    previous_games: { change: number; time: Date }[]
+    elo_graph_data: { date: Date; rating: number }[]
   }
 }
