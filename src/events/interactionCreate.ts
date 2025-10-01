@@ -327,6 +327,8 @@ export default {
         const startingTeamId = parseInt(parts[4])
         const matchTeams = await getTeamsInMatch(matchId)
         const deckOptions = await getDecksInQueue(queueId)
+        const queueSettings = await getQueueSettings(queueId)
+        const step2Amt = queueSettings.second_deck_ban_num
 
         // Determine which team is active for this step
         const activeTeamId = (startingTeamId + step) % 2
@@ -371,10 +373,10 @@ export default {
         const deckSelMenu = await setupDeckSelect(
           `deck-bans-${nextStep}-${matchId}-${startingTeamId}`,
           matchTeams.teams[nextTeamId].players.length > 1
-            ? `Team ${matchTeams.teams[nextTeamId].id}: Select ${nextStep === 2 ? 3 : 1} decks to play.`
-            : `${nextMember.displayName}: Select ${nextStep === 2 ? 3 : 1} decks to play.`,
-          nextStep === 2 ? 3 : 1,
-          nextStep === 2 ? 3 : 1,
+            ? `Team ${matchTeams.teams[nextTeamId].id}: Select ${nextStep === 2 ? step2Amt : 1} decks to play.`
+            : `${nextMember.displayName}: Select ${nextStep === 2 ? step2Amt : 1} decks to play.`,
+          nextStep === 2 ? step2Amt : 1,
+          nextStep === 2 ? step2Amt : 1,
           true,
           nextStep === 3 ? [] : deckChoices,
           nextStep === 3 ? deckChoices : deckOptions.map((deck) => deck.id),
