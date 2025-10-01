@@ -10,6 +10,7 @@
     "dev": "bun run --watch src/index.ts",
     "deploy-commands": "bun src/scripts/deploy-commands.ts",
     "migrate": "bunx node-pg-migrate up",
+    "migrate-down": "bunx node-pg-migrate down",
     "format": "prettier --write ."
   },
   "keywords": [],

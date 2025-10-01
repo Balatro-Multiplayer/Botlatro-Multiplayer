@@ -17,6 +17,8 @@ declare module 'psqlDB' {
     locked: boolean
     best_of_allowed: boolean
     glicko_tau: number
+    first_deck_ban_num: number
+    second_deck_ban_num: number
   }
 
   export interface QueueRoles {

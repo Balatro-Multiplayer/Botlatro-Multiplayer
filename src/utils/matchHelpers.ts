@@ -220,6 +220,7 @@ export async function sendMatchInitMessages(
   const queueTeamSelectOptions: StringSelectMenuOptionBuilder[] = []
   let teamPingString = ``
   const queueSettings = await getQueueSettings(queueId)
+  const deckBanFirstNum = queueSettings.first_deck_ban_num
 
   let teamFields: any = teamData.teams.map(async (t, idx) => {
     let teamQueueUsersData = await pool.query(
@@ -321,9 +322,9 @@ export async function sendMatchInitMessages(
 
   const deckSelMenu = await setupDeckSelect(
     `deck-bans-1-${matchId}-${randomTeams[1].teamIndex}`,
-    `${randomTeams[0].name}: Select 5 decks to ban.`,
-    5,
-    5,
+    `${randomTeams[0].name}: Select ${deckBanFirstNum} decks to ban.`,
+    deckBanFirstNum,
+    deckBanFirstNum,
     true,
     [],
     deckList.map((deck) => deck.id),
