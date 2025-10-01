@@ -116,7 +116,10 @@ export async function incrementEloCronJobAllQueues() {
             // Time-in-queue check
             const anyTooRecent = [candidates[i], candidates[j]].some(
               (candidate) => {
-                if (candidate.queueId === candidate.priorityQueueId || candidate.priorityQueueId === null)
+                if (
+                  candidate.queueId === candidate.priorityQueueId ||
+                  candidate.priorityQueueId === null
+                )
                   return false
 
                 const match = candidate.timeInQueue?.match(
@@ -165,7 +168,6 @@ export async function incrementEloCronJobAllQueues() {
 export async function deleteOldTranscriptsCronJob() {
   setInterval(
     async () => {
-      console.log('-- running deleteOldTranscriptsCronJob --')
       const guild = client.guilds.cache.get(process.env.GUILD_ID!)
 
       const pattern = path

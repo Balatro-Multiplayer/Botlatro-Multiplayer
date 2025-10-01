@@ -385,7 +385,7 @@ export default {
           .map((deck) => `${deck.deck_emote} - ${deck.deck_name}`)
 
         await channel.send({
-          content: `### ${step == 1 ? `Banned Decks:\n` : `Decks Picked:\n`}${deckPicks.join('\n')}`,
+          content: `<@${matchTeams.teams[nextTeamId].players[0].user_id}>\n### ${step == 1 ? `Banned Decks:\n` : `Decks Picked:\n`}${deckPicks.join('\n')}`,
           components: [deckSelMenu],
         })
       }
