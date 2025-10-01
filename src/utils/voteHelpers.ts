@@ -153,8 +153,14 @@ export async function handleTwoPlayerMatchVoting(
 
   interaction.message.embeds[0] = embed
 
+  await interaction.message.delete()
+  // @ts-ignore
+  await interaction.channel!.send({
+    embeds: interaction.message.embeds,
+    components: interaction.message.components,
+  })
+
   // Update the message with new embed
-  await interaction.update({ embeds: interaction.message.embeds })
 }
 
 export function getBestOfMatchScores(

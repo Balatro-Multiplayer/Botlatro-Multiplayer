@@ -102,14 +102,16 @@ export default {
           option
             .setName('allow-best-of')
             .setDescription('Allow best of 3 or 5 matches in queues.')
-            .setRequired(false)
+            .setRequired(false),
         )
         .addNumberOption((option) =>
           option
             .setName('glicko-tau')
-            .setDescription('Custom glicko tau value for the queue, for glicko2 ELO calculation')
+            .setDescription(
+              'Custom glicko tau value for the queue, for glicko2 ELO calculation',
+            )
             .setRequired(false)
-            .setMinValue(0.1)
+            .setMinValue(0.1),
         ),
     )
     .addSubcommand((sub) =>
