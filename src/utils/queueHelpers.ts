@@ -12,15 +12,21 @@ import {
   StringSelectMenuOptionBuilder,
   APIEmbedField,
   OverwriteType,
+  MessageFlags,
+  StringSelectMenuInteraction,
+  CommandInteraction,
 } from 'discord.js'
 import { sendMatchInitMessages } from './matchHelpers'
 import {
+  createQueueUser,
   getAllQueueRoles,
   getLeaderboardQueueRole,
   getSettings,
   getUserPreviousQueueRole,
   getUserQueueRole,
   getUsersInQueue,
+  partyUtils,
+  userInMatch,
   userInQueue,
 } from './queryDB'
 import { Queues } from 'psqlDB'
@@ -136,6 +142,108 @@ export async function updateQueueMessage(): Promise<Message | undefined> {
   }
 
   return queueMsg
+}
+
+export async function joinQueues(
+  interaction: StringSelectMenuInteraction | CommandInteraction,
+  selectedQueueIds: string[],
+  userId: string,
+): Promise<string[]> {
+  const allQueues: QueryResult<Queues> =
+    await pool.query(`SELECT * FROM queues`)
+
+  // party checks
+  const partyId = await partyUtils.getUserParty(userId)
+  if (partyId) {
+    const partyList = await partyUtils.getPartyUserList(partyId)
+    for (let qId of selectedQueueIds) {
+      const queueId = parseInt(qId)
+      const queue = allQueues.rows.find((q) => q.id === queueId)
+      if (queue && partyList && partyList.length > queue.members_per_team) {
+        await interaction.followUp({
+          content: `Your party has too many members for the ${queue.queue_name} queue.`,
+          flags: MessageFlags.Ephemeral,
+        })
+        return []
+      }
+    }
+
+    const isLeader = await pool.query(
+      `SELECT is_leader FROM party_users WHERE user_id = $1`,
+      [userId],
+    )
+    if (!(isLeader?.rows[0]?.is_leader ?? null)) {
+      await interaction.followUp({
+        content: `You're not the party leader.`,
+        flags: MessageFlags.Ephemeral,
+      })
+      return []
+    }
+
+    // TODO: check for bans
+  }
+
+  // in match check
+  const inMatch = await userInMatch(userId)
+  if (inMatch) {
+    const matchId = await pool.query(
+      `SELECT match_id FROM match_users WHERE user_id = $1`,
+      [userId],
+    )
+    const matchData = await pool.query(`SELECT * FROM matches WHERE id = $1`, [
+      matchId.rows[0].match_id,
+    ])
+
+    await interaction.followUp({
+      content: `You're already in a match! <#${matchData.rows[0].channel_id}>`,
+      flags: MessageFlags.Ephemeral,
+    })
+    return []
+  }
+
+  // ensure user exists, if it doesn't, create
+  const matchUser = await pool.query('SELECT * FROM users WHERE user_id = $1', [
+    userId,
+  ])
+
+  if (matchUser.rows.length < 1) {
+    await pool.query('INSERT INTO users (user_id) VALUES ($1)', [userId])
+  }
+
+  await pool.query(
+    `
+      UPDATE queue_users
+      SET queue_join_time = NULL
+      WHERE user_id = $1`,
+    [userId],
+  )
+
+  const joinedQueues: string[] = []
+  for (const qId of selectedQueueIds) {
+    const queueId = parseInt(qId)
+    const queue = allQueues.rows.find((q) => q.id === queueId)
+    if (!queue) continue
+
+    const res = await pool.query(
+      `
+        UPDATE queue_users
+        SET queue_join_time = NOW()
+        WHERE user_id = $1 AND queue_id = $2
+        RETURNING *;`,
+      [userId, queueId],
+    )
+
+    // if not already in that queue, insert
+    if (res.rows.length < 1) {
+      await createQueueUser(userId, queueId)
+    }
+
+    joinedQueues.push(queue.queue_name)
+  }
+
+  await updateQueueMessage()
+
+  return joinedQueues
 }
 
 // Matches up users in queues
