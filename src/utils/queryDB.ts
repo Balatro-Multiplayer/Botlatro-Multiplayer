@@ -13,6 +13,7 @@ import {
 } from 'psqlDB'
 import { client } from '../client'
 import { QueryResult } from 'pg'
+import { setUserQueueRole } from './queueHelpers'
 
 // Get the helper role
 export async function getHelperRoleId(): Promise<string | null> {
@@ -66,6 +67,23 @@ export async function getUserQueues(userId: string): Promise<Queues[]> {
   )
 
   return res.rows
+}
+
+// Create a queue user (or do nothing if one exists)
+export async function createQueueUser(
+  userId: string,
+  queueId: number,
+): Promise<void> {
+  const queueSettings = await getQueueSettings(queueId)
+
+  await pool.query(
+    `
+    INSERT INTO queue_users (user_id, elo, peak_elo, queue_id, queue_join_time)
+    VALUES ($1, $2::real, $2::real, $3, NOW())
+    ON CONFLICT (user_id, queue_id) DO NOTHING`,
+    [userId, queueSettings.default_elo, queueId],
+  )
+  await setUserQueueRole(queueId, userId)
 }
 
 // Set a priority queue for a user
