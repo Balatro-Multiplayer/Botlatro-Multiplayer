@@ -241,7 +241,7 @@ function getCombinations<T>(arr: T[], k: number): T[][] {
 export async function createMatch(
   userIds: string[],
   queueId: number,
-): Promise<void> {
+): Promise<any> {
   if (userIds.length === 0 || !queueId) {
     throw new Error('Wrong parameters provided for creating a match')
   }
@@ -331,6 +331,8 @@ export async function createMatch(
 
   // Send queue start messages
   await sendMatchInitMessages(queueId, matchId, channel)
+
+  return channel
 }
 
 // Get the time spent in queue in a discord timestamp

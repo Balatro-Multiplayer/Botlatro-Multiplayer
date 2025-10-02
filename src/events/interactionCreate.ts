@@ -5,6 +5,7 @@ import {
   ButtonBuilder,
   ButtonStyle,
   Events,
+  GuildMember,
   Interaction,
   MessageFlags,
   StringSelectMenuBuilder,
@@ -46,6 +47,8 @@ import {
   setMatchBestOf,
   userInMatch,
   userInQueue,
+  createQueueUser,
+  getSettings,
 } from '../utils/queryDB'
 import { QueryResult } from 'pg'
 import { Queues } from 'psqlDB'
@@ -201,12 +204,7 @@ export default {
 
           // if not already in that queue, insert
           if (res.rows.length < 1) {
-            await pool.query(
-              `INSERT INTO queue_users (user_id, elo, peak_elo, queue_id, queue_join_time)
-                        VALUES ($1, $2::real, $2::real, $3, NOW())`,
-              [interaction.user.id, queue.default_elo, queueId],
-            )
-            await setUserQueueRole(queueId, interaction.user.id)
+            await createQueueUser(interaction.user.id, queueId)
           }
 
           joinedQueues.push(queue.queue_name)
@@ -513,6 +511,32 @@ export default {
         }
         if (interaction.customId.startsWith('cancel-')) {
           const matchId = parseInt(interaction.customId.split('-')[1])
+          const botSettings = await getSettings()
+          const member = interaction.member as GuildMember
+
+          // Check if helper clicked the button
+          if (member) {
+            if (
+              member.roles.cache.has(botSettings.helper_role_id) ||
+              member.roles.cache.has(botSettings.queue_helper_role_id)
+            ) {
+              try {
+                await endMatch(matchId, true)
+                if (interaction.message) {
+                  await interaction.update({
+                    content: 'The match has been cancelled.',
+                    embeds: [],
+                    components: [],
+                  })
+                }
+                return
+              } catch (err) {
+                console.error('Error in onComplete:', err)
+              }
+            }
+          }
+
+          // Otherwise do normal vote
           const matchUsers = await getTeamsInMatch(matchId)
           const matchUsersArray = matchUsers.teams.flatMap((t) =>
             t.players.map((u) => u.user_id),
