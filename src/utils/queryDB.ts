@@ -1156,11 +1156,11 @@ export async function getStatsCanvasUserData(
     return { date: r.date, rating: running }
   })
 
-  const stats: { label: string; value: string }[] = [
-    { label: 'WINS', value: String(p.wins ?? 0) },
-    { label: 'LOSSES', value: String(p.losses ?? 0) },
-    { label: 'GAMES', value: String(p.games_played ?? 0) },
-    { label: 'WIN STREAK', value: String(p.win_streak ?? 0) },
+  const stats: { label: string; value: string; percentile: number }[] = [
+    { label: 'WINS', value: String(p.wins ?? 0), percentile: 10.2 },
+    { label: 'LOSSES', value: String(p.losses ?? 0), percentile: 10.2 },
+    { label: 'GAMES', value: String(p.games_played ?? 0), percentile: 10.2 },
+    { label: 'STREAK', value: String(p.win_streak ?? 0), percentile: 10.2 },
   ]
 
   const data: StatsCanvasPlayerData = {

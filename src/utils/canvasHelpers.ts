@@ -1,8 +1,17 @@
 import { Canvas, CanvasRenderingContext2D, loadImage } from 'skia-canvas'
 import { StatsCanvasPlayerData } from 'psqlDB'
 import { client } from 'client'
+import { FontLibrary } from 'skia-canvas'
+import path from 'path'
 
 // --- Configuration & Data ---
+const font = 'Roboto'
+
+FontLibrary.use(font, [
+  path.join(__dirname, '../fonts', `${font}-Regular.ttf`),
+  path.join(__dirname, '../fonts', `${font}-Bold.ttf`),
+])
+
 const config = {
   width: 868,
   height: 677,
@@ -20,13 +29,15 @@ const config = {
     graphLine: '#f31919',
   },
   fonts: {
-    ui: 'Arial',
-    title: 'bold 60px Arial',
-    value: 'bold 46px Arial',
-    label: 'bold 20px Arial',
-    small: '18px Arial',
-    percentile: 'bold 16px Arial',
-    gameList: 'bold 19px Arial',
+    ui: font,
+    title: `bold 55px ${font}`,
+    value: `bold 60px ${font}`,
+    stat_label: `bold 24px ${font}`,
+    label: `bold 20px ${font}`,
+    small: `bold 20px ${font}`,
+    graphSmall: `18px ${font}`,
+    percentile: `19px ${font}`,
+    gameList: `bold 19px ${font}`,
   },
 }
 
@@ -62,7 +73,13 @@ function drawBackground(ctx: CanvasRenderingContext2D) {
   // Top panel
   ctx.fillRect(0, 0, config.width, 150)
   // Middle panel
-  ctx.fillRect(config.padding, 170, config.width - config.padding * 2, 190)
+  ctx.fillRect(
+    config.padding,
+    170,
+    config.width - 300 - config.padding * 2,
+    190,
+  )
+  ctx.fillRect(config.width - 300, 170, config.width - 589, 190)
   // Bottom panel
   ctx.fillRect(
     config.padding,
@@ -81,7 +98,13 @@ async function drawAvatar(
 ) {
   const user = await client.users.fetch(playerData.user_id)
   const avatar = await loadImage(user.avatarURL({ extension: 'png' }))
+  ctx.save()
+  ctx.beginPath()
+  ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2)
+  ctx.closePath()
+  ctx.clip()
   ctx.drawImage(avatar, x, y, size, size)
+  ctx.restore()
 }
 
 async function drawHeader(
@@ -95,37 +118,40 @@ async function drawHeader(
     (await client.guilds.fetch(process.env.GUILD_ID!))
 
   const member = await guild.members.fetch(playerData.user_id)
+  const avatarY = (150 - 110) / 2
 
   // Avatar
-  await drawAvatar(ctx, padding + 10, 35, 70, playerData)
+  await drawAvatar(ctx, padding, avatarY, 110, playerData)
 
   // Player Name
   ctx.textAlign = 'left'
   ctx.font = config.fonts.label
   ctx.fillStyle = config.colors.textSecondary
-  ctx.fillText('PLAYER', padding + 98, 45)
+  ctx.fillText('PLAYER', padding + 128, 45)
 
   ctx.font = config.fonts.title
   ctx.fillStyle = config.colors.textPrimary
   ctx.textBaseline = 'middle'
-  ctx.fillText(member.displayName, padding + 95, 80)
+  ctx.fillText(member.displayName, padding + 125, 80)
 
   // Rank Bar (dynamic from DB)
   const barHeight = 22
-  const barWidth = padding + 180 * 2
-  const barX = padding + 160
+  const barWidth = padding + 120 * 2
+  const barX = padding + 195
   const barY = 115
   const rankColor = playerData.rank_color || config.colors.textTertiary
   const rankName = (playerData.rank_name || 'UNRANKED').toUpperCase()
 
   // draw bar background
-  ctx.fillStyle = rankColor
-  ctx.fillRect(barX, barY, barWidth, barHeight)
+  if (rankName != 'UNRANKED') {
+    ctx.fillStyle = rankColor
+    ctx.fillRect(barX, barY, barWidth, barHeight)
+  }
 
   // rank label
   ctx.fillStyle = rankColor
-  ctx.font = 'bold 18px Arial'
-  ctx.fillText(rankName, padding + 95, barY + barHeight - 12)
+  ctx.font = config.fonts.small
+  ctx.fillText(rankName, padding + 125, barY + barHeight - 12)
 
   // MMR
   ctx.textAlign = 'right'
@@ -140,7 +166,11 @@ async function drawHeader(
 
   ctx.font = config.fonts.small
   ctx.fillStyle = config.colors.textTertiary
-  ctx.fillText(`Best: ${playerData.peak_mmr}`, config.width - padding - 20, 120)
+  ctx.fillText(
+    `BEST: ${playerData.peak_mmr}`,
+    config.width - padding - 20,
+    barY + barHeight - 12,
+  )
 
   ctx.textAlign = 'left'
 }
@@ -154,16 +184,16 @@ function drawStats(
   const startY = 170
   const panelWidth = 450
 
-  const cellWidth = panelWidth / 4
+  const cellWidth = panelWidth / 3.5
   const valueOffsetY = 64
 
   playerData.stats.forEach((stat, i) => {
     const cx = startX + i * cellWidth + cellWidth / 2
-    const y = startY + 30
+    const y = startY + 35
 
     // Label (centered)
     ctx.textAlign = 'center'
-    ctx.font = config.fonts.label
+    ctx.font = config.fonts.stat_label
     ctx.fillStyle = config.colors.textSecondary
     ctx.fillText(stat.label, cx, y)
 
@@ -171,6 +201,13 @@ function drawStats(
     ctx.font = config.fonts.value
     ctx.fillStyle = config.colors.textPrimary
     ctx.fillText(stat.value, cx, y + valueOffsetY)
+
+    if (stat.percentile !== undefined) {
+      ctx.textAlign = 'center'
+      ctx.font = config.fonts.percentile
+      ctx.fillStyle = config.colors.textSecondary
+      ctx.fillText(`TOP ${stat.percentile}%`, cx, y + valueOffsetY + 60)
+    }
   })
 
   // reset text align
@@ -183,44 +220,47 @@ function drawPreviousGames(
   playerData: StatsCanvasPlayerData,
 ) {
   const statsPanelWidth = 550
-  const spacing = -10
+  const spacing = 135
   const startX = config.padding + statsPanelWidth + spacing
   const startY = 170
   const panelWidth = config.width - startX - config.padding
 
   // Label
-  ctx.font = config.fonts.label
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.font = config.fonts.stat_label
   ctx.fillStyle = config.colors.textSecondary
-  ctx.fillText('PREVIOUS GAMES', startX, startY + 25)
+  ctx.fillText('PREVIOUS GAMES', startX, startY + 35)
 
   // Game List
   ctx.font = config.fonts.gameList
   const lineHeight = 22
 
-  playerData.previous_games = playerData.previous_games.filter(
-    (game) => game.change !== 0,
-  )
+  // playerData.previous_games = playerData.previous_games.filter(
+  //   (game) => game.change !== 0,
+  // )
 
+  ctx.textAlign = 'left'
   playerData.previous_games.forEach((game, i) => {
-    const y = startY + 50 + i * lineHeight
+    const y = startY + 65 + i * lineHeight
     const numberText = `${i + 1}.`
     const resultText = `${game.change > 0 ? 'WIN' : 'LOSS'}`
-    const changeText = game.change
+    const changeText = `${game.change > 0 ? '+' : ''}${game.change}`
 
     // Result
     ctx.fillStyle = config.colors.textPrimary
-    ctx.fillText(numberText, startX, y)
+    ctx.fillText(numberText, startX - 120, y)
 
     // Result
     ctx.fillStyle = game.change > 0 ? config.colors.win : config.colors.lose
     const numberWidth = ctx.measureText(numberText).width
-    ctx.fillText(resultText, startX + numberWidth + 5, y)
+    ctx.fillText(resultText, startX + numberWidth - 105, y)
 
     // Change
     const resultWidth = ctx.measureText(resultText).width
     ctx.fillText(
       changeText.toString(),
-      startX + resultWidth + numberWidth + 13,
+      startX + resultWidth + numberWidth - 98,
       y,
     )
 
@@ -228,9 +268,11 @@ function drawPreviousGames(
     ctx.fillStyle = config.colors.textSecondary
     ctx.textAlign = 'right'
     const gameTimeDate = new Date(game.time)
-    ctx.fillText(timeAgo(gameTimeDate), startX + panelWidth - 35, y)
-    ctx.textAlign = 'left' // Reset
+    ctx.fillText(timeAgo(gameTimeDate), startX + panelWidth - 20, y)
+    ctx.textAlign = 'left'
   })
+
+  ctx.textBaseline = 'top'
 }
 
 function drawGraph(
@@ -251,7 +293,7 @@ function drawGraph(
   // --- Draw Grid and Labels ---
   ctx.strokeStyle = config.colors.gridLines
   ctx.lineWidth = 1
-  ctx.font = config.fonts.small
+  ctx.font = config.fonts.graphSmall
   ctx.fillStyle = config.colors.textSecondary
   ctx.textAlign = 'right'
 
@@ -278,7 +320,7 @@ function drawGraph(
 
   // Vertical grid lines and X-axis labels
   ctx.textAlign = 'center'
-  data.forEach((point, i) => {
+  data.forEach((_point, i) => {
     const x = area.x + (i / (data.length - 1)) * area.width
 
     ctx.beginPath()
