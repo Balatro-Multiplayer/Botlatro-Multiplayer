@@ -1,9 +1,9 @@
-import { Player, Glicko2 } from 'glicko2'
+import { Glicko2, Player } from 'glicko2'
 import {
-  getQueueSettings,
   getMatchData,
-  ratingUtils,
+  getQueueSettings,
   getWinningTeamFromMatch,
+  ratingUtils,
 } from '../queryDB'
 import type { teamResults } from 'psqlDB'
 import { setUserQueueRole } from 'utils/queueHelpers'
@@ -84,8 +84,8 @@ export async function calculateGlicko2(
     }
   }
 
-  await setUserQueueRole(queueId, teamResults.teams[0].players[0].user_id);
-  await setUserQueueRole(queueId, teamResults.teams[1].players[0].user_id);
+  await setUserQueueRole(queueId, teamResults.teams[0].players[0].user_id)
+  await setUserQueueRole(queueId, teamResults.teams[1].players[0].user_id)
 
   return teamResults
 }
