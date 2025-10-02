@@ -172,7 +172,6 @@ class Channel extends Settings {
     await other.updateMe()
     this.categoryId = newCatId
     other.categoryId = oldCatId
-    console.log(this.categoryId, ',', other.categoryId)
 
     // doesn't exist
     if (!(await other.isExists())) {
@@ -304,7 +303,6 @@ export default {
     )
 
     // update info based on database and add guild instance
-    console.log('adding guild')
     await oldChannels.updateAll()
 
     // insert parameters into DB
