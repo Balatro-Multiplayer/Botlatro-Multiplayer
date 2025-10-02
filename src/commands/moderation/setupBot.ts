@@ -162,16 +162,17 @@ class Channel extends Settings {
         break
     }
     await this.addGuild()
-    await this.updateCategory()
+    // await this.updateCategory()
   }
 
   // runs comparisons for self and other to decide on what action to take (re-create, leave, create)
   // self should be the more recent channel, other should be the old channel data
   // return false means nothing was done, true means something was done
-  async compare(other: Channel, newCatId: string) {
+  async compare(other: Channel, newCatId: string, oldCatId: string) {
     await other.updateMe()
     this.categoryId = newCatId
-    console.log('id:', other.id)
+    other.categoryId = oldCatId
+    console.log(this.categoryId, ',', other.categoryId)
 
     // doesn't exist
     if (!(await other.isExists())) {
@@ -183,7 +184,6 @@ class Channel extends Settings {
 
     // does exist but wrong category
     else if (this.categoryId !== other.categoryId) {
-      console.log(this.categoryId, ',', other.categoryId)
       console.log('wrong category: re-creating channel')
       await other.deleteMe()
       await this.createMe()
@@ -238,11 +238,11 @@ class Channels extends Channel {
   }
 
   // runs comparisons on all channel pairs
-  async compareAll(old: Channels, newCatId: string) {
-    await this.q.compare(old.q, newCatId)
-    await this.qResults.compare(old.qResults, newCatId)
-    await this.logs.compare(old.logs, newCatId)
-    await this.qLogs.compare(old.qLogs, newCatId)
+  async compareAll(old: Channels, newCatId: string, oldCatId: string) {
+    await this.q.compare(old.q, newCatId, oldCatId)
+    await this.qResults.compare(old.qResults, newCatId, oldCatId)
+    await this.logs.compare(old.logs, newCatId, oldCatId)
+    await this.qLogs.compare(old.qLogs, newCatId, oldCatId)
   }
 }
 
@@ -280,6 +280,12 @@ export default {
     const guild =
       client.guilds.cache.get(process.env.GUILD_ID!) ??
       (await client.guilds.fetch(process.env.GUILD_ID!))
+
+    // old category id
+    const res = await pool.query(
+      `SELECT * FROM settings WHERE singleton = true`,
+    )
+    const oldCatId = res.rows[0]
 
     // command params
     const queueCategoryId: any =
@@ -331,7 +337,7 @@ export default {
     await newChannels.addGuild()
 
     // resolve conflicts until only left with correct channels existing
-    await newChannels.compareAll(oldChannels, queueCategoryId)
+    await newChannels.compareAll(oldChannels, queueCategoryId, oldCatId)
 
     await interaction.editReply('channels created successfully!')
   },
