@@ -112,6 +112,7 @@ export class AddStrike extends CommandFactory {
   title: string = 'ADD STRIKE'
 }
 
+// distilled process to log an EmbedType object
 export async function logStrike(type: string, embed: EmbedType) {
   // build strike child class using type as parameter in factory
   const strike = CommandFactory.build(type)
@@ -125,4 +126,23 @@ export async function logStrike(type: string, embed: EmbedType) {
   // send embed to logging channel
   await strike.setLogChannel()
   await strike.logCommand()
+}
+
+// helper for building EmbedType object
+export function createEmbedType(
+  title: string | null = null,
+  description: string | null = null,
+  color: number | null = null,
+  fields: EmbedField[] | null = null,
+  footer: { text: string } | null = null,
+  blame: string | null = null,
+): EmbedType {
+  return {
+    title: title,
+    description: description,
+    color: color,
+    fields: fields,
+    footer: footer,
+    blame: blame,
+  }
 }
