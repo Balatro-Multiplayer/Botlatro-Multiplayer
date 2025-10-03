@@ -2,7 +2,7 @@ import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
 import { calculateExpiryDate } from 'utils/calculateExpiryDate'
 import { logCommandUse } from 'utils/logCommandUse'
 import { strikeUtils } from 'utils/queryDB'
-import { getLoggingThread } from 'utils/getLoggingThread'
+import { getLoggingChannels } from '../../../utils/getLoggingChannels'
 import { client } from '../../../client'
 
 export default {
@@ -35,7 +35,7 @@ export default {
 
       const username = (await client.users.fetch(user.id)).username
 
-      const threadId = await getLoggingThread(2)
+      const threadId = await getLoggingChannels(2)
       await logCommandUse(interaction, threadId)
       await interaction.editReply(
         `User ${username} given ${amount} strikes ${reason == 'No reason provided' ? `for ${reason}` : ``}`,

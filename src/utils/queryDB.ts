@@ -1196,12 +1196,27 @@ export async function getUserStrikes(userId: string): Promise<Strikes[]> {
   return res.rows
 }
 
+// get strike row based on id
+export async function getStrikeFromId(id: string): Promise<Strikes> {
+  const res = await pool
+    .query(`SELECT * FROM strikes WHERE id = $1`, [id])
+    .catch()
+  return res.rows[0]
+}
+
+// delete a strike using the id
+export async function deleteStrikeById(id: string): Promise<void> {
+  await pool.query(`DELETE FROM strikes WHERE id = $1`, [id]).catch()
+}
+
 // get all users with strikes
 export async function getUserIdsWithStrikes(): Promise<string[]> {
-  const res = await pool.query(
-    `
+  const res = await pool
+    .query(
+      `
     SELECT user_id FROM strikes
     `,
-  )
-  return res.rows.map((user) => user.user_id)
+    )
+    .catch()
+  return res?.rows.map((user) => user.user_id)
 }

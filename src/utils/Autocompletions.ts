@@ -28,15 +28,19 @@ export async function strikeSearchAutoComplete(
         }
       }),
     )
-    const response = filteredStrikes.map(
-      (fs) =>
-        `${fs.id ?? ''} | ${fs.reason ?? ''} | ${fs.ref ?? ''} | ${fs.issuedBy ?? ''}`,
-    )
+    const response = filteredStrikes.map((fs) => {
+      if (fs.id || fs.reason || fs.ref || fs.issuedBy)
+        return `${fs.id ? fs.id + ' |' : ''} ${fs.reason ? fs.reason + ' |' : ''} ${fs.ref ? fs.ref + ' |' : ''} ${fs.issuedBy ? fs.issuedBy + ' |' : ''}`
+      else return ''
+    })
     await interaction.respond(
-      response.slice(0, 25).map((res) => ({
-        name: res,
-        value: res,
-      })),
+      response
+        .slice(0, 25)
+        .map((res) => ({
+          name: res,
+          value: res,
+        }))
+        .filter((response) => response.value !== ''),
     )
   } catch (err: any) {
     console.log(err)

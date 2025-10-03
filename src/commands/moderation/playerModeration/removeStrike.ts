@@ -1,18 +1,14 @@
 import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
+import { deleteStrikeById, getStrikeFromId } from '../../../utils/queryDB'
 
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
     try {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral })
       const discordChannel = interaction.channel
-      const user = interaction.options.getUser('user', true)
-      const amount = interaction.options.getInteger('amount', true)
-      const reason =
-        interaction.options.getString('reason', false) || 'No reason provided'
-      const reference =
-        interaction.options.getString('reference channel', false) ||
-        discordChannel ||
-        'No reference provided'
+      const strikeId = interaction.options.getString('user', true)
+      const s = await getStrikeFromId(strikeId)
+      await deleteStrikeById(strikeId)
     } catch (err: any) {
       console.error(err)
     }
