@@ -91,12 +91,14 @@ export default {
       if (parameterName === 'user') {
         // display list of users with a strike
         const userIds = await strikeUtils.getUserIdsWithStrikes()
-
         const users = await Promise.all(
           userIds.map((userId) => client.users.fetch(userId)),
         )
+        const userSet = users.filter(
+          (user, index, self) => self.indexOf(user) === index,
+        )
         await interaction.respond(
-          users.slice(0, 25).map((user) => ({
+          userSet.slice(0, 25).map((user) => ({
             name: user.username,
             value: user.id,
           })),
