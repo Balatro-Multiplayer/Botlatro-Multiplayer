@@ -1,6 +1,8 @@
 // Types for the database stuff
 
 declare module 'psqlDB' {
+  import { EmbedField } from 'discord.js'
+
   export interface Queues {
     id: number
     queue_name: string
@@ -154,5 +156,14 @@ declare module 'psqlDB' {
     stats: { label: string; value: string; percentile: string }[]
     previous_games: { change: number; time: Date }[]
     elo_graph_data: { date: Date; rating: number }[]
+  }
+
+  export type EmbedType = {
+    title: string | null
+    description: string | null
+    color: number | null
+    fields: EmbedField[] | null
+    footer: { text: string } | null
+    blame: string | null
   }
 }

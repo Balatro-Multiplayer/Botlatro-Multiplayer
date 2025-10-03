@@ -1,20 +1,18 @@
-import { EmbedBuilder } from 'discord.js'
+import { EmbedBuilder, EmbedField } from 'discord.js'
 import { pool } from '../db'
 import { client } from '../client'
+import { EmbedType } from 'psqlDB'
 
-export type embedField = {
-  name: string
-  value: string
-}
+// import { EmbedType } from 'psqlDB'
 
 export abstract class Embed {
   channel: any = null
   embed: any = null
-  embedFields: embedField[] = []
+  embedFields: EmbedField[] = []
   color: number = 10070709 // grey
   title: string = 'TITLE'
   description: string = 'description'
-  blame: any = null
+  blame: string = ''
 
   // create embed based on instance values
   public createEmbed() {
@@ -27,7 +25,7 @@ export abstract class Embed {
   }
 
   // set fields in instance
-  public setFields(fields: embedField[]) {
+  public setFields(fields: EmbedField[]) {
     this.embedFields = fields
   }
 
@@ -53,6 +51,16 @@ export abstract class Embed {
   }
   public setTitle(title: string) {
     this.title = title
+  }
+  public setBlame(blame: string) {
+    this.blame = blame
+  }
+
+  public setAll(e: EmbedType) {
+    if (e.title) this.setTitle(e.title)
+    if (e.color) this.setColor(e.color)
+    if (e.blame) this.setBlame(e.blame)
+    if (e.fields) this.setFields(e.fields)
   }
 
   // get logging channel (constant for all logs for now)
@@ -90,11 +98,8 @@ export class CommandFactory extends Embed {
 }
 
 export class General extends CommandFactory {
-  constructor(color: number = 10070709, title: string = 'COMMAND LOGGED') {
-    super()
-    this.color = color
-    this.title = title
-  }
+  color: number = 10070709 // grey
+  title: string = 'COMMAND LOGGED'
 }
 
 export class RemoveStrike extends CommandFactory {
@@ -107,4 +112,17 @@ export class AddStrike extends CommandFactory {
   title: string = 'ADD STRIKE'
 }
 
-// const addStrike = CommandFactory.build('strike') as AddStrike
+export async function logStrike(type: string, embed: EmbedType) {
+  // build strike child class using type as parameter in factory
+  const strike = CommandFactory.build(type)
+  if (!strike) return
+
+  // build embed using info from an EmbedType object
+  strike.setAll(embed)
+  strike.createEmbed()
+  strike.addFields()
+
+  // send embed to logging channel
+  await strike.getLogChannel()
+  await strike.logCommand()
+}
