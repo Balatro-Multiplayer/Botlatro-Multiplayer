@@ -64,7 +64,7 @@ export abstract class Embed {
   }
 
   // get logging channel (constant for all logs for now)
-  public async getLogChannel() {
+  public async setLogChannel() {
     const res = await pool.query(
       `SELECT * FROM settings WHERE singleton = true`,
     )
@@ -123,6 +123,6 @@ export async function logStrike(type: string, embed: EmbedType) {
   strike.addFields()
 
   // send embed to logging channel
-  await strike.getLogChannel()
+  await strike.setLogChannel()
   await strike.logCommand()
 }
