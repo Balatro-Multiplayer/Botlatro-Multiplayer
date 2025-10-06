@@ -6,8 +6,7 @@ import {
   AutocompleteInteraction,
 } from 'discord.js'
 import { createMatch } from '../../utils/queueHelpers'
-import { getQueueIdFromName } from '../../utils/queryDB'
-import changeMMR from './changeMMR'
+import { createQueueUser, getQueueIdFromName } from '../../utils/queryDB'
 import queue from '../superCommands/queue'
 
 export default {
@@ -49,6 +48,10 @@ export default {
 
       const firstUser = interaction.options.getUser('first-user', true)
       const secondUser = interaction.options.getUser('second-user', true)
+
+      for (let user of [firstUser, secondUser]) {
+        await createQueueUser(user.id, queueId)
+      }
 
       const matchChannel = await createMatch(
         [firstUser.id, secondUser.id],

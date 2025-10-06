@@ -22,7 +22,6 @@ import {
 import {
   endMatch,
   getTeamsInMatch,
-  setMatchWinner,
   setupDeckSelect,
 } from '../utils/matchHelpers'
 import {
@@ -47,6 +46,7 @@ import {
   userInQueue,
   getSettings,
   partyUtils,
+  setWinningTeam,
 } from '../utils/queryDB'
 import {
   handleTwoPlayerMatchVoting,
@@ -147,6 +147,22 @@ export default {
           t.players.map((u) => u.user_id),
         )
 
+        const botSettings = await getSettings()
+        const member = interaction.member as GuildMember
+        const winMatchData: string[] = interaction.values[0].split('_')
+        const winMatchTeamId = parseInt(winMatchData[2])
+
+        // Check if helper clicked the button
+        if (member) {
+          if (
+            member.roles.cache.has(botSettings.helper_role_id) ||
+            member.roles.cache.has(botSettings.queue_helper_role_id)
+          ) {
+            await setWinningTeam(matchId, winMatchTeamId)
+            await endMatch(matchId)
+          }
+        }
+
         await handleTwoPlayerMatchVoting(interaction, {
           participants: matchUsersArray,
           onComplete: async (interaction, winner) => {
@@ -160,7 +176,7 @@ export default {
             const isBo5 = matchDataObj.best_of_5
 
             if (!isBo3 && !isBo5) {
-              await setMatchWinner(interaction, matchId, winner)
+              await endMatch(matchId)
               return
             }
 
@@ -205,7 +221,7 @@ export default {
             }
 
             if (winningTeam) {
-              await setMatchWinner(interaction, matchId, winningTeam)
+              await endMatch(matchId)
               return
             }
 
@@ -399,51 +415,44 @@ export default {
           const botSettings = await getSettings()
           const member = interaction.member as GuildMember
 
-          // Check if helper clicked the button
-          if (member) {
-            if (
-              member.roles.cache.has(botSettings.helper_role_id) ||
-              member.roles.cache.has(botSettings.queue_helper_role_id)
-            ) {
-              try {
-                await endMatch(matchId, true)
-                if (interaction.message) {
-                  await interaction.update({
-                    content: 'The match has been cancelled.',
-                    embeds: [],
-                    components: [],
-                  })
-                }
-              } catch (err) {
-                console.error('Error in onComplete:', err)
-              }
-            }
-          }
-
-          // Otherwise do normal vote
           const matchUsers = await getTeamsInMatch(matchId)
           const matchUsersArray = matchUsers.teams.flatMap((t) =>
             t.players.map((u) => u.user_id),
           )
 
+          async function cancel(interaction: any, matchId: number) {
+            try {
+              await endMatch(matchId, true)
+              if (interaction.message) {
+                await interaction.update({
+                  content: 'The match has been cancelled.',
+                  embeds: [],
+                  components: [],
+                })
+              }
+            } catch (err) {
+              console.error('Error in finishing match:', err)
+            }
+          }
+
+          // Check if helper clicked the button
+          if (member) {
+            if (
+              (member.roles.cache.has(botSettings.helper_role_id) ||
+                member.roles.cache.has(botSettings.queue_helper_role_id)) &&
+              !matchUsersArray.includes(interaction.user.id)
+            )
+              await cancel(interaction, matchId)
+          }
+
+          // Otherwise do normal vote
           try {
             await handleVoting(interaction, {
               voteType: 'Cancel Match Votes',
               embedFieldIndex: 2,
               participants: matchUsersArray,
               onComplete: async (interaction) => {
-                try {
-                  await endMatch(matchId, true)
-                  if (interaction.message) {
-                    await interaction.update({
-                      content: 'The match has been cancelled.',
-                      embeds: [],
-                      components: [],
-                    })
-                  }
-                } catch (err) {
-                  console.error('Error in onComplete:', err)
-                }
+                await cancel(interaction, matchId)
               },
             })
           } catch (err) {
@@ -524,6 +533,7 @@ export default {
             voteType: voteFieldName,
             embedFieldIndex: 3,
             participants: matchUsersArray,
+            resendOnVote: true,
             onComplete: async (interaction, { embed }) => {
               const rows = interaction.message.components.map((row) =>
                 ActionRowBuilder.from(row as any),
