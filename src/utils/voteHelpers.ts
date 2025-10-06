@@ -17,11 +17,13 @@ export async function handleVoting(
       interaction: MessageComponentInteraction,
       extra: { embed: Embed; votes?: string[] },
     ) => {}, // callback when all participants vote
+    resendOnVote = false,
   },
 ) {
   if (!interaction.message)
     return console.error('No message found in interaction')
   const embed = interaction.message.embeds[0]
+  if (!embed) return console.error('No embed found in message')
   const fields = embed.data.fields
   if (!fields) return console.error('No fields found in embed')
 
@@ -72,7 +74,17 @@ export async function handleVoting(
 
   // Update embed with new votes
   interaction.message.embeds[0] = embed
-  await interaction.update({ embeds: interaction.message.embeds })
+
+  if (resendOnVote) {
+    await interaction.message.delete()
+    // @ts-ignore
+    await interaction.channel!.send({
+      embeds: interaction.message.embeds,
+      components: interaction.message.components,
+    })
+  } else {
+    await interaction.update({ embeds: interaction.message.embeds })
+  }
 }
 
 export async function handleTwoPlayerMatchVoting(
@@ -102,6 +114,24 @@ export async function handleTwoPlayerMatchVoting(
     })
   }
 
+  // Check if user already voted for this team
+  let userAlreadyVotedForThisTeam = false
+  const targetFieldIndex = winMatchTeamId - 1 // Teams start at 1
+  if (targetFieldIndex >= 0 && targetFieldIndex < fields.length) {
+    const targetField = fields[targetFieldIndex]
+    if (
+      !targetField.name.includes('Cancel Match') &&
+      !targetField.name.includes('Votes')
+    ) {
+      const targetLines = targetField.value?.split('\n') || []
+      const targetVoteLines = targetLines.filter(
+        (l) =>
+          l.trim() !== '' && !l.includes('MMR') && !l.includes('Win Votes'),
+      )
+      userAlreadyVotedForThisTeam = targetVoteLines.includes(userTag)
+    }
+  }
+
   for (let i = 0; i < fields.length; i++) {
     if (
       fields[i].name.includes('Cancel Match') ||
@@ -120,11 +150,16 @@ export async function handleTwoPlayerMatchVoting(
     if (idx !== -1) voteLines.splice(idx, 1)
 
     // Teams start at 1
-    if (winMatchTeamId == i + 1) voteLines.push(userTag)
+    // Only add vote if user didn't already vote for this team
+    if (winMatchTeamId == i + 1 && !userAlreadyVotedForThisTeam) {
+      voteLines.push(userTag)
+    }
 
     let newValue = mmrLine
-    newValue += `\nWin Votes`
-    if (voteLines.length > 0) newValue += '\n' + voteLines.join('\n')
+    if (voteLines.length > 0) {
+      newValue += `\nWin Votes`
+      newValue += '\n' + voteLines.join('\n')
+    }
 
     fields[i].value = newValue || '\u200b'
 
@@ -153,8 +188,14 @@ export async function handleTwoPlayerMatchVoting(
 
   interaction.message.embeds[0] = embed
 
+  await interaction.message.delete()
+  // @ts-ignore
+  await interaction.channel!.send({
+    embeds: interaction.message.embeds,
+    components: interaction.message.components,
+  })
+
   // Update the message with new embed
-  await interaction.update({ embeds: interaction.message.embeds })
 }
 
 export function getBestOfMatchScores(

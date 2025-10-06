@@ -1,8 +1,17 @@
 import { Canvas, CanvasRenderingContext2D, loadImage } from 'skia-canvas'
 import { StatsCanvasPlayerData } from 'psqlDB'
 import { client } from 'client'
+import { FontLibrary } from 'skia-canvas'
+import path from 'path'
 
 // --- Configuration & Data ---
+const font = 'Capitana'
+
+FontLibrary.use(font, [
+  path.join(__dirname, '../fonts', `${font}-Regular.otf`),
+  path.join(__dirname, '../fonts', `${font}-Bold.otf`),
+])
+
 const config = {
   width: 868,
   height: 677,
@@ -20,41 +29,43 @@ const config = {
     graphLine: '#f31919',
   },
   fonts: {
-    ui: 'Arial',
-    title: 'bold 60px Arial',
-    value: 'bold 46px Arial',
-    label: 'bold 20px Arial',
-    small: '18px Arial',
-    percentile: 'bold 16px Arial',
-    gameList: 'bold 19px Arial',
+    ui: font,
+    title: `bold 52px ${font}`,
+    value: `bold 42px ${font}`,
+    stat_label: `bold 24px ${font}`,
+    label: `bold 18px ${font}`,
+    small: `bold 20px ${font}`,
+    graphSmall: `16px ${font}`,
+    percentile: `19px ${font}`,
+    gameList: `17px ${font}`,
   },
 }
 
 function timeAgo(date: Date) {
-  const now = new Date();
-  const past = new Date(date);
-  const diffMs = now.getTime() - past.getTime();
+  const now = new Date()
+  const past = new Date(date)
+  const diffMs = now.getTime() - past.getTime()
 
-  const seconds = Math.floor(diffMs / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-  const weeks = Math.floor(days / 7);
-  const months = Math.floor(days / 30);
-  const years = Math.floor(days / 365);
+  const seconds = Math.floor(diffMs / 1000)
+  const minutes = Math.floor(seconds / 60)
+  const hours = Math.floor(minutes / 60)
+  const days = Math.floor(hours / 24)
+  const weeks = Math.floor(days / 7)
+  const months = Math.floor(days / 30)
+  const years = Math.floor(days / 365)
 
-  if (years > 0) return `${years} year${years > 1 ? 's' : ''} ago`;
-  if (months > 0) return `${months} month${months > 1 ? 's' : ''} ago`;
-  if (weeks > 0) return `${weeks} week${weeks > 1 ? 's' : ''} ago`;
-  if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
-  if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
-  if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
-  return `${seconds} second${seconds !== 1 ? 's' : ''} ago`;
+  if (years > 0) return `${years} year${years > 1 ? 's' : ''} ago`
+  if (months > 0) return `${months} month${months > 1 ? 's' : ''} ago`
+  if (weeks > 0) return `${weeks} week${weeks > 1 ? 's' : ''} ago`
+  if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`
+  if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`
+  if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`
+  return `${seconds} second${seconds !== 1 ? 's' : ''} ago`
 }
 
 // --- Drawing Functions ---
 
-function drawBackground(ctx: CanvasRenderingContext2D, playerData: StatsCanvasPlayerData) {
+function drawBackground(ctx: CanvasRenderingContext2D) {
   ctx.fillStyle = config.colors.background
   ctx.fillRect(0, 0, config.width, config.height)
 
@@ -62,7 +73,13 @@ function drawBackground(ctx: CanvasRenderingContext2D, playerData: StatsCanvasPl
   // Top panel
   ctx.fillRect(0, 0, config.width, 150)
   // Middle panel
-  ctx.fillRect(config.padding, 170, config.width - config.padding * 2, 190)
+  ctx.fillRect(
+    config.padding,
+    170,
+    config.width - 300 - config.padding * 2,
+    190,
+  )
+  ctx.fillRect(config.width - 300, 170, config.width - 589, 190)
   // Bottom panel
   ctx.fillRect(
     config.padding,
@@ -77,14 +94,23 @@ async function drawAvatar(
   x: number,
   y: number,
   size: number,
-  playerData: StatsCanvasPlayerData
+  playerData: StatsCanvasPlayerData,
 ) {
-  const user = await client.users.fetch(playerData.user_id);
-  const avatar = await loadImage(user.avatarURL({ extension: "png" }));
-  ctx.drawImage(avatar, x, y, size, size);
+  const user = await client.users.fetch(playerData.user_id)
+  const avatar = await loadImage(user.avatarURL({ extension: 'png' }))
+  ctx.save()
+  ctx.beginPath()
+  ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2)
+  ctx.closePath()
+  ctx.clip()
+  ctx.drawImage(avatar, x, y, size, size)
+  ctx.restore()
 }
 
-async function drawHeader(ctx: CanvasRenderingContext2D, playerData: StatsCanvasPlayerData) {
+async function drawHeader(
+  ctx: CanvasRenderingContext2D,
+  playerData: StatsCanvasPlayerData,
+) {
   const { padding } = config
 
   const guild =
@@ -92,34 +118,40 @@ async function drawHeader(ctx: CanvasRenderingContext2D, playerData: StatsCanvas
     (await client.guilds.fetch(process.env.GUILD_ID!))
 
   const member = await guild.members.fetch(playerData.user_id)
+  const avatarY = (150 - 110) / 2
 
   // Avatar
-  await drawAvatar(ctx, padding + 10, 35, 70, playerData)
+  await drawAvatar(ctx, padding, avatarY, 110, playerData)
 
   // Player Name
   ctx.textAlign = 'left'
   ctx.font = config.fonts.label
   ctx.fillStyle = config.colors.textSecondary
-  ctx.fillText('PLAYER', padding + 98, 45)
+  ctx.fillText('PLAYER', padding + 128, 45)
 
   ctx.font = config.fonts.title
   ctx.fillStyle = config.colors.textPrimary
   ctx.textBaseline = 'middle'
-  ctx.fillText(member.displayName, padding + 95, 80)
-  
-  // Rank Bar (TODO: MAKE THIS WORK WITH THE DATABASE)
-  ctx.fillStyle = config.colors.textTertiary;
-  const barHeight = 20;
-  ctx.fillRect(
-    padding + 180,
-    115,
-    padding + 180 * 2,
-    barHeight
-  );
+  ctx.fillText(member.displayName, padding + 125, 80)
 
-  ctx.fillStyle = config.colors.textPrimary;
-  ctx.font = 'bold 20px Arial';
-  ctx.fillText('STONE', padding + 95, 125); 
+  // Rank Bar (dynamic from DB)
+  const barHeight = 22
+  const barWidth = padding + 120 * 2
+  const barX = padding + 195
+  const barY = 115
+  const rankColor = playerData.rank_color || config.colors.textTertiary
+  const rankName = (playerData.rank_name || 'UNRANKED').toUpperCase()
+
+  // draw bar background
+  if (rankName != 'UNRANKED') {
+    ctx.fillStyle = rankColor
+    ctx.fillRect(barX, barY, barWidth, barHeight)
+  }
+
+  // rank label
+  ctx.fillStyle = rankColor
+  ctx.font = config.fonts.small
+  ctx.fillText(rankName, padding + 125, barY + barHeight - 12)
 
   // MMR
   ctx.textAlign = 'right'
@@ -134,89 +166,134 @@ async function drawHeader(ctx: CanvasRenderingContext2D, playerData: StatsCanvas
 
   ctx.font = config.fonts.small
   ctx.fillStyle = config.colors.textTertiary
-  ctx.fillText(`Best: ${playerData.peak_mmr}`, config.width - padding - 20, 120)
+  ctx.fillText(
+    `BEST: ${playerData.peak_mmr}`,
+    config.width - padding - 20,
+    barY + barHeight - 12,
+  )
 
   ctx.textAlign = 'left'
 }
 
-function drawStats(ctx: CanvasRenderingContext2D, playerData: StatsCanvasPlayerData) {
+function drawStats(
+  ctx: CanvasRenderingContext2D,
+  playerData: StatsCanvasPlayerData,
+) {
   const { padding } = config
   const startX = padding
   const startY = 170
   const panelWidth = 450
 
-  const cellWidth = panelWidth / 4
+  const cellWidth = panelWidth / 3.5
+  const valueOffsetY = 64
 
   playerData.stats.forEach((stat, i) => {
-    const x = startX + i * cellWidth + 10
+    const cx = startX + i * cellWidth + cellWidth / 2
     const y = startY + 35
 
-    // Label
-    ctx.font = config.fonts.label
+    // Label (centered)
+    ctx.textAlign = 'center'
+    ctx.font = config.fonts.stat_label
     ctx.fillStyle = config.colors.textSecondary
-    ctx.fillText(stat.label, x, y)
+    ctx.fillText(stat.label, cx, y)
 
-    // Value
+    // Value (centered)
     ctx.font = config.fonts.value
     ctx.fillStyle = config.colors.textPrimary
-    ctx.fillText(stat.value, x, y + 40)
+    ctx.fillText(stat.value, cx, y + valueOffsetY - 5)
 
-    // // Sub-label (like Peak Win Streak)
-    // if (stat.subLabel) {
-    //   ctx.font = config.fonts.small
-    //   ctx.fillStyle = config.colors.textTertiary
-    //   ctx.fillText(stat.subLabel, x, y + 75)
-    // }
+    if (stat.percentile !== undefined) {
+      ctx.textAlign = 'center'
+      ctx.font = config.fonts.percentile
+      ctx.fillStyle = config.colors.textSecondary
+      ctx.fillText(`TOP ${stat.percentile}%`, cx, y + valueOffsetY + 60)
+    }
   })
 
-  ctx.textBaseline = 'top';
+  // reset text align
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'top'
 }
 
-function drawPreviousGames(ctx: CanvasRenderingContext2D, playerData: StatsCanvasPlayerData) {
+function drawPreviousGames(
+  ctx: CanvasRenderingContext2D,
+  playerData: StatsCanvasPlayerData,
+) {
   const statsPanelWidth = 550
-  const spacing = -10
+  const spacing = 135
   const startX = config.padding + statsPanelWidth + spacing
   const startY = 170
   const panelWidth = config.width - startX - config.padding
 
   // Label
-  ctx.font = config.fonts.label
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.font = config.fonts.stat_label
   ctx.fillStyle = config.colors.textSecondary
-  ctx.fillText('PREVIOUS GAMES', startX, startY + 25)
+  ctx.fillText('PREVIOUS GAMES', startX, startY + 35)
 
   // Game List
   ctx.font = config.fonts.gameList
   const lineHeight = 22
+
+  // playerData.previous_games = playerData.previous_games.filter(
+  //   (game) => game.change !== 0,
+  // )
+
+  ctx.textAlign = 'left'
   playerData.previous_games.forEach((game, i) => {
-    const y = startY + 50 + i * lineHeight
+    const y = startY + 65 + i * lineHeight
     const numberText = `${i + 1}.`
     const resultText = `${game.change > 0 ? 'WIN' : 'LOSS'}`
-    const changeText = game.change
+    const changeText = `${game.change > 0 ? '+' : ''}${game.change}`
 
     // Result
     ctx.fillStyle = config.colors.textPrimary
-    ctx.fillText(numberText, startX, y)
+    ctx.fillText(numberText, startX - 120, y)
 
     // Result
-    ctx.fillStyle =
-      game.change > 0 ? config.colors.win : config.colors.lose
+    ctx.fillStyle = game.change > 0 ? config.colors.win : config.colors.lose
     const numberWidth = ctx.measureText(numberText).width
-    ctx.fillText(resultText, startX + numberWidth + 5, y)
+    ctx.fillText(resultText, startX + numberWidth - 115, y)
 
     // Change
     const resultWidth = ctx.measureText(resultText).width
-    ctx.fillText(changeText.toString(), startX + resultWidth + numberWidth + 13, y)
+    ctx.fillText(
+      changeText.toString(),
+      startX + resultWidth + numberWidth - 108,
+      y,
+    )
 
     // Time
     ctx.fillStyle = config.colors.textSecondary
     ctx.textAlign = 'right'
-    const gameTimeDate = new Date(game.time);
-    ctx.fillText(timeAgo(gameTimeDate), startX + panelWidth - 35, y)
-    ctx.textAlign = 'left' // Reset
+    const gameTimeDate = new Date(game.time)
+    ctx.fillText(timeAgo(gameTimeDate), startX + panelWidth - 20, y)
+    ctx.textAlign = 'left'
+
+    if (i >= 3) {
+      ctx.textAlign = 'center'
+      ctx.font = config.fonts.gameList
+      ctx.fillStyle = config.colors.textSecondary
+      ctx.textAlign = 'left'
+      ctx.fillText(
+        'CURRENT STREAK: ',
+        startX - 120,
+        startY + 75 + (i + 1) * lineHeight,
+      )
+
+      ctx.fillStyle = config.colors.win
+      ctx.fillText('4', startX + 50, startY + 75 + (i + 1) * lineHeight)
+    }
   })
+
+  ctx.textBaseline = 'top'
 }
 
-function drawGraph(ctx: CanvasRenderingContext2D, playerData: StatsCanvasPlayerData) {
+function drawGraph(
+  ctx: CanvasRenderingContext2D,
+  playerData: StatsCanvasPlayerData,
+) {
   const { padding } = config
   const area = {
     x: padding + 75,
@@ -231,7 +308,7 @@ function drawGraph(ctx: CanvasRenderingContext2D, playerData: StatsCanvasPlayerD
   // --- Draw Grid and Labels ---
   ctx.strokeStyle = config.colors.gridLines
   ctx.lineWidth = 1
-  ctx.font = config.fonts.small
+  ctx.font = config.fonts.graphSmall
   ctx.fillStyle = config.colors.textSecondary
   ctx.textAlign = 'right'
 
@@ -258,7 +335,7 @@ function drawGraph(ctx: CanvasRenderingContext2D, playerData: StatsCanvasPlayerD
 
   // Vertical grid lines and X-axis labels
   ctx.textAlign = 'center'
-  data.forEach((point, i) => {
+  data.forEach((_point, i) => {
     const x = area.x + (i / (data.length - 1)) * area.width
 
     ctx.beginPath()
@@ -303,14 +380,12 @@ function drawGraph(ctx: CanvasRenderingContext2D, playerData: StatsCanvasPlayerD
   })
 }
 
-// --- Main Execution ---
-
 export async function drawPlayerStatsCanvas(playerData: StatsCanvasPlayerData) {
   const canvas = new Canvas(config.width, config.height)
   const ctx = canvas.getContext('2d')
 
   // Drawing calls in order
-  drawBackground(ctx, playerData)
+  drawBackground(ctx)
   await drawHeader(ctx, playerData)
   drawStats(ctx, playerData)
   drawPreviousGames(ctx, playerData)

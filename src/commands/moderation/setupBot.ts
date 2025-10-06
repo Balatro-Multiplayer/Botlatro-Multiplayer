@@ -13,7 +13,7 @@ export default {
   data: new SlashCommandBuilder()
     .setName('setup-bot')
     .setDescription('[ADMIN] Setup the initial settings for the bot')
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addChannelOption((option) =>
       option
         .setName('queue-category')
@@ -30,7 +30,9 @@ export default {
     .addRoleOption((option) =>
       option
         .setName('queue-helper-role')
-        .setDescription('The role for queue helpers, who can always see match channels')
+        .setDescription(
+          'The role for queue helpers, who can always see match channels',
+        )
         .setRequired(true),
     ),
   async execute(interaction: ChatInputCommandInteraction) {
@@ -41,7 +43,10 @@ export default {
         true,
       )?.id
       const helperRoleId = interaction.options.getRole('helper-role', true)?.id
-      const queueHelperRoleId = interaction.options.getRole('queue-helper-role', true)?.id
+      const queueHelperRoleId = interaction.options.getRole(
+        'queue-helper-role',
+        true,
+      )?.id
       if (queueCategoryId && helperRoleId) {
         await pool.query(
           `

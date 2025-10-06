@@ -84,8 +84,8 @@ export async function calculateGlicko2(
     }
   }
 
-  await setUserQueueRole(queueId, teamResults.teams[0].players[0].user_id);
-  await setUserQueueRole(queueId, teamResults.teams[1].players[0].user_id);
+  await setUserQueueRole(queueId, teamResults.teams[0].players[0].user_id)
+  await setUserQueueRole(queueId, teamResults.teams[1].players[0].user_id)
 
   return teamResults
 }
