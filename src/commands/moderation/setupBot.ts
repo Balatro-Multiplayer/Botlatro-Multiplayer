@@ -249,7 +249,7 @@ export default {
   data: new SlashCommandBuilder()
     .setName('setup-bot')
     .setDescription('[ADMIN] Setup the initial settings for the bot')
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addChannelOption((option) =>
       option
         .setName('queue-category')

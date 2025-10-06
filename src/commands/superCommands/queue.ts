@@ -1,9 +1,9 @@
 import queueLock from 'commands/moderation/queueLock'
-import viewStats from 'commands/moderation/viewStats'
+import viewStats from '../queues/viewStats'
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  AutocompleteInteraction
+  AutocompleteInteraction,
 } from 'discord.js'
 import { getQueueNames } from 'utils/queryDB'
 
@@ -20,7 +20,7 @@ export default {
             .setName('queue-name')
             .setDescription('The queue name to lock')
             .setRequired(true)
-            .setAutocomplete(true)
+            .setAutocomplete(true),
         ),
     )
     .addSubcommand((sub) =>
@@ -32,7 +32,7 @@ export default {
             .setName('queue-name')
             .setDescription('The queue name to unlock')
             .setRequired(true)
-            .setAutocomplete(true)
+            .setAutocomplete(true),
         ),
     )
     .addSubcommand((sub) =>
@@ -44,7 +44,7 @@ export default {
             .setName('queue-name')
             .setDescription('The queue name to view stats for')
             .setRequired(true)
-            .setAutocomplete(true)
+            .setAutocomplete(true),
         ),
     ),
   async execute(interaction: ChatInputCommandInteraction) {
@@ -53,7 +53,7 @@ export default {
     } else if (interaction.options.getSubcommand() === 'unlock') {
       await queueLock.execute(interaction, false)
     } else if (interaction.options.getSubcommand() === 'stats') {
-      await viewStats.execute(interaction);
+      await viewStats.execute(interaction)
     }
   },
   async autocomplete(interaction: AutocompleteInteraction) {
@@ -63,7 +63,7 @@ export default {
       name.toLowerCase().includes(currentValue.toLowerCase()),
     )
     await interaction.respond(
-    filteredQueueNames.map((name) => ({ name, value: name })).slice(0, 25),
+      filteredQueueNames.map((name) => ({ name, value: name })).slice(0, 25),
     )
   },
 }
