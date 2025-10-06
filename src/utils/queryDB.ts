@@ -423,7 +423,14 @@ export async function setMatchStakeVoteTeam(
   )
 }
 
-// Set match winner
+export async function setWinningTeam(matchId: number, winningTeam: number) {
+  await pool.query('UPDATE matches SET winning_team = $1 WHERE id = $2', [
+    winningTeam,
+    matchId,
+  ])
+}
+
+// Set match win data
 export async function setMatchWinData(
   interaction: any,
   matchId: number,
