@@ -9,9 +9,13 @@ import {
   getUsersInMatch,
   getMatchIdFromChannel,
   getUserTeam,
+  getQueueIdFromMatch,
+  isQueueGlicko,
 } from '../../utils/queryDB'
 import { pool } from '../../db'
-import { endMatch } from '../../utils/matchHelpers'
+import { endMatch, getTeamsInMatch } from '../../utils/matchHelpers'
+import { calculateGlicko2 } from '../../utils/algorithms/calculateGlicko-2'
+import { MatchUsers, teamResults } from 'psqlDB'
 
 export default {
   data: new SlashCommandBuilder()
@@ -50,6 +54,40 @@ export default {
         winningTeam,
         matchId,
       ])
+
+      // Calculate and store elo changes before ending match
+      const queueId = await getQueueIdFromMatch(matchId)
+      const isGlicko = await isQueueGlicko(queueId)
+
+      if (isGlicko) {
+        const matchTeams = await getTeamsInMatch(matchId)
+        const teamResultsData: teamResults = {
+          teams: matchTeams.teams.map((teamResult) => ({
+            id: teamResult.id,
+            score: teamResult.score as 0 | 0.5 | 1,
+            players: teamResult.players as MatchUsers[],
+          })),
+        }
+
+        const calculatedResults = await calculateGlicko2(
+          queueId,
+          matchId,
+          teamResultsData,
+        )
+
+        // Store elo changes in match_users table
+        for (const team of calculatedResults.teams) {
+          for (const player of team.players) {
+            if (player.elo_change !== undefined && player.elo_change !== null) {
+              await pool.query(
+                `UPDATE match_users SET elo_change = $1 WHERE match_id = $2 AND user_id = $3`,
+                [player.elo_change, matchId, player.user_id],
+              )
+            }
+          }
+        }
+      }
+
       await interaction.reply(
         `Assigned win to <@${interaction.options.getString('user', true)}>.`,
       )

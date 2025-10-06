@@ -48,7 +48,6 @@ export async function calculateGlicko2(
   const newRating2 = parseFloat(Player2.getRating().toFixed(1))
   const ratingChange1 = parseFloat((newRating1 - oldRating1).toFixed(1))
   const ratingChange2 = parseFloat((newRating2 - oldRating2).toFixed(1))
-  console.log(newRating1, oldRating1, ratingChange1)
 
   // Update the database with new ratings for both players
   await ratingUtils.updatePlayerGlickoAll(
