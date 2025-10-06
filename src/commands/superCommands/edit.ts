@@ -5,40 +5,39 @@ import {
   AutocompleteInteraction,
 } from 'discord.js'
 
-import newQueue from '../moderation/newQueue'
-import addQueueRole from 'commands/moderation/addQueueRole'
 import queue from './queue'
-import addLeaderboardRole from '../moderation/addLeaderboardRole'
+import editQueue from '../moderation/editQueue'
 
 export default {
   data: new SlashCommandBuilder()
-    .setName('create')
-    .setDescription('Create things')
+    .setName('edit')
+    .setDescription('Edit things')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addSubcommand((sub) =>
       sub
         .setName('queue')
-        .setDescription('Create a new queue')
+        .setDescription('Edit information for a queue')
         // required
         .addStringOption((option) =>
           option
             .setName('queue-name')
-            .setDescription('Name of the queue')
+            .setDescription('Name of the queue to edit')
             .setRequired(true)
+            .setAutocomplete(true)
             .setMaxLength(255),
         )
         .addStringOption((option) =>
           option
             .setName('queue-desc')
             .setDescription('A description for the queue')
-            .setRequired(true)
+            .setRequired(false)
             .setMaxLength(100),
         )
         .addIntegerOption((option) =>
           option
             .setName('default-elo')
             .setDescription('Default ELO for new players')
-            .setRequired(true)
+            .setRequired(false)
             .setMinValue(0),
         )
         // optional
@@ -127,80 +126,10 @@ export default {
             .setRequired(false)
             .setMinValue(2),
         ),
-    )
-    .addSubcommand((sub) =>
-      sub
-        .setName('queue-leaderboard-role')
-        .setDescription(
-          'Create a queue leaderboard role for use in a specific queue.',
-        )
-        .addStringOption((option) =>
-          option
-            .setName('queue-name')
-            .setDescription(
-              'The queue you would like to add the queue leaderboard role to',
-            )
-            .setRequired(true)
-            .setAutocomplete(true),
-        )
-        .addRoleOption((option) =>
-          option
-            .setName('role')
-            .setDescription('The queue leaderboard role in discord')
-            .setRequired(true),
-        )
-        .addNumberOption((option) =>
-          option
-            .setName('leaderboard-min')
-            .setDescription(
-              'The minimum leaderboard rank to gain to have this role',
-            )
-            .setRequired(true),
-        )
-        .addNumberOption((option) =>
-          option
-            .setName('leaderboard-max')
-            .setDescription(
-              'The maximum leaderboard rank a user can have to have this role',
-            )
-            .setRequired(true),
-        ),
-    )
-    .addSubcommand((sub) =>
-      sub
-        .setName('queue-role')
-        .setDescription('Create a queue rank role for use in a specific queue.')
-        .addStringOption((option) =>
-          option
-            .setName('queue-name')
-            .setDescription(
-              'The queue you would like to add the queue rank role to',
-            )
-            .setRequired(true)
-            .setAutocomplete(true),
-        )
-        .addRoleOption((option) =>
-          option
-            .setName('role')
-            .setDescription('The queue rank role in discord')
-            .setRequired(true),
-        )
-        .addNumberOption((option) =>
-          option
-            .setName('mmr-threshold')
-            .setDescription('The minimum MMR to gain to have this role')
-            .setRequired(true),
-        ),
     ),
   async execute(interaction: ChatInputCommandInteraction) {
     if (interaction.options.getSubcommand() === 'queue') {
-      await newQueue.execute(interaction)
-    } else if (interaction.options.getSubcommand() === 'queue-role') {
-      await addQueueRole.execute(interaction)
-    } else if (
-      interaction.options.getSubcommand() === 'queue-leaderboard-role'
-    ) {
-      await addLeaderboardRole.execute(interaction)
+      await editQueue.execute(interaction)
     }
   },
   async autocomplete(interaction: AutocompleteInteraction) {
