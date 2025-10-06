@@ -19,6 +19,8 @@ declare module 'psqlDB' {
     locked: boolean
     best_of_allowed: boolean
     glicko_tau: number
+    first_deck_ban_num: number
+    second_deck_ban_num: number
   }
 
   export interface QueueRoles {
@@ -153,9 +155,11 @@ declare module 'psqlDB' {
     name: string
     mmr: number
     peak_mmr: number
-    stats: { label: string; value: string; percentile: string }[]
+    stats: { label: string; value: string; percentile: number }[]
     previous_games: { change: number; time: Date }[]
     elo_graph_data: { date: Date; rating: number }[]
+    rank_name?: string | null
+    rank_color?: string | null
   }
 
   export type EmbedType = {
