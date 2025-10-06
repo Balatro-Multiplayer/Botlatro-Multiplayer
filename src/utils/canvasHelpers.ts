@@ -25,8 +25,8 @@ const config = {
     textTertiary: '#72767d',
     accent: '#4a4e54',
     win: '#00ff3c',
-    lose: '#f52020',
-    graphLine: '#f31919',
+    lose: '#ff0000',
+    graphLine: '#ff0000',
   },
   fonts: {
     ui: font,
@@ -59,8 +59,8 @@ function timeAgo(date: Date) {
   if (weeks > 0) return `${weeks} week${weeks > 1 ? 's' : ''} ago`
   if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`
   if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`
-  if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`
-  return `${seconds} second${seconds !== 1 ? 's' : ''} ago`
+  if (minutes > 0) return `${minutes} min${minutes > 1 ? 's' : ''} ago`
+  return `<1 min ago`
 }
 
 // --- Drawing Functions ---
@@ -127,7 +127,7 @@ async function drawHeader(
   ctx.textAlign = 'left'
   ctx.font = config.fonts.label
   ctx.fillStyle = config.colors.textSecondary
-  ctx.fillText('PLAYER', padding + 128, 45)
+  ctx.fillText('RANK: #130', padding + 128, 45)
 
   ctx.font = config.fonts.title
   ctx.fillStyle = config.colors.textPrimary
@@ -235,57 +235,59 @@ function drawPreviousGames(
   // Game List
   ctx.font = config.fonts.gameList
   const lineHeight = 22
-
-  // playerData.previous_games = playerData.previous_games.filter(
-  //   (game) => game.change !== 0,
-  // )
+  const maxGames = 4
 
   ctx.textAlign = 'left'
-  playerData.previous_games.forEach((game, i) => {
+
+  // Display up to 4 previous games
+  for (let i = 0; i < maxGames; i++) {
     const y = startY + 65 + i * lineHeight
-    const numberText = `${i + 1}.`
-    const resultText = `${game.change > 0 ? 'WIN' : 'LOSS'}`
-    const changeText = `${game.change > 0 ? '+' : ''}${game.change}`
 
-    // Result
-    ctx.fillStyle = config.colors.textPrimary
-    ctx.fillText(numberText, startX - 120, y)
+    if (i < playerData.previous_games.length) {
+      const game = playerData.previous_games[i]
+      const numberText = `${i + 1}.`
+      const resultText = `${game.change > 0 ? 'WIN' : 'LOSS'}`
+      const changeText = `${game.change > 0 ? '+' : ''}${game.change}`
 
-    // Result
-    ctx.fillStyle = game.change > 0 ? config.colors.win : config.colors.lose
-    const numberWidth = ctx.measureText(numberText).width
-    ctx.fillText(resultText, startX + numberWidth - 115, y)
+      // Number
+      ctx.fillStyle = config.colors.textPrimary
+      ctx.fillText(numberText, startX - 120, y)
 
-    // Change
-    const resultWidth = ctx.measureText(resultText).width
-    ctx.fillText(
-      changeText.toString(),
-      startX + resultWidth + numberWidth - 108,
-      y,
-    )
+      // Result
+      ctx.fillStyle = game.change > 0 ? config.colors.win : config.colors.lose
+      const numberWidth = ctx.measureText(numberText).width
+      ctx.fillText(resultText, startX + numberWidth - 115, y)
 
-    // Time
-    ctx.fillStyle = config.colors.textSecondary
-    ctx.textAlign = 'right'
-    const gameTimeDate = new Date(game.time)
-    ctx.fillText(timeAgo(gameTimeDate), startX + panelWidth - 20, y)
-    ctx.textAlign = 'left'
-
-    if (i >= 3) {
-      ctx.textAlign = 'center'
-      ctx.font = config.fonts.gameList
-      ctx.fillStyle = config.colors.textSecondary
-      ctx.textAlign = 'left'
+      // Change
+      const resultWidth = ctx.measureText(resultText).width
       ctx.fillText(
-        'CURRENT STREAK: ',
-        startX - 120,
-        startY + 75 + (i + 1) * lineHeight,
+        changeText.toString(),
+        startX + resultWidth + numberWidth - 108,
+        y,
       )
 
-      ctx.fillStyle = config.colors.win
-      ctx.fillText('4', startX + 50, startY + 75 + (i + 1) * lineHeight)
+      // Time
+      ctx.fillStyle = config.colors.textSecondary
+      ctx.textAlign = 'right'
+      const gameTimeDate = new Date(game.time)
+      ctx.fillText(timeAgo(gameTimeDate), startX + panelWidth - 20, y)
+      ctx.textAlign = 'left'
     }
-  })
+  }
+
+  // Always show current streak on the 5th line
+  const streakY = startY + 80 + maxGames * lineHeight
+  ctx.font = config.fonts.gameList
+  ctx.fillStyle = config.colors.textSecondary
+  ctx.fillText('CURRENT STREAK: ', startX - 120, streakY)
+
+  ctx.fillStyle =
+    playerData.win_streak > 0
+      ? config.colors.win
+      : playerData.win_streak < 0
+        ? config.colors.lose
+        : config.colors.textSecondary
+  ctx.fillText(`${playerData.win_streak}`, startX + 50, streakY)
 
   ctx.textBaseline = 'top'
 }
@@ -303,7 +305,24 @@ function drawGraph(
   }
 
   const data = playerData.elo_graph_data
-  const maxRating = playerData.peak_mmr
+
+  // Use exact peak and lowest values for the bounds
+  const actualMinRating =
+    data.length > 0 ? Math.min(...data.map((d) => d.rating)) : 0
+  const actualMaxRating = playerData.peak_mmr
+
+  // Add padding (5% on each side)
+  const padding_percentage = 0.05
+  const rawRange = actualMaxRating - actualMinRating
+  const paddingAmount = rawRange * padding_percentage
+
+  const minRating = actualMinRating - paddingAmount
+  const maxRating = actualMaxRating + paddingAmount
+  const ratingRange = maxRating - minRating
+
+  // Find nice round numbers for grid lines (multiples of 50)
+  const minGridLine = Math.floor(actualMinRating / 50) * 50
+  const maxGridLine = Math.ceil(actualMaxRating / 50) * 50
 
   // --- Draw Grid and Labels ---
   ctx.strokeStyle = config.colors.gridLines
@@ -312,20 +331,41 @@ function drawGraph(
   ctx.fillStyle = config.colors.textSecondary
   ctx.textAlign = 'right'
 
-  // Horizontal grid lines and Y-axis labels
-  for (let i = 0; i <= maxRating; i += 50) {
-    if (i === 0) continue
-    const y = area.y + area.height - (i / maxRating) * area.height
-    ctx.beginPath()
-    ctx.moveTo(area.x, y)
-    ctx.lineTo(area.x + area.width, y)
-    ctx.stroke()
-    ctx.fillText(i.toString(), area.x - 10, y + 4)
+  // Horizontal grid lines and Y-axis labels (at 50-point intervals)
+  ctx.textBaseline = 'middle'
+  for (let i = minGridLine; i <= maxGridLine; i += 50) {
+    // Only draw grid lines that are within the actual min/max range
+    if (i >= actualMinRating && i <= actualMaxRating) {
+      const y =
+        area.y + area.height - ((i - minRating) / ratingRange) * area.height
+      ctx.beginPath()
+      ctx.moveTo(area.x, y)
+      ctx.lineTo(area.x + area.width, y)
+      ctx.stroke()
+      ctx.fillText(i.toString(), area.x - 10, y)
+    }
   }
+
+  // Draw min/max rating labels at exact positions
+  ctx.font = config.fonts.graphSmall
+
+  // Max rating label (top)
+  const maxY =
+    area.y +
+    area.height -
+    ((actualMaxRating - minRating) / ratingRange) * area.height
+  ctx.fillText(`${Math.round(actualMaxRating)}`, area.x - 10, maxY)
+
+  // Min rating label (bottom)
+  const minY =
+    area.y +
+    area.height -
+    ((actualMinRating - minRating) / ratingRange) * area.height
+  ctx.fillText(`${Math.round(actualMinRating)}`, area.x - 10, minY)
 
   // Y-axis Title
   ctx.save()
-  ctx.translate(padding + 5, area.y + area.height / 2)
+  ctx.translate(padding + 15, area.y + area.height / 2)
   ctx.rotate(-Math.PI / 2)
   ctx.font = config.fonts.label
   ctx.fillStyle = config.colors.textSecondary
@@ -343,41 +383,109 @@ function drawGraph(
     ctx.lineTo(x, area.y + area.height)
     ctx.stroke()
 
-    ctx.font = config.fonts.small
+    ctx.font = config.fonts.graphSmall
     ctx.fillStyle = config.colors.textSecondary
-    ctx.fillText((i + 1).toString(), x, area.y + area.height + 10)
+    ctx.fillText((i + 1).toString(), x, area.y + area.height + 18)
   })
 
-  // Draw the Line and Points
-  ctx.strokeStyle = config.colors.graphLine
-  ctx.fillStyle = config.colors.graphLine
-  ctx.lineWidth = 2.5
-  ctx.beginPath()
-
-  data.forEach((point, i) => {
-    const x = area.x + (i / (data.length - 1)) * area.width
-    const y = area.y + area.height - (point.rating / maxRating) * area.height
-    if (i === 0) {
-      ctx.moveTo(x, y)
-    } else {
-      ctx.lineTo(x, y)
-    }
-  })
-  ctx.stroke()
-
-  // Draw border
+  // Draw border first (without shadow)
   ctx.strokeStyle = '#ffffff'
   ctx.lineWidth = 1.5
   ctx.strokeRect(area.x, area.y, area.width, area.height)
 
-  // Draw points on top of the line
+  // Draw the Line and Points with dynamic shadow
+  ctx.strokeStyle = config.colors.graphLine
+  ctx.fillStyle = config.colors.graphLine
+  ctx.lineWidth = 2.5
+
+  // Draw line segments with dynamic shadow based on direction
+  for (let i = 0; i < data.length - 1; i++) {
+    const x1 = area.x + (i / (data.length - 1)) * area.width
+    const y1 =
+      area.y +
+      area.height -
+      ((data[i].rating - minRating) / ratingRange) * area.height
+    const x2 = area.x + ((i + 1) / (data.length - 1)) * area.width
+    const y2 =
+      area.y +
+      area.height -
+      ((data[i + 1].rating - minRating) / ratingRange) * area.height
+
+    // Calculate direction of the line segment
+    const isGoingUp = y2 < y1 // Remember, lower y = higher on canvas
+    const isGoingDown = y2 > y1
+
+    // Set shadow based on direction
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)'
+    ctx.shadowBlur = 1
+
+    if (isGoingUp) {
+      ctx.shadowOffsetX = 2
+      ctx.shadowOffsetY = 2
+    } else if (isGoingDown) {
+      ctx.shadowOffsetX = -2
+      ctx.shadowOffsetY = 2
+    } else {
+      ctx.shadowOffsetX = 0
+      ctx.shadowOffsetY = 2
+    }
+
+    ctx.beginPath()
+    ctx.moveTo(x1, y1)
+    ctx.lineTo(x2, y2)
+    ctx.stroke()
+  }
+
+  // Draw points with shadow on bottom for edge points
   data.forEach((point, i) => {
     const x = area.x + (i / (data.length - 1)) * area.width
-    const y = area.y + area.height - (point.rating / maxRating) * area.height
+    const y =
+      area.y +
+      area.height -
+      ((point.rating - minRating) / ratingRange) * area.height
+
+    // Edge points always have shadow on bottom, middle points follow direction
+    let shadowOffsetX = 0
+    let shadowOffsetY = 2
+
+    if (i > 0 && i < data.length - 1) {
+      const prevY =
+        area.y +
+        area.height -
+        ((data[i - 1].rating - minRating) / ratingRange) * area.height
+      const nextY =
+        area.y +
+        area.height -
+        ((data[i + 1].rating - minRating) / ratingRange) * area.height
+
+      // Average direction for middle points
+      const avgDirection = (prevY + nextY) / 2
+      if (avgDirection < y) {
+        // Trend is going up
+        shadowOffsetX = 2
+        shadowOffsetY = 2
+      } else {
+        // Trend is going down
+        shadowOffsetX = -2
+        shadowOffsetY = 2
+      }
+    }
+
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)'
+    ctx.shadowBlur = 1
+    ctx.shadowOffsetX = shadowOffsetX
+    ctx.shadowOffsetY = shadowOffsetY
+
     ctx.beginPath()
     ctx.arc(x, y, 4, 0, Math.PI * 2)
     ctx.fill()
   })
+
+  // Reset shadow for other elements
+  ctx.shadowColor = 'transparent'
+  ctx.shadowBlur = 0
+  ctx.shadowOffsetX = 0
+  ctx.shadowOffsetY = 0
 }
 
 export async function drawPlayerStatsCanvas(playerData: StatsCanvasPlayerData) {

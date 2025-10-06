@@ -454,6 +454,7 @@ export default {
               onComplete: async (interaction) => {
                 await cancel(interaction, matchId)
               },
+              resendOnVote: true,
             })
           } catch (err) {
             console.error(err)
