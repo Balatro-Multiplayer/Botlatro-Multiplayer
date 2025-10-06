@@ -348,23 +348,6 @@ export async function sendMatchInitMessages(
   })
 }
 
-export async function setMatchWinner(
-  interaction: any,
-  matchId: number,
-  winningTeam: number,
-) {
-  await pool.query(`UPDATE matches SET winning_team = $1 WHERE id = $2`, [
-    winningTeam,
-    matchId,
-  ])
-  await endMatch(matchId)
-  await interaction.update({
-    content: 'The match has ended!',
-    embeds: [],
-    components: [],
-  })
-}
-
 export async function endMatch(
   matchId: number,
   cancelled = false,

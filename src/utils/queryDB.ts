@@ -3,7 +3,6 @@ import { pool } from '../db'
 import {
   Decks,
   Matches,
-  MatchUsers,
   QueueRoles,
   Queues,
   Settings,
@@ -14,6 +13,7 @@ import {
 import { client } from '../client'
 import { QueryResult } from 'pg'
 import { setUserQueueRole } from './queueHelpers'
+import { endMatch } from './matchHelpers'
 
 // Get the helper role
 export async function getHelperRoleId(): Promise<string | null> {
@@ -423,6 +423,38 @@ export async function setMatchStakeVoteTeam(
   )
 }
 
+// Set match winner
+export async function setMatchWinData(
+  interaction: any,
+  matchId: number,
+  winningTeam: number,
+  teamResults: teamResults,
+) {
+  await pool.query(`UPDATE matches SET winning_team = $1 WHERE id = $2`, [
+    winningTeam,
+    matchId,
+  ])
+
+  // Update elo_change for each player based on teamResults
+  for (const team of teamResults.teams) {
+    for (const player of team.players) {
+      if (player.elo_change !== undefined && player.elo_change !== null) {
+        await pool.query(
+          `UPDATE match_users SET elo_change = $1 WHERE match_id = $2 AND user_id = $3`,
+          [player.elo_change, matchId, player.user_id],
+        )
+      }
+    }
+  }
+
+  await endMatch(matchId)
+  await interaction.update({
+    content: 'The match has ended!',
+    embeds: [],
+    components: [],
+  })
+}
+
 export async function setMatchBestOf(
   matchId: number,
   bestOf: 3 | 5,
@@ -820,7 +852,6 @@ export async function getPlayerDataLive(matchId: number) {
   return { playerList }
 }
 
-// todo: write these:
 // -- Rating Functions --
 export const ratingUtils = {
   updatePlayerVolatility,
@@ -971,50 +1002,6 @@ export async function getWinningTeamFromMatch(
   return response.rows[0].winning_team
 }
 
-// update teamResults object with latest data
-export async function updateTeamResults(
-  queueId: number,
-  teamResults: teamResults,
-  fields: (keyof MatchUsers)[],
-): Promise<teamResults> {
-  const userIds = teamResults.teams.flatMap((team) =>
-    team.players.map((player) => player.user_id),
-  )
-  const matchId = teamResults.teams[0].players[0].match_id
-  if (!matchId) throw new Error('Players do not have a match_id.')
-
-  const winningTeam = await getWinningTeamFromMatch(matchId)
-
-  // Build the SELECT clause dynamically
-  const selectFields = fields.length > 0 ? fields.join(', ') : '*'
-  const latestUsers = await pool.query(
-    `SELECT user_id, ${selectFields} FROM queue_users WHERE user_id = ANY($1) AND queue_id = $2`,
-    [userIds, queueId],
-  )
-
-  const latestUserMap = new Map(
-    latestUsers.rows.map((user) => [user.user_id, user]),
-  )
-
-  for (const team of teamResults.teams) {
-    if (team.id === winningTeam) {
-      team.score = 1
-    } else {
-      team.score = 0
-    }
-    for (const player of team.players) {
-      const latest = latestUserMap.get(player.user_id)
-      if (latest) {
-        for (const field of fields) {
-          ;(player as any)[field] = latest[field]
-        }
-      }
-    }
-  }
-
-  return teamResults
-}
-
 // IMPORTANT: you must already have checked that they are in the queue
 // get the current elo range for a user in a specific queue
 export async function getCurrentEloRangeForUser(
@@ -1156,11 +1143,75 @@ export async function getStatsCanvasUserData(
     return { date: r.date, rating: running }
   })
 
+  // Calculate percentiles for each stat
+  const totalPlayers = await pool.query(
+    `SELECT COUNT(*) as total FROM queue_users WHERE queue_id = $1`,
+    [queueId],
+  )
+  const playerCount = parseInt(totalPlayers.rows[0].total)
+
+  // Wins percentile
+  const winsRank = await pool.query(
+    `SELECT COUNT(*) as rank FROM queue_users
+     WHERE queue_id = $1 AND wins < $2`,
+    [queueId, p.wins],
+  )
+  const winsPercentile =
+    playerCount > 1 ? (parseInt(winsRank.rows[0].rank) / playerCount) * 100 : 0
+
+  // Losses percentile (lower is better, so we invert)
+  const lossesRank = await pool.query(
+    `SELECT COUNT(*) as rank FROM queue_users
+     WHERE queue_id = $1 AND losses > $2`,
+    [queueId, p.losses],
+  )
+  const lossesPercentile =
+    playerCount > 1
+      ? (parseInt(lossesRank.rows[0].rank) / playerCount) * 100
+      : 0
+
+  // Games played percentile
+  const gamesRank = await pool.query(
+    `SELECT COUNT(*) as rank FROM queue_users
+     WHERE queue_id = $1 AND games_played < $2`,
+    [queueId, p.games_played],
+  )
+  const gamesPercentile =
+    playerCount > 1 ? (parseInt(gamesRank.rows[0].rank) / playerCount) * 100 : 0
+
+  // Winrate calculation and percentile
+  const winrate = p.games_played > 0 ? (p.wins / p.games_played) * 100 : 0
+  const winrateRank = await pool.query(
+    `SELECT COUNT(*) as rank FROM queue_users
+     WHERE queue_id = $1 AND (wins::float / NULLIF(games_played, 0)) < $2`,
+    [queueId, winrate / 100],
+  )
+  const winratePercentile =
+    playerCount > 1
+      ? (parseInt(winrateRank.rows[0].rank) / playerCount) * 100
+      : 0
+
   const stats: { label: string; value: string; percentile: number }[] = [
-    { label: 'WINS', value: String(p.wins ?? 0), percentile: 10.2 },
-    { label: 'LOSSES', value: String(p.losses ?? 0), percentile: 10.2 },
-    { label: 'GAMES', value: String(p.games_played ?? 0), percentile: 10.2 },
-    { label: 'STREAK', value: String(p.win_streak ?? 0), percentile: 10.2 },
+    {
+      label: 'WINS',
+      value: String(p.wins),
+      percentile: Math.round(winsPercentile * 10) / 10,
+    },
+    {
+      label: 'LOSSES',
+      value: String(p.losses),
+      percentile: Math.round(lossesPercentile * 10) / 10,
+    },
+    {
+      label: 'GAMES',
+      value: String(p.games_played),
+      percentile: Math.round(gamesPercentile * 10) / 10,
+    },
+    {
+      label: 'WINRATE',
+      value: `${Math.round(winrate)}%`,
+      percentile: Math.round(winratePercentile * 10) / 10,
+    },
   ]
 
   const data: StatsCanvasPlayerData = {

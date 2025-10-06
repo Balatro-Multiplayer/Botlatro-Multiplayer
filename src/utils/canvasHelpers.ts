@@ -5,11 +5,11 @@ import { FontLibrary } from 'skia-canvas'
 import path from 'path'
 
 // --- Configuration & Data ---
-const font = 'Roboto'
+const font = 'Capitana'
 
 FontLibrary.use(font, [
-  path.join(__dirname, '../fonts', `${font}-Regular.ttf`),
-  path.join(__dirname, '../fonts', `${font}-Bold.ttf`),
+  path.join(__dirname, '../fonts', `${font}-Regular.otf`),
+  path.join(__dirname, '../fonts', `${font}-Bold.otf`),
 ])
 
 const config = {
@@ -30,14 +30,14 @@ const config = {
   },
   fonts: {
     ui: font,
-    title: `bold 55px ${font}`,
-    value: `bold 60px ${font}`,
+    title: `bold 52px ${font}`,
+    value: `bold 42px ${font}`,
     stat_label: `bold 24px ${font}`,
-    label: `bold 20px ${font}`,
+    label: `bold 18px ${font}`,
     small: `bold 20px ${font}`,
-    graphSmall: `18px ${font}`,
+    graphSmall: `16px ${font}`,
     percentile: `19px ${font}`,
-    gameList: `bold 19px ${font}`,
+    gameList: `17px ${font}`,
   },
 }
 
@@ -200,7 +200,7 @@ function drawStats(
     // Value (centered)
     ctx.font = config.fonts.value
     ctx.fillStyle = config.colors.textPrimary
-    ctx.fillText(stat.value, cx, y + valueOffsetY)
+    ctx.fillText(stat.value, cx, y + valueOffsetY - 5)
 
     if (stat.percentile !== undefined) {
       ctx.textAlign = 'center'
@@ -254,13 +254,13 @@ function drawPreviousGames(
     // Result
     ctx.fillStyle = game.change > 0 ? config.colors.win : config.colors.lose
     const numberWidth = ctx.measureText(numberText).width
-    ctx.fillText(resultText, startX + numberWidth - 105, y)
+    ctx.fillText(resultText, startX + numberWidth - 115, y)
 
     // Change
     const resultWidth = ctx.measureText(resultText).width
     ctx.fillText(
       changeText.toString(),
-      startX + resultWidth + numberWidth - 98,
+      startX + resultWidth + numberWidth - 108,
       y,
     )
 
@@ -270,6 +270,21 @@ function drawPreviousGames(
     const gameTimeDate = new Date(game.time)
     ctx.fillText(timeAgo(gameTimeDate), startX + panelWidth - 20, y)
     ctx.textAlign = 'left'
+
+    if (i >= 3) {
+      ctx.textAlign = 'center'
+      ctx.font = config.fonts.gameList
+      ctx.fillStyle = config.colors.textSecondary
+      ctx.textAlign = 'left'
+      ctx.fillText(
+        'CURRENT STREAK: ',
+        startX - 120,
+        startY + 75 + (i + 1) * lineHeight,
+      )
+
+      ctx.fillStyle = config.colors.win
+      ctx.fillText('4', startX + 50, startY + 75 + (i + 1) * lineHeight)
+    }
   })
 
   ctx.textBaseline = 'top'
