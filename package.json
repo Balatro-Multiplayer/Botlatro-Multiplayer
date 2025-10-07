@@ -10,6 +10,7 @@
     "dev": "bun run --watch src/index.ts",
     "deploy-commands": "bun src/scripts/deploy-commands.ts",
     "migrate": "bunx node-pg-migrate up",
+    "migrate-down": "bunx node-pg-migrate down",
     "format": "prettier --write ."
   },
   "keywords": [],
@@ -39,6 +40,6 @@
     "nodemon": "^3.1.10",
     "prettier": "^3.6.2",
     "ts-node": "^10.9.2",
-    "typescript": "^5.8.3"
+    "typescript": "^5.9.2"
   }
 }
