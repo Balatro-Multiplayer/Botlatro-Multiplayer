@@ -1,7 +1,4 @@
-import {
-  ChatInputCommandInteraction,
-  MessageFlags,
-} from 'discord.js'
+import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
 import { pool } from '../../db'
 import { updateQueueMessage } from '../../utils/queueHelpers'
 
@@ -28,7 +25,12 @@ export default {
     const maxPartyEloDifference =
       interaction.options.getInteger('max-party-elo-difference', false) ??
       Math.floor(defaultElo / 2)
-    const bestOf = interaction.options.getBoolean('allow-best-of', false) ?? false
+    const bestOf =
+      interaction.options.getBoolean('allow-best-of', false) ?? false
+    const deckBanFirstNum =
+      interaction.options.getNumber('deck-ban-amount', false) ?? 5
+    const deckBanSecondNum =
+      interaction.options.getNumber('deck-ban-pick-amount', false) ?? 3
     const glickoTau = interaction.options.getNumber('glicko-tau', false) ?? 0.35
 
     try {
@@ -51,8 +53,8 @@ export default {
 				 elo_search_start, elo_search_increment, 
 				 elo_search_speed, default_elo, minimum_elo, 
 				 maximum_elo, max_party_elo_difference, locked,
-				 best_of_allowed, glicko_tau)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+				 best_of_allowed, first_deck_ban_num, second_deck_ban_num, glicko_tau)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
                 `,
         [
           queueName,
@@ -68,6 +70,8 @@ export default {
           maxPartyEloDifference ?? null,
           false,
           bestOf,
+          deckBanFirstNum,
+          deckBanSecondNum,
           glickoTau,
         ],
       )

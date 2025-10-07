@@ -4,6 +4,7 @@ import {
   getQueueSettings,
   getWinningTeamFromMatch,
   ratingUtils,
+  updatePlayerWinStreak,
 } from '../queryDB'
 import type { teamResults } from 'psqlDB'
 import { setUserQueueRole } from 'utils/queueHelpers'

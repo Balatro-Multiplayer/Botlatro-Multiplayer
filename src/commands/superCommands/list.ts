@@ -9,6 +9,7 @@ import listAllOpenParties from '../party/listAllOpenParties'
 import ListUsersInSpecificParty from '../party/listUsersInSpecificParty'
 import queue from './queue'
 import listQueueRoles from 'commands/moderation/listQueueRoles'
+import listQueueUsers from '../moderation/listQueueUsers'
 
 export default {
   data: new SlashCommandBuilder()
@@ -37,7 +38,19 @@ export default {
         .addStringOption((option) =>
           option
             .setName('queue-name')
-            .setDescription('[ADMIN] lists users in the specified party')
+            .setDescription('The queue to check for roles in.')
+            .setAutocomplete(true)
+            .setRequired(true),
+        ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('queue-users')
+        .setDescription('[ADMIN] Lists all users actively in a queue.')
+        .addStringOption((option) =>
+          option
+            .setName('queue-name')
+            .setDescription('The queue to check for users in.')
             .setAutocomplete(true)
             .setRequired(true),
         ),
@@ -49,7 +62,9 @@ export default {
     } else if (interaction.options.getSubcommand() === 'users-in-party') {
       await ListUsersInSpecificParty.execute(interaction)
     } else if (interaction.options.getSubcommand() === 'queue-roles') {
-      await listQueueRoles.execute(interaction);
+      await listQueueRoles.execute(interaction)
+    } else if (interaction.options.getSubcommand() === 'queue-users') {
+      await listQueueUsers.execute(interaction)
     }
   },
 
@@ -58,8 +73,8 @@ export default {
 
     if (subcommand === 'users-in-party') {
       await ListUsersInSpecificParty.autocomplete(interaction)
-    } else if (subcommand === 'queue-roles') {
-      await queue.autocomplete(interaction);
+    } else if (subcommand === 'queue-roles' || subcommand === 'queue-users') {
+      await queue.autocomplete(interaction)
     }
   },
 }

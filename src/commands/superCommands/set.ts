@@ -48,7 +48,7 @@ export default {
             .setDescription('The user whose MMR you want to change')
             .setRequired(true)
             .setAutocomplete(true),
-        )
+        ),
     ),
 
   async execute(interaction: ChatInputCommandInteraction) {
@@ -64,7 +64,7 @@ export default {
     if (subcommand === 'mmr') {
       await changeMMR.autocomplete(interaction)
     } else if (subcommand === 'banned-decks') {
-      await queue.autocomplete(interaction);
+      await queue.autocomplete(interaction)
     }
   },
 }

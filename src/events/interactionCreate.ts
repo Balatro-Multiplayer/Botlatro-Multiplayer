@@ -5,6 +5,7 @@ import {
   ButtonBuilder,
   ButtonStyle,
   Events,
+  GuildMember,
   Interaction,
   MessageFlags,
   StringSelectMenuBuilder,
@@ -16,12 +17,11 @@ import {
   updateQueueMessage,
   timeSpentInQueue,
   createMatch,
-  setUserQueueRole,
+  joinQueues,
 } from '../utils/queueHelpers'
 import {
   endMatch,
   getTeamsInMatch,
-  setMatchWinner,
   setupDeckSelect,
 } from '../utils/matchHelpers'
 import {
@@ -37,18 +37,17 @@ import {
   getStakeByName,
   getUserPriorityQueueId,
   getUserQueues,
-  partyUtils,
   setMatchStakeVoteTeam,
   setPickedMatchDeck,
   setPickedMatchStake,
   setQueueDeckBans,
   setUserPriorityQueue,
   setMatchBestOf,
-  userInMatch,
   userInQueue,
+  getSettings,
+  partyUtils,
+  setWinningTeam,
 } from '../utils/queryDB'
-import { QueryResult } from 'pg'
-import { Queues } from 'psqlDB'
 import {
   handleTwoPlayerMatchVoting,
   handleVoting,
@@ -106,113 +105,11 @@ export default {
       if (interaction.customId === 'join-queue') {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
-        const selectedQueueIds = interaction.values
-        const allQueues: QueryResult<Queues> =
-          await pool.query(`SELECT * FROM queues`)
-
-        // party checks
-        const partyId = await partyUtils.getUserParty(interaction.user.id)
-        if (partyId) {
-          const partyList = await partyUtils.getPartyUserList(partyId)
-          for (let qId of selectedQueueIds) {
-            const queueId = parseInt(qId)
-            const queue = allQueues.rows.find((q) => q.id === queueId)
-            if (
-              queue &&
-              partyList &&
-              partyList.length > queue.members_per_team
-            ) {
-              await interaction.followUp({
-                content: `Your party has too many members for the ${queue.queue_name} queue.`,
-                flags: MessageFlags.Ephemeral,
-              })
-              return
-            }
-          }
-
-          const isLeader = await pool.query(
-            `SELECT is_leader FROM party_users WHERE user_id = $1`,
-            [interaction.user.id],
-          )
-          if (!(isLeader?.rows[0]?.is_leader ?? null)) {
-            await interaction.followUp({
-              content: `You're not the party leader.`,
-              flags: MessageFlags.Ephemeral,
-            })
-            return
-          }
-
-          // TODO: check for bans
-        }
-
-        // in match check
-        const inMatch = await userInMatch(interaction.user.id)
-        if (inMatch) {
-          const matchId = await pool.query(
-            `SELECT match_id FROM match_users WHERE user_id = $1`,
-            [interaction.user.id],
-          )
-          const matchData = await pool.query(
-            `SELECT * FROM matches WHERE id = $1`,
-            [matchId.rows[0].match_id],
-          )
-
-          await interaction.followUp({
-            content: `You're already in a match! <#${matchData.rows[0].channel_id}>`,
-            flags: MessageFlags.Ephemeral,
-          })
-          return
-        }
-
-        // ensure user exists, if it doesn't, create
-        const matchUser = await pool.query(
-          'SELECT * FROM users WHERE user_id = $1',
-          [interaction.user.id],
+        const joinedQueues = await joinQueues(
+          interaction,
+          interaction.values,
+          interaction.user.id,
         )
-
-        if (matchUser.rows.length < 1) {
-          await pool.query('INSERT INTO users (user_id) VALUES ($1)', [
-            interaction.user.id,
-          ])
-        }
-
-        await pool.query(
-          `
-            UPDATE queue_users
-            SET queue_join_time = NULL
-            WHERE user_id = $1`,
-          [interaction.user.id],
-        )
-
-        const joinedQueues: string[] = []
-        for (const qId of selectedQueueIds) {
-          const queueId = parseInt(qId)
-          const queue = allQueues.rows.find((q) => q.id === queueId)
-          if (!queue) continue
-
-          const res = await pool.query(
-            `
-              UPDATE queue_users
-              SET queue_join_time = NOW()
-              WHERE user_id = $1 AND queue_id = $2
-              RETURNING *;`,
-            [interaction.user.id, queueId],
-          )
-
-          // if not already in that queue, insert
-          if (res.rows.length < 1) {
-            await pool.query(
-              `INSERT INTO queue_users (user_id, elo, peak_elo, queue_id, queue_join_time)
-                        VALUES ($1, $2::real, $2::real, $3, NOW())`,
-              [interaction.user.id, queue.default_elo, queueId],
-            )
-            await setUserQueueRole(queueId, interaction.user.id)
-          }
-
-          joinedQueues.push(queue.queue_name)
-        }
-
-        await updateQueueMessage()
 
         await interaction.followUp({
           content:
@@ -250,6 +147,22 @@ export default {
           t.players.map((u) => u.user_id),
         )
 
+        const botSettings = await getSettings()
+        const member = interaction.member as GuildMember
+        const winMatchData: string[] = interaction.values[0].split('_')
+        const winMatchTeamId = parseInt(winMatchData[2])
+
+        // Check if helper clicked the button
+        if (member) {
+          if (
+            member.roles.cache.has(botSettings.helper_role_id) ||
+            member.roles.cache.has(botSettings.queue_helper_role_id)
+          ) {
+            await setWinningTeam(matchId, winMatchTeamId)
+            await endMatch(matchId)
+          }
+        }
+
         await handleTwoPlayerMatchVoting(interaction, {
           participants: matchUsersArray,
           onComplete: async (interaction, winner) => {
@@ -263,7 +176,7 @@ export default {
             const isBo5 = matchDataObj.best_of_5
 
             if (!isBo3 && !isBo5) {
-              await setMatchWinner(interaction, matchId, winner)
+              await endMatch(matchId)
               return
             }
 
@@ -308,7 +221,7 @@ export default {
             }
 
             if (winningTeam) {
-              await setMatchWinner(interaction, matchId, winningTeam)
+              await endMatch(matchId)
               return
             }
 
@@ -327,6 +240,8 @@ export default {
         const startingTeamId = parseInt(parts[4])
         const matchTeams = await getTeamsInMatch(matchId)
         const deckOptions = await getDecksInQueue(queueId)
+        const queueSettings = await getQueueSettings(queueId)
+        const step2Amt = queueSettings.second_deck_ban_num
 
         // Determine which team is active for this step
         const activeTeamId = (startingTeamId + step) % 2
@@ -371,10 +286,10 @@ export default {
         const deckSelMenu = await setupDeckSelect(
           `deck-bans-${nextStep}-${matchId}-${startingTeamId}`,
           matchTeams.teams[nextTeamId].players.length > 1
-            ? `Team ${matchTeams.teams[nextTeamId].id}: Select ${nextStep === 2 ? 3 : 1} decks to play.`
-            : `${nextMember.displayName}: Select ${nextStep === 2 ? 3 : 1} decks to play.`,
-          nextStep === 2 ? 3 : 1,
-          nextStep === 2 ? 3 : 1,
+            ? `Team ${matchTeams.teams[nextTeamId].id}: Select ${nextStep === 2 ? step2Amt : 1} decks to play.`
+            : `${nextMember.displayName}: Select ${nextStep === 2 ? step2Amt : 1} decks to play.`,
+          nextStep === 2 ? step2Amt : 1,
+          nextStep === 2 ? step2Amt : 1,
           true,
           nextStep === 3 ? [] : deckChoices,
           nextStep === 3 ? deckChoices : deckOptions.map((deck) => deck.id),
@@ -385,7 +300,7 @@ export default {
           .map((deck) => `${deck.deck_emote} - ${deck.deck_name}`)
 
         await channel.send({
-          content: `### ${step == 1 ? `Banned Decks:\n` : `Decks Picked:\n`}${deckPicks.join('\n')}`,
+          content: `<@${matchTeams.teams[nextTeamId].players[0].user_id}>\n### ${step == 1 ? `Banned Decks:\n` : `Decks Picked:\n`}${deckPicks.join('\n')}`,
           components: [deckSelMenu],
         })
       }
@@ -402,8 +317,8 @@ export default {
 
     // Button interactions
     if (interaction.isButton()) {
-      if (interaction.customId == 'leave-queue') {
-        try {
+      try {
+        if (interaction.customId == 'leave-queue') {
           await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
           const inQueue = await userInQueue(interaction.user.id)
@@ -418,10 +333,10 @@ export default {
           // Update the user's queue status and join with the queues table based on channel id
           await pool.query(
             `
-                    UPDATE queue_users
-                    SET queue_join_time = NULL
-                    WHERE user_id = $1
-                `,
+                      UPDATE queue_users
+                      SET queue_join_time = NULL
+                      WHERE user_id = $1
+                  `,
             [interaction.user.id],
           )
 
@@ -430,22 +345,8 @@ export default {
             content: `You left the queue!`,
             flags: MessageFlags.Ephemeral,
           })
-        } catch (err) {
-          console.error(err)
-          if (interaction.replied || interaction.deferred) {
-            await interaction.followUp({
-              content: 'There was an error.',
-              flags: MessageFlags.Ephemeral,
-            })
-          } else {
-            await interaction.reply({
-              content: 'There was an error.',
-              flags: MessageFlags.Ephemeral,
-            })
-          }
         }
-      }
-      try {
+
         if (interaction.customId === 'check-queued') {
           const userQueueList = await getUserQueues(interaction.user.id)
           const priorityQueueId = await getUserPriorityQueueId(
@@ -511,30 +412,49 @@ export default {
         }
         if (interaction.customId.startsWith('cancel-')) {
           const matchId = parseInt(interaction.customId.split('-')[1])
+          const botSettings = await getSettings()
+          const member = interaction.member as GuildMember
+
           const matchUsers = await getTeamsInMatch(matchId)
           const matchUsersArray = matchUsers.teams.flatMap((t) =>
             t.players.map((u) => u.user_id),
           )
 
+          async function cancel(interaction: any, matchId: number) {
+            try {
+              await endMatch(matchId, true)
+              if (interaction.message) {
+                await interaction.update({
+                  content: 'The match has been cancelled.',
+                  embeds: [],
+                  components: [],
+                })
+              }
+            } catch (err) {
+              console.error('Error in finishing match:', err)
+            }
+          }
+
+          // Check if helper clicked the button
+          if (member) {
+            if (
+              (member.roles.cache.has(botSettings.helper_role_id) ||
+                member.roles.cache.has(botSettings.queue_helper_role_id)) &&
+              !matchUsersArray.includes(interaction.user.id)
+            )
+              await cancel(interaction, matchId)
+          }
+
+          // Otherwise do normal vote
           try {
             await handleVoting(interaction, {
               voteType: 'Cancel Match Votes',
               embedFieldIndex: 2,
               participants: matchUsersArray,
               onComplete: async (interaction) => {
-                try {
-                  await endMatch(matchId, true)
-                  if (interaction.message) {
-                    await interaction.update({
-                      content: 'The match has been cancelled.',
-                      embeds: [],
-                      components: [],
-                    })
-                  }
-                } catch (err) {
-                  console.error('Error in onComplete:', err)
-                }
+                await cancel(interaction, matchId)
               },
+              resendOnVote: true,
             })
           } catch (err) {
             console.error(err)
@@ -614,6 +534,7 @@ export default {
             voteType: voteFieldName,
             embedFieldIndex: 3,
             participants: matchUsersArray,
+            resendOnVote: true,
             onComplete: async (interaction, { embed }) => {
               const rows = interaction.message.components.map((row) =>
                 ActionRowBuilder.from(row as any),
@@ -734,64 +655,48 @@ export default {
             })
           }
         }
-      } catch (err) {
-        console.error(err)
-        if (interaction.replied || interaction.deferred) {
-          await interaction.followUp({
-            content: 'There was an error.',
-            flags: MessageFlags.Ephemeral,
-          })
-        } else if (interaction.channel) {
-          await interaction.reply({
-            content: 'There was an error.',
-            flags: MessageFlags.Ephemeral,
-          })
-        }
-      }
 
-      // accept party invite
-      if (interaction.customId.startsWith('accept-party-invite-')) {
-        const memberId = interaction.customId.split('-').pop() // id of the user who sent the invite
-        if (!memberId) {
-          // should never happen
-          await interaction.reply({
-            content: 'Invalid invite.',
-            flags: MessageFlags.Ephemeral,
-          })
-          return
-        }
+        if (interaction.customId.startsWith('accept-party-invite-')) {
+          const memberId = interaction.customId.split('-').pop() // id of the user who sent the invite
+          if (!memberId) {
+            // should never happen
+            await interaction.reply({
+              content: 'Invalid invite.',
+              flags: MessageFlags.Ephemeral,
+            })
+            return
+          }
 
-        const client = interaction.client
-        const guild =
-          client.guilds.cache.get(process.env.GUILD_ID!) ??
-          (await client.guilds.fetch(process.env.GUILD_ID!))
+          const client = interaction.client
+          const guild =
+            client.guilds.cache.get(process.env.GUILD_ID!) ??
+            (await client.guilds.fetch(process.env.GUILD_ID!))
 
-        const member = await guild.members.fetch(memberId)
-        if (!member) {
-          // should never happen
-          await interaction.reply({
-            content: 'Member not found.',
-            flags: MessageFlags.Ephemeral,
-          })
-          return
-        }
+          const member = await guild.members.fetch(memberId)
+          if (!member) {
+            // should never happen
+            await interaction.reply({
+              content: 'Member not found.',
+              flags: MessageFlags.Ephemeral,
+            })
+            return
+          }
 
-        const partyId = await partyUtils.getUserParty(member.user.id) // get party id
-        const sendTime = interaction.message.createdTimestamp
-        const currentTime = Date.now()
-        if (
-          currentTime - sendTime > 5 * 60 * 1000 || // greater than 5 minutes
-          !partyId
-        ) {
-          // if party no longer exists
-          await interaction.reply({
-            content: 'This invite has expired.',
-            flags: MessageFlags.Ephemeral,
-          })
-          return
-        }
+          const partyId = await partyUtils.getUserParty(member.user.id) // get party id
+          const sendTime = interaction.message.createdTimestamp
+          const currentTime = Date.now()
+          if (
+            currentTime - sendTime > 5 * 60 * 1000 || // greater than 5 minutes
+            !partyId
+          ) {
+            // if party no longer exists
+            await interaction.reply({
+              content: 'This invite has expired.',
+              flags: MessageFlags.Ephemeral,
+            })
+            return
+          }
 
-        try {
           await pool.query(
             `UPDATE users SET joined_party_id = $1 WHERE user_id = $2`,
             [partyId, interaction.user.id],
@@ -804,10 +709,17 @@ export default {
           await member.send({
             content: `**${interaction.user.displayName}** has joined your party!`,
           })
-        } catch (err) {
-          console.error(err)
+        }
+      } catch (err) {
+        console.error(err)
+        if (interaction.replied || interaction.deferred) {
+          await interaction.followUp({
+            content: 'There was an error.',
+            flags: MessageFlags.Ephemeral,
+          })
+        } else if (interaction.channel) {
           await interaction.reply({
-            content: `Failed to join ${member.user.username}'s party.`,
+            content: 'There was an error.',
             flags: MessageFlags.Ephemeral,
           })
         }

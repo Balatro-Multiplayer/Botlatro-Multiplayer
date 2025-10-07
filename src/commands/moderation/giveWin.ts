@@ -45,15 +45,18 @@ export default {
         })
         return
       }
+
       const winningTeam = await getUserTeam(userId, matchId)
       await pool.query('UPDATE matches SET winning_team = $1 WHERE id = $2', [
         winningTeam,
         matchId,
       ])
+
+      await endMatch(matchId)
+
       await interaction.reply(
         `Assigned win to <@${interaction.options.getString('user', true)}>.`,
       )
-      await endMatch(matchId)
     } catch (err: any) {
       if (interaction.deferred || interaction.replied) {
         await interaction.editReply({
