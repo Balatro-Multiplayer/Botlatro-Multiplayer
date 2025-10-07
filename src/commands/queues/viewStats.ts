@@ -13,7 +13,7 @@ export default {
         interaction.user.id,
         queueId,
       )
-      const statFile = await drawPlayerStatsCanvas(playerStats)
+      const statFile = await drawPlayerStatsCanvas(queueName, playerStats)
 
       await interaction.editReply({ files: [statFile] })
     } catch (err: any) {

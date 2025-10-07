@@ -54,6 +54,7 @@ async function addTestMatches() {
   )
 
   let currentElo = defaultElo
+  let peakElo = defaultElo
   let currentStreak = 0
 
   for (let i = 0; i < numMatches; i++) {
@@ -66,6 +67,7 @@ async function addTestMatches() {
     const baseChange = Math.floor(Math.random() * 30) + 10
     const eloChange = won ? baseChange : -baseChange
     currentElo += eloChange
+    peakElo = Math.max(peakElo, currentElo)
 
     // Update streak
     if (won) {
@@ -79,7 +81,7 @@ async function addTestMatches() {
       `INSERT INTO matches (queue_id, channel_id, winning_team, open, created_at)
        VALUES ($1, $2, $3, false, NOW() - INTERVAL '${i} hours')
        RETURNING id`,
-      [queueId, `test-channel-${i}`, winningTeam],
+      [queueId, `test-channel-${queueId}-${i}`, winningTeam],
     )
 
     const matchId = matchResult.rows[0].id
@@ -98,6 +100,17 @@ async function addTestMatches() {
       [matchId, 'dummy-opponent', userTeam === 1 ? 2 : 1, -eloChange],
     )
 
+    // Update user's elo and streak in queue_users after each match
+    await pool.query(
+      `UPDATE queue_users
+       SET elo = $1::integer,
+           peak_elo = GREATEST(peak_elo, $1::integer),
+           win_streak = $2::integer,
+           peak_win_streak = GREATEST(peak_win_streak, ABS($2))
+       WHERE user_id = $3 AND queue_id = $4`,
+      [Math.round(currentElo), currentStreak, userId, queueId],
+    )
+
     if (i % 10 === 0) {
       console.log(`Created ${i + 1}/${numMatches} matches...`)
     }
@@ -106,12 +119,18 @@ async function addTestMatches() {
   // Update user's final elo and streak
   await pool.query(
     `UPDATE queue_users
-     SET elo = $1,
-         peak_elo = GREATEST(peak_elo, $1),
-         win_streak = $2,
-         peak_win_streak = GREATEST(peak_win_streak, ABS($2))
-     WHERE user_id = $3 AND queue_id = $4`,
-    [currentElo, currentStreak, userId, queueId],
+     SET elo = $1::integer,
+         peak_elo = $2::integer,
+         win_streak = $3::integer,
+         peak_win_streak = GREATEST(peak_win_streak, ABS($3))
+     WHERE user_id = $4 AND queue_id = $5`,
+    [
+      Math.round(currentElo),
+      Math.round(peakElo),
+      currentStreak,
+      userId,
+      queueId,
+    ],
   )
 
   console.log(`✓ Successfully created ${numMatches} test matches!`)
