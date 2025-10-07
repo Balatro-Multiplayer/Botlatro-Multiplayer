@@ -8,6 +8,7 @@ import {
   GuildMember,
   Interaction,
   MessageFlags,
+  PermissionFlagsBits,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
   TextChannel,
@@ -513,7 +514,78 @@ export default {
         }
 
         if (interaction.customId.startsWith('contest-')) {
-          // TODO: Add support for this
+          const matchId = parseInt(interaction.customId.split('-')[1])
+          const botSettings = await getSettings()
+
+          const helperRole = await interaction.guild!.roles.fetch(
+            botSettings.helper_role_id,
+          )
+          const queueHelperRole = await interaction.guild!.roles.fetch(
+            botSettings.queue_helper_role_id,
+          )
+
+          const contestChannel = await interaction.guild!.channels.create({
+            name: `contest-match-${matchId}`,
+            permissionOverwrites: [
+              {
+                id: interaction.guild!.id,
+                deny: [PermissionFlagsBits.ViewChannel],
+              },
+              {
+                id: interaction.user.id,
+                allow: [
+                  PermissionFlagsBits.ViewChannel,
+                  PermissionFlagsBits.SendMessages,
+                ],
+              },
+              ...(helperRole
+                ? [
+                    {
+                      id: helperRole.id,
+                      allow: [
+                        PermissionFlagsBits.ViewChannel,
+                        PermissionFlagsBits.SendMessages,
+                      ],
+                    },
+                  ]
+                : []),
+              ...(queueHelperRole
+                ? [
+                    {
+                      id: queueHelperRole.id,
+                      allow: [
+                        PermissionFlagsBits.ViewChannel,
+                        PermissionFlagsBits.SendMessages,
+                      ],
+                    },
+                  ]
+                : []),
+            ],
+          })
+
+          if (!contestChannel.isTextBased()) {
+            await interaction.reply({
+              content: 'Failed to create contest channel.',
+              flags: MessageFlags.Ephemeral,
+            })
+            return
+          }
+
+          await contestChannel.send({
+            content: `<@&${helperRole!.id}>\n<@${interaction.user.id}> wants to contest the results of match ${matchId}.`,
+          })
+
+          // Forward the results embed
+          if (interaction.message.embeds.length > 0) {
+            await contestChannel.send({
+              embeds: [interaction.message.embeds[0]],
+            })
+          }
+
+          await interaction.reply({
+            content: `Please go here to contest this matchup with the staff: ${contestChannel}`,
+            flags: MessageFlags.Ephemeral,
+          })
         }
 
         if (interaction.customId.startsWith('bo-vote-')) {
