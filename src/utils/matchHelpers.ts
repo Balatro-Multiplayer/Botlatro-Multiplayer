@@ -25,6 +25,7 @@ import {
   isQueueGlicko,
   setMatchStakeVoteTeam,
   setMatchVoiceChannel,
+  updatePlayerWinStreak,
 } from './queryDB'
 import { Decks, MatchUsers, Stakes, teamResults } from 'psqlDB'
 import dotenv from 'dotenv'
@@ -426,6 +427,23 @@ export async function endMatch(
     }
 
     teamResults = await calculateGlicko2(queueId, matchId, teamResultsData)
+
+    // Save elo_change and winstreak to database
+    for (const team of teamResults.teams) {
+      for (const player of team.players) {
+        if (team.score == 1) {
+          await updatePlayerWinStreak(player.user_id, queueId, true)
+        } else {
+          await updatePlayerWinStreak(player.user_id, queueId, false)
+        }
+        if (player.elo_change !== undefined && player.elo_change !== null) {
+          await pool.query(
+            `UPDATE match_users SET elo_change = $1 WHERE match_id = $2 AND user_id = $3`,
+            [player.elo_change, matchId, player.user_id],
+          )
+        }
+      }
+    }
   }
 
   // build results embed
