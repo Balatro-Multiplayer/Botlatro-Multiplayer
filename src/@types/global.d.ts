@@ -161,6 +161,11 @@ declare module 'psqlDB' {
     elo_graph_data: { date: Date; rating: number }[]
     rank_name?: string | null
     rank_color?: string | null
+    rank_mmr?: number | null
+    next_rank_name?: string | null
+    next_rank_mmr?: number | null
+    next_rank_color?: string | null
+    leaderboard_position?: number | null
   }
 
   export type EmbedType = {
