@@ -228,10 +228,10 @@ export async function getUserQueueRole(
   return res.rows[0]
 }
 
-export async function getLeaderboardQueueRole(
+export async function getLeaderboardPosition(
   queueId: number,
   userId: string,
-): Promise<QueueRoles | null> {
+): Promise<number | null> {
   const playersRes = await pool.query(
     `
     SELECT user_id
@@ -245,8 +245,14 @@ export async function getLeaderboardQueueRole(
   if (playersRes.rowCount === 0) return null
 
   const players: { user_id: string }[] = playersRes.rows
-  const rank = players.findIndex((p) => p.user_id === userId) + 1
-  if (rank === 0) return null
+  return players.findIndex((p) => p.user_id === userId) + 1
+}
+
+export async function getLeaderboardQueueRole(
+  queueId: number,
+  userId: string,
+): Promise<QueueRoles | null> {
+  const rank = await getLeaderboardPosition(queueId, userId)
 
   const roleRes = await pool.query(
     `
@@ -1260,19 +1266,20 @@ export async function getStatsCanvasUserData(
   const playerCount = parseInt(percentilesRes.rows[0].total_players)
   const winsPercentile =
     playerCount > 1
-      ? (parseInt(percentilesRes.rows[0].wins_rank) / playerCount) * 100
+      ? 100 - (parseInt(percentilesRes.rows[0].wins_rank) / playerCount) * 100
       : 0
   const lossesPercentile =
     playerCount > 1
-      ? (parseInt(percentilesRes.rows[0].losses_rank) / playerCount) * 100
+      ? 100 - (parseInt(percentilesRes.rows[0].losses_rank) / playerCount) * 100
       : 0
   const gamesPercentile =
     playerCount > 1
-      ? (parseInt(percentilesRes.rows[0].games_rank) / playerCount) * 100
+      ? 100 - (parseInt(percentilesRes.rows[0].games_rank) / playerCount) * 100
       : 0
   const winratePercentile =
     playerCount > 1
-      ? (parseInt(percentilesRes.rows[0].winrate_rank) / playerCount) * 100
+      ? 100 -
+        (parseInt(percentilesRes.rows[0].winrate_rank) / playerCount) * 100
       : 0
 
   // Winrate calculation
@@ -1301,6 +1308,8 @@ export async function getStatsCanvasUserData(
     },
   ]
 
+  const leaderboardPos = await getLeaderboardPosition(queueId, userId)
+
   const data: StatsCanvasPlayerData = {
     user_id: p.user_id,
     name: '',
@@ -1312,6 +1321,11 @@ export async function getStatsCanvasUserData(
     elo_graph_data,
     rank_name: null,
     rank_color: null,
+    rank_mmr: null,
+    next_rank_name: null,
+    next_rank_mmr: null,
+    next_rank_color: null,
+    leaderboard_position: leaderboardPos,
   }
 
   try {
@@ -1329,6 +1343,37 @@ export async function getStatsCanvasUserData(
           `#${colorNumber.toString(16).padStart(6, '0')}`.toUpperCase()
         data.rank_name = role.name
         data.rank_color = hex
+        data.rank_mmr = queueRole.mmr_threshold
+      }
+    }
+
+    // Get the next rank role
+    const nextRankRes = await pool.query(
+      `
+      SELECT *
+      FROM queue_roles
+      WHERE queue_id = $1 AND mmr_threshold > $2
+      ORDER BY mmr_threshold
+      LIMIT 1
+    `,
+      [queueId, p.elo],
+    )
+
+    if (nextRankRes.rowCount && nextRankRes.rowCount > 0) {
+      const nextRank = nextRankRes.rows[0]
+      const guild =
+        client.guilds.cache.get(process.env.GUILD_ID!) ??
+        (await client.guilds.fetch(process.env.GUILD_ID!))
+      const nextRole =
+        guild.roles.cache.get(nextRank.role_id) ||
+        (await guild.roles.fetch(nextRank.role_id))
+      if (nextRole) {
+        const colorNumber = (nextRole as any).color as number
+        const hex =
+          `#${colorNumber.toString(16).padStart(6, '0')}`.toUpperCase()
+        data.next_rank_name = nextRole.name
+        data.next_rank_mmr = nextRank.mmr_threshold
+        data.next_rank_color = hex
       }
     }
   } catch {
