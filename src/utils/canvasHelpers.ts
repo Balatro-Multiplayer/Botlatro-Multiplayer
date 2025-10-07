@@ -62,6 +62,11 @@ function timeAgo(date: Date) {
   return `<1 min ago`
 }
 
+function formatNumber(num: number): string {
+  if (num >= 1000) return `${(num / 1000).toFixed(1).replace(/\.0$/, '')}k`
+  return num.toString()
+}
+
 function drawBackground(ctx: CanvasRenderingContext2D) {
   ctx.fillStyle = config.colors.background
   ctx.fillRect(0, 0, config.width, config.height)
@@ -196,12 +201,12 @@ async function drawHeader(
 
   ctx.font = config.fonts.title
   ctx.fillStyle = config.colors.textPrimary
-  ctx.fillText(playerData.mmr.toString(), config.width - padding - 20, 80)
+  ctx.fillText(formatNumber(playerData.mmr), config.width - padding - 20, 80)
 
   ctx.font = config.fonts.small
   ctx.fillStyle = config.colors.textTertiary
   ctx.fillText(
-    `PEAK: ${playerData.peak_mmr}`,
+    `PEAK: ${formatNumber(playerData.peak_mmr)}`,
     config.width - padding - 20,
     barY + barHeight - 12,
   )
@@ -231,7 +236,13 @@ function drawStats(
 
     ctx.font = config.fonts.value
     ctx.fillStyle = config.colors.textPrimary
-    ctx.fillText(stat.value, cx, y + valueOffsetY - 5)
+    // Format numeric values (but not percentages)
+    const displayValue = stat.value.includes('%')
+      ? stat.value
+      : isNaN(Number(stat.value))
+        ? stat.value
+        : formatNumber(Number(stat.value))
+    ctx.fillText(displayValue, cx, y + valueOffsetY - 5)
 
     if (stat.percentile !== undefined) {
       ctx.font = config.fonts.percentile
