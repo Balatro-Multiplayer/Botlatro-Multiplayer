@@ -517,6 +517,20 @@ export default {
           const matchId = parseInt(interaction.customId.split('-')[1])
           const botSettings = await getSettings()
 
+          // Check if user was in the match
+          const matchUsers = await getTeamsInMatch(matchId)
+          const matchUsersArray = matchUsers.teams.flatMap((t) =>
+            t.players.map((u) => u.user_id),
+          )
+
+          if (!matchUsersArray.includes(interaction.user.id)) {
+            await interaction.reply({
+              content: 'You cannot contest a match you were not part of.',
+              flags: MessageFlags.Ephemeral,
+            })
+            return
+          }
+
           const helperRole = await interaction.guild!.roles.fetch(
             botSettings.helper_role_id,
           )
