@@ -1208,9 +1208,9 @@ export async function getStatsCanvasUserData(
     )
     SELECT
       COUNT(*) as total_players,
-      COUNT(CASE WHEN wins >= $2 THEN 1 END) as wins_rank,
+      COUNT(CASE WHEN wins < $2 THEN 1 END) as wins_rank,
       COUNT(CASE WHEN losses > $3 THEN 1 END) as losses_rank,
-      COUNT(CASE WHEN games_played >= $4 THEN 1 END) as games_rank,
+      COUNT(CASE WHEN games_played < $4 THEN 1 END) as games_rank,
       COUNT(CASE WHEN winrate < $5 THEN 1 END) as winrate_rank
     FROM player_stats
     `,
@@ -1244,6 +1244,16 @@ export async function getStatsCanvasUserData(
   // Winrate calculation
   const winrate = games_played > 0 ? (wins / games_played) * 100 : 0
 
+  // For stats where higher is better (wins, games, winrate):
+  // - percentile represents % of players worse than you
+  // - if >= 50, show as "TOP (100-percentile)%"
+  // - if < 50, show as "BOTTOM percentile%"
+  //
+  // For stats where lower is better (losses):
+  // - percentile represents % of players with MORE losses (i.e., doing worse)
+  // - flip to show: if >= 50 losses percentile, show as "TOP (100-percentile)%"
+  // - if < 50, show as "BOTTOM (100-percentile)%"
+
   const stats: {
     label: string
     value: string
@@ -1253,26 +1263,35 @@ export async function getStatsCanvasUserData(
     {
       label: 'WINS',
       value: String(wins),
-      percentile: Math.round(winsPercentile),
-      isTop: true,
+      percentile:
+        winsPercentile >= 50
+          ? Math.round(100 - winsPercentile)
+          : Math.round(winsPercentile),
+      isTop: winsPercentile >= 50,
     },
     {
       label: 'LOSSES',
       value: String(losses),
-      percentile: Math.round(lossesPercentile),
-      isTop: false,
+      percentile: Math.round(100 - lossesPercentile),
+      isTop: lossesPercentile >= 50,
     },
     {
       label: 'GAMES',
       value: String(games_played),
-      percentile: Math.round(gamesPercentile),
-      isTop: true,
+      percentile:
+        gamesPercentile >= 50
+          ? Math.round(100 - gamesPercentile)
+          : Math.round(gamesPercentile),
+      isTop: gamesPercentile >= 50,
     },
     {
       label: 'WINRATE',
       value: `${Math.round(winrate)}%`,
-      percentile: Math.round(winratePercentile),
-      isTop: false,
+      percentile:
+        winratePercentile >= 50
+          ? Math.round(100 - winratePercentile)
+          : Math.round(winratePercentile),
+      isTop: winratePercentile >= 50,
     },
   ]
 
