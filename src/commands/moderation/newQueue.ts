@@ -31,7 +31,7 @@ export default {
       interaction.options.getNumber('deck-ban-amount', false) ?? 5
     const deckBanSecondNum =
       interaction.options.getNumber('deck-ban-pick-amount', false) ?? 3
-    const glickoTau = interaction.options.getNumber('glicko-tau', false) ?? 0.35
+    const glickoTau = interaction.options.getNumber('glicko-tau', false) ?? 0.5
 
     try {
       const nameCheck = await pool.query(
