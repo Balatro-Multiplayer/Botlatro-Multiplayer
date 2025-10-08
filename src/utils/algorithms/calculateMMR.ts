@@ -1,7 +1,6 @@
 import {
   getQueueSettings,
   getMatchData,
-  ratingUtils,
   getWinningTeamFromMatch,
   updatePlayerMmrAll,
 } from '../queryDB'
@@ -47,7 +46,7 @@ export async function calculateNewMMR(
       players.reduce((sum, p) => sum + (p.elo ?? settings.default_elo), 0) /
       players.length
     const avgVolatility =
-      players.reduce((sum, p) => sum + (p.volatility ?? 10), 0) / players.length
+      players.reduce((sum, p) => sum + (p.volatility ?? 0), 0) / players.length
 
     return {
       team,
@@ -73,7 +72,8 @@ export async function calculateNewMMR(
     loserStats.length
 
   // Use overall average volatility for g factor
-  const globalAvgVolatility = (winnerStats.avgVolatility + avgLoserVolatility) / 2
+  const globalAvgVolatility =
+    (winnerStats.avgVolatility + avgLoserVolatility) / 2
 
   // Calculate rating change using the formula
   const ratingChange = calculateRatingChange(
@@ -87,14 +87,16 @@ export async function calculateNewMMR(
   // Apply changes to all teams and players
   for (const ts of teamStats) {
     const isWinner = ts.isWinner
-    const mmrChange = isWinner ? ratingChange : -ratingChange / loserStats.length
+    const mmrChange = isWinner
+      ? ratingChange
+      : -ratingChange / loserStats.length
 
     for (const player of ts.team.players) {
       const oldMMR = player.elo ?? settings.default_elo
-      const oldVolatility = player.volatility ?? 10
+      const oldVolatility = player.volatility ?? 0
 
       const newMMR = parseFloat((oldMMR + mmrChange).toFixed(1))
-      const newVolatility = Math.max(oldVolatility - 1, 1)
+      const newVolatility = Math.min(oldVolatility + 1, 10)
 
       // Update database
       await updatePlayerMmrAll(queueId, player.user_id, newMMR, newVolatility)
