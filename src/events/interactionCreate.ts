@@ -19,6 +19,7 @@ import {
   timeSpentInQueue,
   createMatch,
   joinQueues,
+  setupViewStatsButtons,
 } from '../utils/queueHelpers'
 import {
   endMatch,
@@ -48,12 +49,15 @@ import {
   getSettings,
   partyUtils,
   setWinningTeam,
+  getQueueIdFromName,
+  getStatsCanvasUserData,
 } from '../utils/queryDB'
 import {
   handleTwoPlayerMatchVoting,
   handleVoting,
   getBestOfMatchScores,
 } from '../utils/voteHelpers'
+import { drawPlayerStatsCanvas } from '../utils/canvasHelpers'
 
 export default {
   name: Events.InteractionCreate,
@@ -319,6 +323,21 @@ export default {
     // Button interactions
     if (interaction.isButton()) {
       try {
+        if (interaction.customId.startsWith('view-stats-')) {
+          const queueName = interaction.customId.split('-')[2]
+          const queueId = await getQueueIdFromName(queueName)
+          const playerStats = await getStatsCanvasUserData(
+            interaction.user.id,
+            queueId,
+          )
+          const statFile = await drawPlayerStatsCanvas(queueName, playerStats)
+          const viewStatsButtons = setupViewStatsButtons(queueName)
+
+          interaction.reply({
+            files: [statFile],
+            components: [viewStatsButtons],
+          })
+        }
         if (interaction.customId == 'leave-queue') {
           await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 

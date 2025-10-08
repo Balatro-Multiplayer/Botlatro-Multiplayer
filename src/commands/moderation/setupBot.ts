@@ -1,19 +1,306 @@
 import {
-  SlashCommandBuilder,
-  ChatInputCommandInteraction,
-  PermissionFlagsBits,
-  MessageFlags,
-  TextChannel,
   ChannelType,
+  ChatInputCommandInteraction,
+  MessageFlags,
+  PermissionFlagsBits,
+  PermissionsBitField,
+  SlashCommandBuilder,
 } from 'discord.js'
 import { pool } from '../../db'
 import { client } from '../../client'
+
+class Settings {
+  qId: string
+  qResultsId: string
+  logsId: string
+  qLogsId: string
+  qMatchesId: string
+  categoryId: string
+  guild: any = null
+
+  constructor(
+    guild: any = null,
+    qId: string = '',
+    qResultsId: string = '',
+    logsId: string = '',
+    qLogsId: string = '',
+    qMatchesId: string = '',
+    categoryId = '',
+  ) {
+    this.qId = qId
+    this.qResultsId = qResultsId
+    this.logsId = logsId
+    this.qLogsId = qLogsId
+    this.qMatchesId = qMatchesId
+    this.categoryId = categoryId
+    this.guild = guild
+  }
+
+  // updates db when a new channel is made
+  async updateDb(name: string, id: string) {
+    switch (name) {
+      case 'queue':
+        await pool.query(
+          `UPDATE settings SET queue_channel_id = $1 WHERE singleton = true`,
+          [id],
+        )
+        break
+      case 'queue-results':
+        await pool.query(
+          `UPDATE settings SET queue_results_channel_id = $1 WHERE singleton = true`,
+          [id],
+        )
+        break
+      case 'activity-log':
+        await pool.query(
+          `UPDATE settings SET logs_channel_id = $1 WHERE singleton = true`,
+          [id],
+        )
+        break
+      case 'queue-log':
+        await pool.query(
+          `UPDATE settings SET queue_logs_channel_id = $1 WHERE singleton = true`,
+          [id],
+        )
+        break
+    }
+    if (name.includes('Active Matches')) {
+      await pool.query(
+        `UPDATE settings SET match_count_channel_id = $1 WHERE singleton = true`,
+        [id],
+      )
+    }
+  }
+
+  // updates object with a list of (user inputs ?? up-to-date settings)
+  async update(
+    queueChannelId: any = null,
+    queueResultsChannelId: any = null,
+    logsChannelId: any = null,
+    queueLogsChannelId: any = null,
+    queueMatchChannelId: any = null,
+    category: any = null,
+  ) {
+    const settings = await pool.query(
+      `SELECT * FROM settings WHERE singleton = true`,
+    )
+    const {
+      queue_channel_id,
+      queue_results_channel_id,
+      logs_channel_id,
+      queue_logs_channel_id,
+      match_count_channel_id,
+      queue_category_id,
+    } = settings?.rows?.[0] ?? {}
+    this.qId = queueChannelId ?? queue_channel_id
+    this.qResultsId = queueResultsChannelId ?? queue_results_channel_id
+    this.logsId = logsChannelId ?? logs_channel_id
+    this.qLogsId = queueLogsChannelId ?? queue_logs_channel_id
+    this.qMatchesId = queueMatchChannelId ?? match_count_channel_id
+    this.categoryId = category ?? queue_category_id
+  }
+
+  // adds guild attribute to instance
+  async addGuild(guild: any = null) {
+    if (this.guild && !guild) {
+      return
+    }
+    guild
+      ? (this.guild = guild)
+      : (this.guild =
+          client.guilds.cache.get(process.env.GUILD_ID!) ??
+          (await client.guilds.fetch(process.env.GUILD_ID!)))
+  }
+}
+
+class Channel extends Settings {
+  id: string = ''
+  name: string = ''
+  type: ChannelType = ChannelType.GuildText
+  helper: boolean = false
+
+  constructor(
+    name: string = '',
+    id: string = '',
+    type: ChannelType = ChannelType.GuildText,
+    helper: boolean = false,
+  ) {
+    super()
+    this.id = id
+    this.name = name
+    this.type = type
+    this.helper = helper
+  }
+
+  // checks if channel exists in discord's API
+  async isExists() {
+    if (!this.guild) await this.addGuild()
+    const channel = await this.guild.channels.fetch(this.id).catch(() => null)
+    return !!channel?.id
+  }
+
+  // gets channel object or null
+  async getMe() {
+    if (!(await this.isExists())) return null
+    return await this.guild.channels.fetch(this.id).catch(() => null)
+  }
+
+  // creates channel if it doesnt exist
+  async createMe(categoryId: any = null, name: any = null) {
+    await this.updateMe()
+    // await this.updateMe()
+    if (await this.isExists()) return null
+    let perms: any[] = []
+    if (this.helper) {
+      if (this.type === ChannelType.GuildVoice) {
+        // Voice channels: deny Connect
+        perms = [
+          {
+            id: this.guild.id,
+            deny: [PermissionsBitField.Flags.Connect],
+          },
+        ]
+      } else {
+        // Text channels: deny ViewChannel
+        perms = [
+          {
+            id: this.guild.id,
+            deny: [PermissionsBitField.Flags.ViewChannel],
+          },
+        ]
+      }
+    }
+
+    await this.updateCategory()
+    const channel = await this.guild.channels.create({
+      name: name ?? this.name,
+      type: this.type, // text channel
+      parent: categoryId ?? this.categoryId,
+      permissionOverwrites: perms,
+    })
+    return { channelName: name ?? this.name, channelId: channel.id }
+  }
+
+  // deletes channel if it exists
+  async deleteMe() {
+    await this.updateMe()
+    if (!(await this.isExists())) return null
+    return await this.guild.channels.delete(this.id).catch(() => null)
+  }
+
+  // updates using parent settings data
+  async updateMe() {
+    await this.update()
+    switch (this.name) {
+      case 'queue':
+        this.id = this.qId
+        break
+      case 'queue-results':
+        this.id = this.qResultsId
+        break
+      case 'activity-log':
+        this.id = this.logsId
+        break
+      case 'queue-log':
+        this.id = this.qLogsId
+        break
+      default:
+        this.id = this.qMatchesId
+    }
+    await this.addGuild()
+    // await this.updateCategory()
+  }
+
+  // runs comparisons for self and other to decide on what action to take (re-create, leave, create)
+  // self should be the more recent channel, other should be the old channel data
+  // return false means nothing was done, true means something was done
+  async compare(other: Channel, newCatId: string, oldCatId: string) {
+    await other.updateMe()
+    this.categoryId = newCatId
+    other.categoryId = oldCatId
+
+    // doesn't exist
+    if (!(await other.isExists())) {
+      console.log('old channel doesnt exist anymore: re-creating channel')
+      const { channelName, channelId } = (await this.createMe())!
+      await this.updateDb(channelName, channelId)
+      return true
+    }
+
+    // does exist but wrong category
+    else if (this.categoryId !== other.categoryId) {
+      console.log(`wrong category: re-creating channel`)
+      await other.deleteMe()
+      await this.createMe()
+      return true
+    }
+
+    // does exist and correct category
+    else if (this.categoryId === other.categoryId) {
+      console.log('channel exists in correct place: passing')
+      return false
+    }
+  }
+
+  // updates solely the category
+  async updateCategory() {
+    const res = await pool.query(
+      `SELECT queue_category_id FROM settings WHERE singleton = true`,
+    )
+    this.categoryId = res.rows[0].queue_category_id
+  }
+}
+
+class Channels extends Channel {
+  q: Channel
+  qResults: Channel
+  logs: Channel
+  qLogs: Channel
+  qMatches: Channel
+  category: string = ''
+
+  constructor(
+    q: Channel,
+    qResults: Channel,
+    logs: Channel,
+    qLogs: Channel,
+    qMatches: Channel,
+    category: string,
+  ) {
+    super()
+    this.q = q
+    this.qResults = qResults
+    this.logs = logs
+    this.qLogs = qLogs
+    this.qMatches = qMatches
+    this.category = category
+  }
+
+  // calls update method on all channels contained in this class
+  async updateAll() {
+    await this.q.updateMe()
+    await this.qResults.updateMe()
+    await this.logs.updateMe()
+    await this.qLogs.updateMe()
+    await this.qMatches.updateMe()
+    await this.update()
+  }
+
+  // runs comparisons on all channel pairs
+  async compareAll(old: Channels, newCatId: string, oldCatId: string) {
+    await this.q.compare(old.q, newCatId, oldCatId)
+    await this.qResults.compare(old.qResults, newCatId, oldCatId)
+    await this.logs.compare(old.logs, newCatId, oldCatId)
+    await this.qLogs.compare(old.qLogs, newCatId, oldCatId)
+    await this.qMatches.compare(old.qMatches, newCatId, oldCatId)
+  }
+}
 
 export default {
   data: new SlashCommandBuilder()
     .setName('setup-bot')
     .setDescription('[ADMIN] Setup the initial settings for the bot')
-    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addChannelOption((option) =>
       option
         .setName('queue-category')
@@ -35,177 +322,79 @@ export default {
         )
         .setRequired(true),
     ),
+
   async execute(interaction: ChatInputCommandInteraction) {
-    // ensure settings row exists
-    try {
-      const queueCategoryId = interaction.options.getChannel(
-        'queue-category',
-        true,
-      )?.id
-      const helperRoleId = interaction.options.getRole('helper-role', true)?.id
-      const queueHelperRoleId = interaction.options.getRole(
-        'queue-helper-role',
-        true,
-      )?.id
-      if (queueCategoryId && helperRoleId) {
-        await pool.query(
-          `
-					INSERT INTO settings (singleton, queue_category_id, helper_role_id, queue_helper_role_id) 
-					VALUES ($1, $2, $3, $4) ON CONFLICT (singleton) DO UPDATE 
-					SET queue_category_id = EXCLUDED.queue_category_id,
-						helper_role_id = EXCLUDED.helper_role_id,
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+
+    // get guild object
+    // const guild =
+    //   client.guilds.cache.get(process.env.GUILD_ID!) ??
+    //   (await client.guilds.fetch(process.env.GUILD_ID!))
+
+    // // old category id
+    // const res = await pool.query(
+    //   `SELECT * FROM settings WHERE singleton = true`,
+    // )
+    // const oldCatId = res.rows[0].categoryId
+    // console.log('old cat:', oldCatId)
+
+    // command params
+    const queueCategoryId: any =
+      interaction.options.getChannel('queue-category')!.id
+    const helperRoleId: any = interaction.options.getRole('helper-role')!.id
+    const queueHelperRoleId: any =
+      interaction.options.getRole('queue-helper-role')!.id
+
+    // create list of old channels
+    const oldChannels = new Channels(
+      new Channel('queue', ''),
+      new Channel('queue-results', ''),
+      new Channel('activity-log', '', ChannelType.GuildText, true),
+      new Channel('queue-log', '', ChannelType.GuildText, true),
+      new Channel('0 Active Matches', '', ChannelType.GuildVoice, true),
+      queueCategoryId,
+    )
+
+    // update info based on database and add guild instance
+    await oldChannels.updateAll()
+
+    // insert parameters into DB
+    console.table({
+      category: queueCategoryId,
+      helper: helperRoleId,
+      'queue helper': queueHelperRoleId,
+    })
+    await pool.query(
+      `
+                    INSERT INTO settings (singleton, queue_category_id, helper_role_id, queue_helper_role_id) 
+                    VALUES ($1, $2, $3, $4) ON CONFLICT (singleton) DO UPDATE 
+                    SET queue_category_id = EXCLUDED.queue_category_id,
+                        helper_role_id = EXCLUDED.helper_role_id,
             queue_helper_role_id = EXCLUDED.queue_helper_role_id`,
-          [true, queueCategoryId, helperRoleId, queueHelperRoleId],
-        )
-      }
-    } catch (err: any) {
-      console.error(err)
-    }
+      [true, queueCategoryId, helperRoleId, queueHelperRoleId],
+    )
 
-    // main try catch for rest of setup
-    try {
-      const queueCategoryId = interaction.options.getChannel(
-        'queue-category',
-        true,
-      )?.id
-      const guild =
-        client.guilds.cache.get(process.env.GUILD_ID!) ??
-        (await client.guilds.fetch(process.env.GUILD_ID!))
+    // create list of new channels
+    const newChannels = new Channels(
+      new Channel('queue'),
+      new Channel('queue-results'),
+      new Channel('activity-log', '', ChannelType.GuildText, true),
+      new Channel('queue-log', '', ChannelType.GuildText, true),
+      new Channel('0 Active Matches', '', ChannelType.GuildVoice, true),
+      queueCategoryId,
+    )
 
-      async function getOrCreateChannel(
-        channelId: string | null,
-        channelName: string,
-        permissionOverwrites: any,
-        databaseEntry: string,
-      ) {
-        let existingChannel: any = null
+    // update category to new category and add guild
+    await newChannels.updateCategory()
+    await newChannels.addGuild()
 
-        // if channel id is in db, try to fetch channel from discord
-        if (channelId) {
-          existingChannel = interaction.guild?.channels.cache.get(channelId)
-          if (!existingChannel) {
-            try {
-              ;(await interaction.guild?.channels.fetch(
-                channelId,
-              )) as TextChannel
-            } catch (err) {
-              existingChannel = null
-            }
-          }
-        }
+    // resolve conflicts until only left with correct channels existing
+    await newChannels.compareAll(
+      oldChannels,
+      queueCategoryId,
+      oldChannels.category,
+    )
 
-        // if there is no channel id in db, create channel and add to db
-        else {
-          const newChannel = (await interaction.guild?.channels.create({
-            name: channelName,
-            type: ChannelType.GuildText,
-            parent: queueCategoryId,
-            permissionOverwrites: permissionOverwrites,
-          })) as TextChannel
-          await pool.query(
-            `
-						UPDATE settings SET ${databaseEntry} = $1 WHERE singleton = $2`,
-            [newChannel.id, true],
-          )
-          return newChannel
-        }
-
-        // if the channel that the db references doesn't exist, create it and overwrite the db entry
-        if (!existingChannel) {
-          const newChannel = (await interaction.guild?.channels.create({
-            name: channelName,
-            type: ChannelType.GuildText,
-            parent: queueCategoryId,
-            permissionOverwrites: permissionOverwrites,
-          })) as TextChannel
-          await pool.query(
-            `
-						UPDATE settings SET ${databaseEntry} = $1 WHERE singleton = $2`,
-            [newChannel.id, true],
-          )
-          return newChannel
-        }
-
-        // if everything is fine, return existing channel
-        else {
-          return existingChannel
-        }
-      }
-
-      const helperRole = interaction.options.getRole('helper-role', true)
-      const settingsRes = await pool.query(
-        'SELECT * FROM settings WHERE singleton = true',
-      )
-      if (!settingsRes || settingsRes.rowCount === 0) {
-        throw new Error('Settings row not found in database after insertion.')
-      }
-      const settings = settingsRes.rows[0]
-
-      // Permissions
-      const botId = guild.members.me?.user.id || ''
-      const everyonePermsSend = [
-        { id: guild.roles.everyone, deny: [PermissionFlagsBits.SendMessages] },
-      ]
-      const everyonePermsView = [
-        { id: guild.roles.everyone, deny: [PermissionFlagsBits.ViewChannel] },
-      ]
-      const helperPerms = {
-        id: helperRole.id,
-        allow: [PermissionFlagsBits.ViewChannel],
-        deny: [PermissionFlagsBits.SendMessages],
-      }
-      const botPerms = {
-        id: botId,
-        allow: [
-          PermissionFlagsBits.ViewChannel,
-          PermissionFlagsBits.SendMessages,
-        ],
-      }
-
-      // Get or create all channels
-      ;(await getOrCreateChannel(
-        settings.queue_channel_id,
-        'queue',
-        everyonePermsSend,
-        'queue_channel_id',
-      ),
-        await getOrCreateChannel(
-          settings.queue_results_channel_id,
-          'queue-results',
-          [everyonePermsSend[0], botPerms],
-          'queue_results_channel_id',
-        ),
-        await getOrCreateChannel(
-          settings.logs_channel_id,
-          'activity-log',
-          [everyonePermsView[0], helperPerms, botPerms],
-          'logs_channel_id',
-        ),
-        await getOrCreateChannel(
-          settings.queue_logs_channel_id,
-          'queue-log',
-          [everyonePermsView[0], helperPerms],
-          'queue_logs_channel_id',
-        ))
-
-      await interaction.reply({
-        content:
-          'Successfully setup queue bot! Use </create queue:1414248501742669938> to setup a queue and queue message.',
-        flags: MessageFlags.Ephemeral,
-      })
-    } catch (err: any) {
-      console.error(err)
-      const errorMsg = err.detail || err.message || 'Unknown'
-      if (interaction.deferred || interaction.replied) {
-        await interaction.editReply({
-          content: `Failed to setup bot in database. Reason: ${errorMsg}`,
-        })
-      } else {
-        await interaction.reply({
-          content: `Failed to setup bot in database. Reason: ${errorMsg}`,
-          flags: MessageFlags.Ephemeral,
-        })
-      }
-    }
+    await interaction.editReply('Channels created successfully!')
   },
 }

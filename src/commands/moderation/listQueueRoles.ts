@@ -20,11 +20,35 @@ export default {
         (await client.guilds.fetch(process.env.GUILD_ID!))
 
       const queueRoles = await getAllQueueRoles(queueId)
+
+      queueRoles.sort((a, b) => {
+        if (a.mmr_threshold !== null && b.mmr_threshold !== null) {
+          return a.mmr_threshold - b.mmr_threshold
+        }
+
+        if (a.leaderboard_min !== null && b.leaderboard_min !== null) {
+          return b.leaderboard_min - a.leaderboard_min
+        }
+        if (a.mmr_threshold !== null) return -1
+        if (b.mmr_threshold !== null) return 1
+        return 0
+      })
+
       const formattedQueueRoles = queueRoles
         .map((role) => {
           const roleData = guild.roles.cache.get(role.role_id)
           if (roleData) {
-            return `**${roleData.name}**: ${role.mmr_threshold}+ MMR`
+            if (
+              role.mmr_threshold !== null &&
+              role.mmr_threshold !== undefined
+            ) {
+              return `**${roleData.name}**: ${role.mmr_threshold}+ MMR`
+            } else if (
+              role.leaderboard_min !== null &&
+              role.leaderboard_max !== null
+            ) {
+              return `**${roleData.name}**: ${role.leaderboard_min}-${role.leaderboard_max} on the Leaderboard`
+            }
           } else {
             return `**N/A**`
           }
