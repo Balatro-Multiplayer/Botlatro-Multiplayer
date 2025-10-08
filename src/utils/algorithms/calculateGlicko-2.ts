@@ -1,10 +1,11 @@
+// someone kindly fuck this entire file for me please
+
 import { Glicko2, Player } from 'glicko2'
 import {
   getMatchData,
   getQueueSettings,
   getWinningTeamFromMatch,
   ratingUtils,
-  updatePlayerWinStreak,
 } from '../queryDB'
 import type { teamResults } from 'psqlDB'
 import { setUserQueueRole } from 'utils/queueHelpers'

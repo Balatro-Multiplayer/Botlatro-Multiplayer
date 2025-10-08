@@ -1389,14 +1389,36 @@ export const strikeUtils = {
   addStrike,
   getUserStrikes,
   getUserIdsWithStrikes,
+  removeStrikeById,
+  getStrikeFromId,
+  checkForInstances,
+}
+
+// checks to see if the user has any recorded instances of a strike or warning\
+export async function checkForInstances(userId: string) {
+  const res = await pool.query(
+    `
+    SELECT id FROM strikes WHERE user_id = $1`,
+    [userId],
+  )
+  return !!res.rows[0]
+}
+
+// remove a strike form a user TODO: maybe make this just disable the strike so we still have a permanent record
+export async function removeStrikeById(strikeId: string) {
+  await pool.query(
+    `
+  DELETE FROM strikes WHERE id = $1`,
+    [strikeId],
+  )
 }
 
 // add a strike to a user
 export async function addStrike(res: Strikes): Promise<void> {
-  await pool.query(
+  const result = await pool.query(
     /* sql */ `
-    INSERT INTO strikes (user_id, reason, issued_by_id, issued_at, expires_at, amount)
-    VALUES ($1, $2, $3, $4, $5, $6)
+    INSERT INTO strikes (user_id, reason, issued_by_id, issued_at, expires_at, amount, reference)
+    VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
   `,
     [
       res.user_id,
@@ -1405,8 +1427,10 @@ export async function addStrike(res: Strikes): Promise<void> {
       res.issued_at,
       res.expires_at,
       res.amount,
+      res.reference,
     ],
   )
+  return result.rows[0].id
 }
 
 // get all the strikes for a certain user
@@ -1426,11 +1450,6 @@ export async function getStrikeFromId(id: string): Promise<Strikes> {
     .query(`SELECT * FROM strikes WHERE id = $1`, [id])
     .catch()
   return res.rows[0]
-}
-
-// delete a strike using the id
-export async function deleteStrikeById(id: string): Promise<void> {
-  await pool.query(`DELETE FROM strikes WHERE id = $1`, [id]).catch()
 }
 
 // get all users with strikes

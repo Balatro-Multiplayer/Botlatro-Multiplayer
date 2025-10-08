@@ -6,14 +6,13 @@ import {
 
 import giveStrike from '../moderation/playerModeration/giveStrike'
 import removeStrike from '../moderation/playerModeration/removeStrike'
-import { strikeUtils } from '../../utils/queryDB'
-import { client } from '../../client'
-import { strikeSearchAutoComplete } from '../../utils/Autocompletions'
+import { strikeAutocomplete } from '../../utils/Autocompletions'
 
 export default {
   data: new SlashCommandBuilder()
     .setName('strike')
     .setDescription('strike related commands')
+
     .addSubcommand((sub) =>
       sub
         .setName('give')
@@ -53,10 +52,12 @@ export default {
             .setRequired(false),
         ),
     )
+
     .addSubcommand((sub) =>
       sub
         .setName('remove')
         .setDescription('Remove strike(s) from a user')
+
         .addStringOption((option) =>
           option
             .setName('user')
@@ -65,15 +66,22 @@ export default {
             .setAutocomplete(true)
             .setMaxLength(500),
         )
+
         .addStringOption((option) =>
           option
             .setName('strike')
-            .setDescription('Strike to be removed')
+            .setDescription('Strike to remove')
             .setRequired(true)
             .setAutocomplete(true)
             .setMaxLength(500),
         ),
     ),
+
+  // .addSubcommand((sub) =>
+  //   sub
+  //     .setName('list')
+  //     .setDescription('Remove strike(s) from a user')
+  // ),
 
   async execute(interaction: ChatInputCommandInteraction) {
     if (interaction.options.getSubcommand() === 'give') {
@@ -84,35 +92,6 @@ export default {
   },
 
   async autocomplete(interaction: AutocompleteInteraction) {
-    try {
-      const focused = interaction.options.getFocused(true)
-      const parameterName: string = focused.name
-      const parameterValue: string = focused.value
-      if (parameterName === 'user') {
-        // display list of users with a strike
-        const userIds = await strikeUtils.getUserIdsWithStrikes()
-        const users = await Promise.all(
-          userIds.map((userId) => client.users.fetch(userId)),
-        )
-        const userSet = users.filter(
-          (user, index, self) => self.indexOf(user) === index,
-        )
-        await interaction.respond(
-          userSet.slice(0, 25).map((user) => ({
-            name: user.username,
-            value: user.id,
-          })),
-        )
-      } else if (parameterName === 'strike') {
-        // display autocorrect for name, body, amount, and id of strike
-        const autocomplete = await strikeSearchAutoComplete(
-          parameterValue,
-          interaction.user.id,
-          interaction,
-        )
-      }
-    } catch (err: any) {
-      console.error(err)
-    }
+    await strikeAutocomplete(interaction)
   },
 }

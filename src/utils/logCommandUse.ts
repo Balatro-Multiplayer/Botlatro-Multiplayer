@@ -31,9 +31,7 @@ export abstract class Embed {
 
   // add fields to embed
   public addFields() {
-    console.log(this.embedFields)
     for (let field of this.embedFields) {
-      console.log(field, typeof field)
       this.embed.addFields(field)
     }
   }
@@ -154,4 +152,20 @@ export function createEmbedType(
 // add returns to embed field text to prevent loooong embeds
 export function formatEmbedField(txt: string) {
   const arr = txt.split(' ') // split at spaces
+  let count: number = 0
+  let newArr: string[] = []
+  for (let word of arr) {
+    count += word.length
+    if (count > 30) {
+      const middle = Math.floor(word.length / 2)
+      word = word.slice(0, middle) + '-\n' + word.slice(middle)
+      count = 0
+    } else if (count > 20) {
+      word += '\n'
+      count = 0
+      console.log('triggered')
+    }
+    newArr.push(word)
+  }
+  return newArr.join(' ')
 }
