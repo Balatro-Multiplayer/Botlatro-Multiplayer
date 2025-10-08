@@ -210,11 +210,14 @@ async function importMatchHistory(
   // 1. Has a winner (no ties)
   // 2. From the correct ranked channel
   // 3. After Season 4 start date
+  // 4. At least one player has non-zero MMR change
   const completedMatches = matches.filter((m) => {
     if (m.winner < 0) return false // No ties
     if (m.queue_channel !== rankedChannelId) return false // Only from ranked channel
     const matchDate = new Date(m.time)
     if (matchDate < SEASON_START_DATE) return false // Only Season 4+
+    const hasNonZeroMmrChange = m.teams.flat().some((player) => player.mmr_change !== 0)
+    if (!hasNonZeroMmrChange) return false // Skip matches where all players have 0 MMR change
     return true
   })
 

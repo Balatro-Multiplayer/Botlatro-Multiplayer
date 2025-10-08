@@ -145,9 +145,12 @@ declare module 'psqlDB' {
     rank_name?: string | null
     rank_color?: string | null
     rank_mmr?: number | null
+    rank_position?: number | null
+    max_rank_position?: number | null
     next_rank_name?: string | null
     next_rank_mmr?: number | null
     next_rank_color?: string | null
+    next_rank_position?: number | null
     leaderboard_position?: number | null
   }
 }

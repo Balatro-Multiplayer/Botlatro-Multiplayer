@@ -264,8 +264,8 @@ export async function getLeaderboardQueueRole(
     SELECT *
     FROM queue_roles
     WHERE queue_id = $1
-      AND leaderboard_min <= $2
-      AND leaderboard_max >= $2
+      AND leaderboard_min >= $2
+      AND leaderboard_max <= $2
     LIMIT 1
     `,
     [queueId, rank],
@@ -1153,8 +1153,8 @@ export async function getStatsCanvasUserData(
     FROM match_users mu
     JOIN matches m ON m.id = mu.match_id
     WHERE mu.user_id = $1 AND m.queue_id = $2 AND m.winning_team IS NOT NULL
-    ORDER BY m.id DESC
-    LIMIT 6
+    ORDER BY m.created_at DESC
+    LIMIT 4
     `,
     [userId, queueId],
   )
@@ -1170,7 +1170,6 @@ export async function getStatsCanvasUserData(
     JOIN matches m ON m.id = mu.match_id
     WHERE mu.user_id = $1 AND m.queue_id = $2 AND m.winning_team IS NOT NULL
     ORDER BY m.id
-    LIMIT 50
     `,
     [userId, queueId],
   )
@@ -1302,7 +1301,7 @@ export async function getStatsCanvasUserData(
     const leaderboardRole = await getLeaderboardQueueRole(queueId, userId)
 
     if (leaderboardRole) {
-      // User has a leaderboard role - display it without bar
+      // User has a leaderboard role - display it with position-based bar
       const guild =
         client.guilds.cache.get(process.env.GUILD_ID!) ??
         (await client.guilds.fetch(process.env.GUILD_ID!))
@@ -1316,7 +1315,39 @@ export async function getStatsCanvasUserData(
         data.rank_name = role.name
         data.rank_color = hex
         data.rank_mmr = null // No MMR threshold for leaderboard roles
-        // Leave next_rank fields null - no progression bar for leaderboard roles
+        data.rank_position = leaderboardRole.leaderboard_min
+
+        // Get next leaderboard role (lower leaderboard_min = higher rank)
+        const nextLeaderboardRoleRes = await pool.query(
+          `
+          SELECT *
+          FROM queue_roles
+          WHERE queue_id = $1
+            AND leaderboard_min IS NOT NULL
+            AND leaderboard_min < $2
+          ORDER BY leaderboard_min DESC
+          LIMIT 1
+        `,
+          [queueId, leaderboardRole.leaderboard_min],
+        )
+
+        if (
+          nextLeaderboardRoleRes.rowCount &&
+          nextLeaderboardRoleRes.rowCount > 0
+        ) {
+          const nextLbRole = nextLeaderboardRoleRes.rows[0]
+          const nextRole =
+            guild.roles.cache.get(nextLbRole.role_id) ||
+            (await guild.roles.fetch(nextLbRole.role_id))
+          if (nextRole) {
+            const nextColorNumber = (nextRole as any).color as number
+            const nextHex =
+              `#${nextColorNumber.toString(16).padStart(6, '0')}`.toUpperCase()
+            data.next_rank_name = nextRole.name
+            data.next_rank_color = nextHex
+            data.next_rank_position = nextLbRole.leaderboard_min
+          }
+        }
       }
     } else {
       // Fall back to MMR-based role
