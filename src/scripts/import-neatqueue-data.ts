@@ -149,8 +149,8 @@ async function importData(
       // Default Glicko-2 values: rating_deviation = 350, volatility = 0.06
       await pool.query(
         `INSERT INTO queue_users
-         (user_id, elo, peak_elo, queue_id, rating_deviation, volatility, win_streak, peak_win_streak)
-         VALUES ($1, $2, $3, $4, 350, 0.06, $5, $6)
+         (user_id, elo, peak_elo, queue_id, volatility, win_streak, peak_win_streak)
+         VALUES ($1, $2, $3, $4, 10, $5, $6)
          ON CONFLICT (user_id, queue_id) DO UPDATE SET
            elo = EXCLUDED.elo,
            peak_elo = GREATEST(queue_users.peak_elo, EXCLUDED.peak_elo),

@@ -11,12 +11,9 @@ declare module 'psqlDB' {
     elo_search_increment: number
     elo_search_speed: number
     default_elo: number
-    minimum_elo?: number | null
-    maximum_elo?: number | null
     max_party_elo_difference?: number | null
     locked: boolean
     best_of_allowed: boolean
-    glicko_tau: number
     first_deck_ban_num: number
     second_deck_ban_num: number
   }
@@ -141,7 +138,12 @@ declare module 'psqlDB' {
     mmr: number
     peak_mmr: number
     win_streak: number
-    stats: { label: string; value: string; percentile: number; isTop: boolean }[]
+    stats: {
+      label: string
+      value: string
+      percentile: number
+      isTop: boolean
+    }[]
     previous_games: { change: number; time: Date }[]
     elo_graph_data: { date: Date; rating: number }[]
     rank_name?: string | null

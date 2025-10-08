@@ -29,13 +29,13 @@ import {
 } from './queryDB'
 import { Decks, MatchUsers, Stakes, teamResults } from 'psqlDB'
 import dotenv from 'dotenv'
-import { calculateGlicko2 } from './algorithms/calculateGlicko-2'
 import { QueryResult } from 'pg'
 import * as fs from 'fs'
 import * as path from 'path'
 import { glob } from 'glob'
 import { parseLogLines } from './transcriptHelpers'
 import { client } from '../client'
+import { calculateNewMMR } from './algorithms/calculateMMR'
 
 require('dotenv').config()
 
@@ -426,7 +426,7 @@ export async function endMatch(
       })),
     }
 
-    teamResults = await calculateGlicko2(queueId, matchId, teamResultsData)
+    teamResults = await calculateNewMMR(queueId, matchId, teamResultsData)
 
     // Save elo_change and winstreak to database
     for (const team of teamResults.teams) {
