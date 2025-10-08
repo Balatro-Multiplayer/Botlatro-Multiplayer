@@ -362,6 +362,7 @@ function drawGraph(
   // Y-axis grid lines and labels
   const targetGridLines = 6
   const rawInterval = ratingRange / targetGridLines
+  console.log(rawInterval)
   let niceInterval = 5
   if (rawInterval > 100) niceInterval = 100
   else if (rawInterval > 50) niceInterval = 50

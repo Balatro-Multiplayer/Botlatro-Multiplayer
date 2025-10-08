@@ -146,7 +146,6 @@ async function importData(
       )
 
       // Insert into queue_users table
-      // Default Glicko-2 values: rating_deviation = 350, volatility = 0.06
       await pool.query(
         `INSERT INTO queue_users
          (user_id, elo, peak_elo, queue_id, volatility, win_streak, peak_win_streak)
