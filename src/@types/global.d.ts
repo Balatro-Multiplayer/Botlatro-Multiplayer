@@ -62,12 +62,8 @@ declare module 'psqlDB' {
   }
 
   export interface QueueUsers {
-    // glicko2 fields
     elo: number | undefined // rating
-    rating_deviation: number | undefined // rating deviation
     volatility: number | undefined // rating change volatility
-
-    // our fields
     queue_id: number
     id: number
     user_id: string

@@ -22,7 +22,6 @@ import {
   getQueueSettings,
   getStakeList,
   getWinningTeamFromMatch,
-  isQueueGlicko,
   setMatchStakeVoteTeam,
   setMatchVoiceChannel,
   updatePlayerWinStreak,
@@ -413,35 +412,32 @@ export async function endMatch(
 
   const queueId = await getQueueIdFromMatch(matchId)
   const queueName = await getQueueSettings(queueId, ['queue_name'])
-  const isGlicko = await isQueueGlicko(queueId)
 
   let teamResults: teamResults | null = null
-  if (isGlicko) {
-    // create our teamResults object here
-    const teamResultsData: teamResults = {
-      teams: matchTeams.teams.map((teamResult) => ({
-        id: teamResult.id,
-        score: teamResult.score as 0 | 0.5 | 1,
-        players: teamResult.players as MatchUsers[],
-      })),
-    }
+  // create our teamResults object here
+  const teamResultsData: teamResults = {
+    teams: matchTeams.teams.map((teamResult) => ({
+      id: teamResult.id,
+      score: teamResult.score as 0 | 0.5 | 1,
+      players: teamResult.players as MatchUsers[],
+    })),
+  }
 
-    teamResults = await calculateNewMMR(queueId, matchId, teamResultsData)
+  teamResults = await calculateNewMMR(queueId, matchId, teamResultsData)
 
-    // Save elo_change and winstreak to database
-    for (const team of teamResults.teams) {
-      for (const player of team.players) {
-        if (team.score == 1) {
-          await updatePlayerWinStreak(player.user_id, queueId, true)
-        } else {
-          await updatePlayerWinStreak(player.user_id, queueId, false)
-        }
-        if (player.elo_change !== undefined && player.elo_change !== null) {
-          await pool.query(
-            `UPDATE match_users SET elo_change = $1 WHERE match_id = $2 AND user_id = $3`,
-            [player.elo_change, matchId, player.user_id],
-          )
-        }
+  // Save elo_change and winstreak to database
+  for (const team of teamResults.teams) {
+    for (const player of team.players) {
+      if (team.score == 1) {
+        await updatePlayerWinStreak(player.user_id, queueId, true)
+      } else {
+        await updatePlayerWinStreak(player.user_id, queueId, false)
+      }
+      if (player.elo_change !== undefined && player.elo_change !== null) {
+        await pool.query(
+          `UPDATE match_users SET elo_change = $1 WHERE match_id = $2 AND user_id = $3`,
+          [player.elo_change, matchId, player.user_id],
+        )
       }
     }
   }

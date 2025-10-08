@@ -839,7 +839,7 @@ export async function getMatchData(matchId: number): Promise<Matches> {
   return response.rows[0]
 }
 
-// gets player data for a live match to calculate Glicko-2 or openSkill ratings
+// gets player data for a live match to calculate ratings
 export async function getPlayerDataLive(matchId: number) {
   // get user_id for every player in the match
   const matchUsers = await pool.query(
@@ -873,11 +873,9 @@ export async function getPlayerDataLive(matchId: number) {
 // -- Rating Functions --
 export const ratingUtils = {
   updatePlayerVolatility,
-  updatePlayerDeviation,
   resetPlayerElo,
   getPlayerElo,
   getPlayerVolatility,
-  getPlayerDeviation,
   updatePlayerMmrAll,
   updatePlayerWinStreak,
 }
@@ -925,17 +923,6 @@ export async function updatePlayerVolatility(
   await pool.query(
     `UPDATE queue_users SET volatility = $1 WHERE user_id = $2`,
     [newVolatility, userId],
-  )
-}
-
-// updates a player's rating deviation
-export async function updatePlayerDeviation(
-  userId: string,
-  newDeviation: number,
-): Promise<void> {
-  await pool.query(
-    `UPDATE queue_users SET rating_deviation = $1 WHERE user_id = $2`,
-    [Math.round(newDeviation), userId],
   )
 }
 
@@ -1023,34 +1010,6 @@ export async function getPlayerVolatility(
   )
   if (response.rowCount === 0) return null
   return response.rows[0].elo
-}
-
-// gets a player's current rating deviation
-export async function getPlayerDeviation(
-  userId: string,
-  queueId: number,
-): Promise<number | null> {
-  const response = await pool.query(
-    `SELECT rating_deviation FROM queue_users WHERE user_id = $1 AND queue_id = $2`,
-    [userId, queueId],
-  )
-  if (response.rowCount === 0) return null
-  return response.rows[0].elo
-}
-
-// return whether a queue is glicko or openskill
-export async function isQueueGlicko(queueId: number): Promise<boolean> {
-  const response = await pool.query(
-    `SELECT members_per_team, number_of_teams FROM queues WHERE id = $1`,
-    [queueId],
-  )
-  if (response.rowCount === 0)
-    throw new Error(`Queue with id ${queueId} does not exist.`)
-  let isGlicko: boolean
-  isGlicko =
-    response.rows[0].number_of_teams === 2 &&
-    response.rows[0].members_per_team === 1
-  return isGlicko
 }
 
 // get queue ID from match ID
