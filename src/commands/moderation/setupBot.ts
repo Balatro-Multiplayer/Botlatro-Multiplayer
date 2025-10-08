@@ -79,7 +79,7 @@ class Settings {
       logs_channel_id,
       queue_logs_channel_id,
       queue_category_id,
-    } = settings.rows[0]
+    } = settings?.rows?.[0] ?? {}
     this.qId = queueChannelId ?? queue_channel_id
     this.qResultsId = queueResultsChannelId ?? queue_results_channel_id
     this.logsId = logsChannelId ?? logs_channel_id
@@ -183,7 +183,7 @@ class Channel extends Settings {
 
     // does exist but wrong category
     else if (this.categoryId !== other.categoryId) {
-      console.log('wrong category: re-creating channel')
+      console.log(`wrong category: re-creating channel`)
       await other.deleteMe()
       await this.createMe()
       return true
@@ -280,11 +280,12 @@ export default {
       client.guilds.cache.get(process.env.GUILD_ID!) ??
       (await client.guilds.fetch(process.env.GUILD_ID!))
 
-    // old category id
-    const res = await pool.query(
-      `SELECT * FROM settings WHERE singleton = true`,
-    )
-    const oldCatId = res.rows[0]
+    // // old category id
+    // const res = await pool.query(
+    //   `SELECT * FROM settings WHERE singleton = true`,
+    // )
+    // const oldCatId = res.rows[0].categoryId
+    // console.log('old cat:', oldCatId)
 
     // command params
     const queueCategoryId: any =
@@ -335,7 +336,11 @@ export default {
     await newChannels.addGuild()
 
     // resolve conflicts until only left with correct channels existing
-    await newChannels.compareAll(oldChannels, queueCategoryId, oldCatId)
+    await newChannels.compareAll(
+      oldChannels,
+      queueCategoryId,
+      oldChannels.category,
+    )
 
     await interaction.editReply('channels created successfully!')
   },

@@ -2,6 +2,11 @@ import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
 import { calculateExpiryDate } from 'utils/calculateExpiryDate'
 import { strikeUtils } from 'utils/queryDB'
 import { client } from '../../../client'
+import {
+  createEmbedType,
+  formatEmbedField,
+  logStrike,
+} from '../../../utils/logCommandUse'
 
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
@@ -32,6 +37,24 @@ export default {
       })
 
       const username = (await client.users.fetch(user.id)).username
+      const blame = (await client.users.fetch(interaction.user.id)).username
+      const referenceChannelName = await client.channels.fetch(referenceChannel)
+      const reasonCR = formatEmbedField(reason)
+
+      // log usage
+      const embed = createEmbedType(
+        'STRIKE GIVEN',
+        'desc.',
+        null, // default
+        [
+          { name: `Amount`, value: `${amount}`, inline: true },
+          { name: `Reason`, value: `${reasonCR}`, inline: true },
+          { name: `Ref`, value: `<#${referenceChannel}>`, inline: true },
+        ],
+        null,
+        `${blame}`,
+      )
+      await logStrike('add_strike', embed)
 
       await interaction.editReply(
         `User ${username} given ${amount} strikes ${reason == 'No reason provided' ? `for ${reason}` : ``}`,

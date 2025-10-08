@@ -11,8 +11,8 @@ export abstract class Embed {
   embedFields: EmbedField[] = []
   color: number = 10070709 // grey
   title: string = 'TITLE'
-  description: string = 'description'
-  blame: string = ''
+  description: string = ' '
+  blame: string = ' '
 
   // create embed based on instance values
   public createEmbed() {
@@ -31,7 +31,9 @@ export abstract class Embed {
 
   // add fields to embed
   public addFields() {
-    for (let field in this.embedFields) {
+    console.log(this.embedFields)
+    for (let field of this.embedFields) {
+      console.log(field, typeof field)
       this.embed.addFields(field)
     }
   }
@@ -103,16 +105,18 @@ export class General extends CommandFactory {
 }
 
 export class RemoveStrike extends CommandFactory {
-  color: number = 16711680 // red
+  color: number = 65280 // red
   title: string = 'REMOVE STRIKE'
 }
 
 export class AddStrike extends CommandFactory {
-  color: number = 65280 // green
+  color: number = 16711680 // green
   title: string = 'ADD STRIKE'
 }
 
 // distilled process to log an EmbedType object
+// @parameter
+// type - choose from a list of embed types ['add_strike', 'remove_strike', 'general']
 export async function logStrike(type: string, embed: EmbedType) {
   // build strike child class using type as parameter in factory
   const strike = CommandFactory.build(type)
@@ -145,4 +149,9 @@ export function createEmbedType(
     footer: footer,
     blame: blame,
   }
+}
+
+// add returns to embed field text to prevent loooong embeds
+export function formatEmbedField(txt: string) {
+  const arr = txt.split(' ') // split at spaces
 }
