@@ -1010,7 +1010,7 @@ export async function getPlayerVolatility(
     [userId, queueId],
   )
   if (response.rowCount === 0) return null
-  return response.rows[0].elo
+  return response.rows[0].volatility
 }
 
 // get queue ID from match ID
