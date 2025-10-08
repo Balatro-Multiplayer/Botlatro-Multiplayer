@@ -16,7 +16,7 @@ import {
   StringSelectMenuInteraction,
   CommandInteraction,
 } from 'discord.js'
-import { sendMatchInitMessages } from './matchHelpers'
+import { sendMatchInitMessages, updateMatchCountChannel } from './matchHelpers'
 import {
   createQueueUser,
   getAllQueueRoles,
@@ -439,6 +439,9 @@ export async function createMatch(
 
   // Send queue start messages
   await sendMatchInitMessages(queueId, matchId, channel)
+
+  // Update match count channel
+  await updateMatchCountChannel()
 
   return channel
 }

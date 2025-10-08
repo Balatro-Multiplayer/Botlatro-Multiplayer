@@ -357,6 +357,9 @@ export async function endMatch(
     console.log(`Closing match: ${matchId}`)
     await closeMatch(matchId)
 
+    // Update match count channel
+    await updateMatchCountChannel()
+
     // get log file using glob library
     const pattern = path
       .join(__dirname, '..', 'logs', `match-${matchId}_*.log`)
@@ -572,4 +575,36 @@ export async function setupMatchVoiceChannel(
   await setMatchVoiceChannel(matchId, voiceChannel.id)
 
   return voiceChannel
+}
+
+// Update match count voice channel name
+export async function updateMatchCountChannel(): Promise<void> {
+  try {
+    // Get count of active matches
+    const matchCountRes = await pool.query(
+      `SELECT COUNT(*) as count FROM matches WHERE open = true`
+    )
+    const activeMatchCount = parseInt(matchCountRes.rows[0].count) || 0
+
+    // Get match count channel ID from settings
+    const settingsRes = await pool.query(
+      `SELECT match_count_channel_id FROM settings WHERE singleton = true`
+    )
+    const channelId = settingsRes.rows[0]?.match_count_channel_id
+
+    if (!channelId) return
+
+    // Fetch and update the channel
+    const guild =
+      client.guilds.cache.get(process.env.GUILD_ID!) ??
+      (await client.guilds.fetch(process.env.GUILD_ID!))
+
+    const channel = await guild.channels.fetch(channelId).catch(() => null)
+
+    if (channel && channel.type === ChannelType.GuildVoice) {
+      await channel.setName(`${activeMatchCount} Active Matches`)
+    }
+  } catch (err) {
+    console.error('Failed to update match count channel:', err)
+  }
 }
