@@ -1463,3 +1463,27 @@ export async function getUserIdsWithStrikes(): Promise<string[]> {
     .catch()
   return res?.rows.map((user) => user.user_id)
 }
+
+export async function setDecayValues(d: {
+  threshold: number
+  amount: number
+  interval: number
+  grace: number
+}) {
+  const res = await pool.query(
+    `
+    UPDATE settings
+    SET
+      decay_threshold = $1,
+      decay_amount    = $2,
+      decay_interval  = $3,
+      decay_grace     = $4
+    WHERE singleton = true
+    `,
+    [d.threshold, d.amount, d.interval, d.grace],
+  )
+
+  if (res.rowCount === 0) {
+    throw new Error('no settings yet, please setup bot')
+  }
+}
