@@ -31,7 +31,6 @@ export default {
       interaction.options.getNumber('deck-ban-amount', false) ?? 5
     const deckBanSecondNum =
       interaction.options.getNumber('deck-ban-pick-amount', false) ?? 3
-    const glickoTau = interaction.options.getNumber('glicko-tau', false) ?? 0.35
 
     try {
       const nameCheck = await pool.query(
@@ -51,10 +50,10 @@ export default {
                 INSERT INTO queues
 				(queue_name, queue_desc, members_per_team, number_of_teams, 
 				 elo_search_start, elo_search_increment, 
-				 elo_search_speed, default_elo, minimum_elo, 
-				 maximum_elo, max_party_elo_difference, locked,
-				 best_of_allowed, first_deck_ban_num, second_deck_ban_num, glicko_tau)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+				 elo_search_speed, default_elo, 
+				 max_party_elo_difference, locked,
+				 best_of_allowed, first_deck_ban_num, second_deck_ban_num)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
                 `,
         [
           queueName,
@@ -65,14 +64,11 @@ export default {
           eloSearchIncrement,
           eloSearchSpeed,
           defaultElo,
-          minimumElo ?? null,
-          maximumElo ?? null,
           maxPartyEloDifference ?? null,
           false,
           bestOf,
           deckBanFirstNum,
           deckBanSecondNum,
-          glickoTau,
         ],
       )
 

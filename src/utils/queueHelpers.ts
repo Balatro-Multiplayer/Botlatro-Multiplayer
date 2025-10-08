@@ -487,3 +487,25 @@ export async function setUserQueueRole(
     }
   }
 }
+
+// setup view stats buttons
+export function setupViewStatsButtons(
+  queueName: string,
+): ActionRowBuilder<ButtonBuilder> {
+  const viewStatsBtn = new ButtonBuilder()
+    .setCustomId(`view-stats-${queueName}`)
+    .setLabel('Show My Stats')
+    .setStyle(ButtonStyle.Secondary)
+    .setEmoji('🔎')
+
+  const leaderboardBtn = new ButtonBuilder()
+    .setLabel('Leaderboard')
+    .setStyle(ButtonStyle.Link)
+    .setEmoji('📊')
+    .setURL('https://balatromp.com/leaderboards')
+
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    viewStatsBtn,
+    leaderboardBtn,
+  )
+}
