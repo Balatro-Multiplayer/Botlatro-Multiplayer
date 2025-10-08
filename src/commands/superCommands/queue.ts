@@ -45,6 +45,12 @@ export default {
             .setDescription('The queue name to view stats for')
             .setRequired(true)
             .setAutocomplete(true),
+        )
+        .addUserOption((option) =>
+          option
+            .setName('user')
+            .setDescription('The user to view stats for (defaults to yourself)')
+            .setRequired(false),
         ),
     ),
   async execute(interaction: ChatInputCommandInteraction) {

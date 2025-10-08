@@ -13,12 +13,9 @@ declare module 'psqlDB' {
     elo_search_increment: number
     elo_search_speed: number
     default_elo: number
-    minimum_elo?: number | null
-    maximum_elo?: number | null
     max_party_elo_difference?: number | null
     locked: boolean
     best_of_allowed: boolean
-    glicko_tau: number
     first_deck_ban_num: number
     second_deck_ban_num: number
   }
@@ -67,12 +64,8 @@ declare module 'psqlDB' {
   }
 
   export interface QueueUsers {
-    // glicko2 fields
     elo: number | undefined // rating
-    rating_deviation: number | undefined // rating deviation
     volatility: number | undefined // rating change volatility
-
-    // our fields
     queue_id: number
     id: number
     user_id: string
@@ -156,15 +149,23 @@ declare module 'psqlDB' {
     mmr: number
     peak_mmr: number
     win_streak: number
-    stats: { label: string; value: string; percentile: number }[]
+    stats: {
+      label: string
+      value: string
+      percentile: number
+      isTop: boolean
+    }[]
     previous_games: { change: number; time: Date }[]
     elo_graph_data: { date: Date; rating: number }[]
     rank_name?: string | null
     rank_color?: string | null
     rank_mmr?: number | null
+    rank_position?: number | null
+    max_rank_position?: number | null
     next_rank_name?: string | null
     next_rank_mmr?: number | null
     next_rank_color?: string | null
+    next_rank_position?: number | null
     leaderboard_position?: number | null
   }
 

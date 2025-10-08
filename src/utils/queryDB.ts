@@ -78,6 +78,11 @@ export async function createQueueUser(
   const queueSettings = await getQueueSettings(queueId)
 
   await pool.query(
+    'INSERT INTO users (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING',
+    [userId],
+  )
+
+  await pool.query(
     `
     INSERT INTO queue_users (user_id, elo, peak_elo, queue_id, queue_join_time)
     VALUES ($1, $2::real, $2::real, $3, NOW())
@@ -260,8 +265,8 @@ export async function getLeaderboardQueueRole(
     SELECT *
     FROM queue_roles
     WHERE queue_id = $1
-      AND leaderboard_min <= $2
-      AND leaderboard_max >= $2
+      AND leaderboard_min >= $2
+      AND leaderboard_max <= $2
     LIMIT 1
     `,
     [queueId, rank],
@@ -835,7 +840,7 @@ export async function getMatchData(matchId: number): Promise<Matches> {
   return response.rows[0]
 }
 
-// gets player data for a live match to calculate Glicko-2 or openSkill ratings
+// gets player data for a live match to calculate ratings
 export async function getPlayerDataLive(matchId: number) {
   // get user_id for every player in the match
   const matchUsers = await pool.query(
@@ -869,29 +874,26 @@ export async function getPlayerDataLive(matchId: number) {
 // -- Rating Functions --
 export const ratingUtils = {
   updatePlayerVolatility,
-  updatePlayerDeviation,
   resetPlayerElo,
   getPlayerElo,
   getPlayerVolatility,
-  getPlayerDeviation,
-  updatePlayerGlickoAll,
+  updatePlayerMmrAll,
   updatePlayerWinStreak,
 }
 
-// updates all of a player's glicko values at once
-export async function updatePlayerGlickoAll(
+// updates all of a player's MMR related values at once
+export async function updatePlayerMmrAll(
   queueId: number,
   userId: string,
   newElo: number,
-  newDeviation: number,
   newVolatility: number,
 ): Promise<void> {
   // Clamp elo between 0 and 9999
   const clampedElo = Math.max(0, Math.min(9999, newElo))
 
   await pool.query(
-    `UPDATE queue_users SET elo = $1, peak_elo = GREATEST(peak_elo, $1), rating_deviation = $2, volatility = $3 WHERE user_id = $4 AND queue_id = $5`,
-    [clampedElo, newDeviation, newVolatility, userId, queueId],
+    `UPDATE queue_users SET elo = $1, peak_elo = GREATEST(peak_elo, $1), volatility = $2 WHERE user_id = $3 AND queue_id = $4`,
+    [clampedElo, newVolatility, userId, queueId],
   )
 }
 
@@ -922,17 +924,6 @@ export async function updatePlayerVolatility(
   await pool.query(
     `UPDATE queue_users SET volatility = $1 WHERE user_id = $2`,
     [newVolatility, userId],
-  )
-}
-
-// updates a player's rating deviation
-export async function updatePlayerDeviation(
-  userId: string,
-  newDeviation: number,
-): Promise<void> {
-  await pool.query(
-    `UPDATE queue_users SET rating_deviation = $1 WHERE user_id = $2`,
-    [Math.round(newDeviation), userId],
   )
 }
 
@@ -1020,34 +1011,6 @@ export async function getPlayerVolatility(
   )
   if (response.rowCount === 0) return null
   return response.rows[0].elo
-}
-
-// gets a player's current rating deviation
-export async function getPlayerDeviation(
-  userId: string,
-  queueId: number,
-): Promise<number | null> {
-  const response = await pool.query(
-    `SELECT rating_deviation FROM queue_users WHERE user_id = $1 AND queue_id = $2`,
-    [userId, queueId],
-  )
-  if (response.rowCount === 0) return null
-  return response.rows[0].elo
-}
-
-// return whether a queue is glicko or openskill
-export async function isQueueGlicko(queueId: number): Promise<boolean> {
-  const response = await pool.query(
-    `SELECT members_per_team, number_of_teams FROM queues WHERE id = $1`,
-    [queueId],
-  )
-  if (response.rowCount === 0)
-    throw new Error(`Queue with id ${queueId} does not exist.`)
-  let isGlicko: boolean
-  isGlicko =
-    response.rows[0].number_of_teams === 2 &&
-    response.rows[0].members_per_team === 1
-  return isGlicko
 }
 
 // get queue ID from match ID
@@ -1191,8 +1154,8 @@ export async function getStatsCanvasUserData(
     FROM match_users mu
     JOIN matches m ON m.id = mu.match_id
     WHERE mu.user_id = $1 AND m.queue_id = $2 AND m.winning_team IS NOT NULL
-    ORDER BY m.id DESC
-    LIMIT 6
+    ORDER BY m.created_at DESC
+    LIMIT 4
     `,
     [userId, queueId],
   )
@@ -1208,7 +1171,6 @@ export async function getStatsCanvasUserData(
     JOIN matches m ON m.id = mu.match_id
     WHERE mu.user_id = $1 AND m.queue_id = $2 AND m.winning_team IS NOT NULL
     ORDER BY m.id
-    LIMIT 50
     `,
     [userId, queueId],
   )
@@ -1217,8 +1179,6 @@ export async function getStatsCanvasUserData(
     change: Number(r.elo_change) || 0,
     date: r.date as Date,
   }))
-
-  eloChanges = eloChanges.filter((r) => r.change !== 0)
 
   const totalChange = eloChanges.reduce((sum, r) => sum + r.change, 0)
   let running = (p.elo ?? 0) - totalChange
@@ -1249,9 +1209,9 @@ export async function getStatsCanvasUserData(
     )
     SELECT
       COUNT(*) as total_players,
-      COUNT(CASE WHEN wins < $2 THEN 1 END) as wins_rank,
+      COUNT(CASE WHEN wins >= $2 THEN 1 END) as wins_rank,
       COUNT(CASE WHEN losses > $3 THEN 1 END) as losses_rank,
-      COUNT(CASE WHEN games_played < $4 THEN 1 END) as games_rank,
+      COUNT(CASE WHEN games_played >= $4 THEN 1 END) as games_rank,
       COUNT(CASE WHEN winrate < $5 THEN 1 END) as winrate_rank
     FROM player_stats
     `,
@@ -1266,46 +1226,54 @@ export async function getStatsCanvasUserData(
 
   const playerCount = parseInt(percentilesRes.rows[0].total_players)
   const winsPercentile =
-    playerCount > 1
-      ? 100 - (parseInt(percentilesRes.rows[0].wins_rank) / playerCount) * 100
+    playerCount > 0
+      ? (parseInt(percentilesRes.rows[0].wins_rank) / playerCount) * 100
       : 0
   const lossesPercentile =
-    playerCount > 1
-      ? 100 - (parseInt(percentilesRes.rows[0].losses_rank) / playerCount) * 100
+    playerCount > 0
+      ? (parseInt(percentilesRes.rows[0].losses_rank) / playerCount) * 100
       : 0
   const gamesPercentile =
-    playerCount > 1
-      ? 100 - (parseInt(percentilesRes.rows[0].games_rank) / playerCount) * 100
+    playerCount > 0
+      ? (parseInt(percentilesRes.rows[0].games_rank) / playerCount) * 100
       : 0
   const winratePercentile =
-    playerCount > 1
-      ? 100 -
-        (parseInt(percentilesRes.rows[0].winrate_rank) / playerCount) * 100
+    playerCount > 0
+      ? (parseInt(percentilesRes.rows[0].winrate_rank) / playerCount) * 100
       : 0
 
   // Winrate calculation
   const winrate = games_played > 0 ? (wins / games_played) * 100 : 0
 
-  const stats: { label: string; value: string; percentile: number }[] = [
+  const stats: {
+    label: string
+    value: string
+    percentile: number
+    isTop: boolean
+  }[] = [
     {
       label: 'WINS',
       value: String(wins),
-      percentile: Math.round(winsPercentile * 10) / 10,
+      percentile: Math.round(winsPercentile),
+      isTop: true,
     },
     {
       label: 'LOSSES',
       value: String(losses),
-      percentile: Math.round(lossesPercentile * 10) / 10,
+      percentile: Math.round(lossesPercentile),
+      isTop: false,
     },
     {
       label: 'GAMES',
       value: String(games_played),
-      percentile: Math.round(gamesPercentile * 10) / 10,
+      percentile: Math.round(gamesPercentile),
+      isTop: true,
     },
     {
       label: 'WINRATE',
       value: `${Math.round(winrate)}%`,
-      percentile: Math.round(winratePercentile * 10) / 10,
+      percentile: Math.round(winratePercentile),
+      isTop: false,
     },
   ]
 
@@ -1330,51 +1298,106 @@ export async function getStatsCanvasUserData(
   }
 
   try {
-    const queueRole = await getUserQueueRole(queueId, userId)
-    if (queueRole) {
+    // Try leaderboard role first (prioritized)
+    const leaderboardRole = await getLeaderboardQueueRole(queueId, userId)
+
+    if (leaderboardRole) {
+      // User has a leaderboard role - display it with position-based bar
       const guild =
         client.guilds.cache.get(process.env.GUILD_ID!) ??
         (await client.guilds.fetch(process.env.GUILD_ID!))
       const role =
-        guild.roles.cache.get(queueRole.role_id) ||
-        (await guild.roles.fetch(queueRole.role_id))
+        guild.roles.cache.get(leaderboardRole.role_id) ||
+        (await guild.roles.fetch(leaderboardRole.role_id))
       if (role) {
         const colorNumber = (role as any).color as number
         const hex =
           `#${colorNumber.toString(16).padStart(6, '0')}`.toUpperCase()
         data.rank_name = role.name
         data.rank_color = hex
-        data.rank_mmr = queueRole.mmr_threshold
+        data.rank_mmr = null // No MMR threshold for leaderboard roles
+        data.rank_position = leaderboardRole.leaderboard_min
+
+        // Get next leaderboard role (lower leaderboard_min = higher rank)
+        const nextLeaderboardRoleRes = await pool.query(
+          `
+          SELECT *
+          FROM queue_roles
+          WHERE queue_id = $1
+            AND leaderboard_min IS NOT NULL
+            AND leaderboard_min < $2
+          ORDER BY leaderboard_min DESC
+          LIMIT 1
+        `,
+          [queueId, leaderboardRole.leaderboard_min],
+        )
+
+        if (
+          nextLeaderboardRoleRes.rowCount &&
+          nextLeaderboardRoleRes.rowCount > 0
+        ) {
+          const nextLbRole = nextLeaderboardRoleRes.rows[0]
+          const nextRole =
+            guild.roles.cache.get(nextLbRole.role_id) ||
+            (await guild.roles.fetch(nextLbRole.role_id))
+          if (nextRole) {
+            const nextColorNumber = (nextRole as any).color as number
+            const nextHex =
+              `#${nextColorNumber.toString(16).padStart(6, '0')}`.toUpperCase()
+            data.next_rank_name = nextRole.name
+            data.next_rank_color = nextHex
+            data.next_rank_position = nextLbRole.leaderboard_min
+          }
+        }
       }
-    }
+    } else {
+      // Fall back to MMR-based role
+      const queueRole = await getUserQueueRole(queueId, userId)
+      if (queueRole) {
+        const guild =
+          client.guilds.cache.get(process.env.GUILD_ID!) ??
+          (await client.guilds.fetch(process.env.GUILD_ID!))
+        const role =
+          guild.roles.cache.get(queueRole.role_id) ||
+          (await guild.roles.fetch(queueRole.role_id))
+        if (role) {
+          const colorNumber = (role as any).color as number
+          const hex =
+            `#${colorNumber.toString(16).padStart(6, '0')}`.toUpperCase()
+          data.rank_name = role.name
+          data.rank_color = hex
+          data.rank_mmr = queueRole.mmr_threshold
+        }
+      }
 
-    // Get the next rank role
-    const nextRankRes = await pool.query(
-      `
-      SELECT *
-      FROM queue_roles
-      WHERE queue_id = $1 AND mmr_threshold > $2
-      ORDER BY mmr_threshold
-      LIMIT 1
-    `,
-      [queueId, p.elo],
-    )
+      // Get the next rank role (only for MMR-based roles)
+      const nextRankRes = await pool.query(
+        `
+        SELECT *
+        FROM queue_roles
+        WHERE queue_id = $1 AND mmr_threshold > $2
+        ORDER BY mmr_threshold
+        LIMIT 1
+      `,
+        [queueId, p.elo],
+      )
 
-    if (nextRankRes.rowCount && nextRankRes.rowCount > 0) {
-      const nextRank = nextRankRes.rows[0]
-      const guild =
-        client.guilds.cache.get(process.env.GUILD_ID!) ??
-        (await client.guilds.fetch(process.env.GUILD_ID!))
-      const nextRole =
-        guild.roles.cache.get(nextRank.role_id) ||
-        (await guild.roles.fetch(nextRank.role_id))
-      if (nextRole) {
-        const colorNumber = (nextRole as any).color as number
-        const hex =
-          `#${colorNumber.toString(16).padStart(6, '0')}`.toUpperCase()
-        data.next_rank_name = nextRole.name
-        data.next_rank_mmr = nextRank.mmr_threshold
-        data.next_rank_color = hex
+      if (nextRankRes.rowCount && nextRankRes.rowCount > 0) {
+        const nextRank = nextRankRes.rows[0]
+        const guild =
+          client.guilds.cache.get(process.env.GUILD_ID!) ??
+          (await client.guilds.fetch(process.env.GUILD_ID!))
+        const nextRole =
+          guild.roles.cache.get(nextRank.role_id) ||
+          (await guild.roles.fetch(nextRank.role_id))
+        if (nextRole) {
+          const colorNumber = (nextRole as any).color as number
+          const hex =
+            `#${colorNumber.toString(16).padStart(6, '0')}`.toUpperCase()
+          data.next_rank_name = nextRole.name
+          data.next_rank_mmr = nextRank.mmr_threshold
+          data.next_rank_color = hex
+        }
       }
     }
   } catch {

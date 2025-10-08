@@ -45,7 +45,6 @@ export default {
       'deck-ban-pick-amount',
       false,
     )
-    const glickoTau = interaction.options.getNumber('glicko-tau', false)
 
     try {
       const result = await pool.query(
@@ -59,13 +58,10 @@ export default {
           elo_search_increment = COALESCE($6, elo_search_increment),
           elo_search_speed = COALESCE($7, elo_search_speed),
           default_elo = COALESCE($8, default_elo),
-          minimum_elo = COALESCE($9, minimum_elo),
-          maximum_elo = COALESCE($10, maximum_elo),
-          max_party_elo_difference = COALESCE($11, max_party_elo_difference),
-          best_of_allowed = COALESCE($12, best_of_allowed),
-          first_deck_ban_num = COALESCE($13, first_deck_ban_num),
-          second_deck_ban_num = COALESCE($14, second_deck_ban_num),
-          glicko_tau = COALESCE($15, glicko_tau)
+          max_party_elo_difference = COALESCE($9, max_party_elo_difference),
+          best_of_allowed = COALESCE($10, best_of_allowed),
+          first_deck_ban_num = COALESCE($11, first_deck_ban_num),
+          second_deck_ban_num = COALESCE($12, second_deck_ban_num)
         WHERE queue_name = $1
         RETURNING queue_name
         `,
@@ -78,13 +74,10 @@ export default {
           eloSearchIncrement,
           eloSearchSpeed,
           defaultElo,
-          minimumElo,
-          maximumElo,
           maxPartyEloDifference,
           bestOf,
           deckBanFirstNum,
           deckBanSecondNum,
-          glickoTau,
         ],
       )
 
