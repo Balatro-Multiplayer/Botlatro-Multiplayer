@@ -1,13 +1,14 @@
 import {
-  SlashCommandBuilder,
+  AutocompleteInteraction,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  AutocompleteInteraction,
+  SlashCommandBuilder,
 } from 'discord.js'
 
 import changeMMR from '../moderation/changeMMR'
 import queue from './queue'
 import setBannedDecks from 'commands/moderation/setBannedDecks'
+import setDecay from '../moderation/setDecay'
 
 export default {
   data: new SlashCommandBuilder()
@@ -49,6 +50,36 @@ export default {
             .setRequired(true)
             .setAutocomplete(true),
         ),
+    )
+
+    .addSubcommand((sub) =>
+      sub
+        .setName('decay')
+        .setDescription('[ADMIN] Settings for MMR decay')
+        .addNumberOption((option) =>
+          option
+            .setName('decay-threshold')
+            .setDescription('The MMR at which decay begins')
+            .setRequired(true),
+        )
+        .addNumberOption((option) =>
+          option
+            .setName('decay-amount')
+            .setDescription('The amount of MMR lost per decay tick')
+            .setRequired(true),
+        )
+        .addNumberOption((option) =>
+          option
+            .setName('decay-interval')
+            .setDescription('The rate at which decay ticks happen, in hours')
+            .setRequired(true),
+        )
+        .addNumberOption((option) =>
+          option
+            .setName('grace-period')
+            .setDescription('The grace before decay starts ticking, in hours')
+            .setRequired(false),
+        ),
     ),
 
   async execute(interaction: ChatInputCommandInteraction) {
@@ -56,6 +87,8 @@ export default {
       await changeMMR.execute(interaction)
     } else if (interaction.options.getSubcommand() === 'banned-decks') {
       await setBannedDecks.execute(interaction)
+    } else if (interaction.options.getSubcommand() === 'decay') {
+      await setDecay.execute(interaction)
     }
   },
 
