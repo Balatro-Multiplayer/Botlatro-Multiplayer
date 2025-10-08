@@ -1,8 +1,8 @@
 import {
-  SlashCommandBuilder,
+  AutocompleteInteraction,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  AutocompleteInteraction,
+  SlashCommandBuilder,
 } from 'discord.js'
 
 import listAllOpenParties from '../party/listAllOpenParties'
@@ -10,6 +10,8 @@ import ListUsersInSpecificParty from '../party/listUsersInSpecificParty'
 import queue from './queue'
 import listQueueRoles from 'commands/moderation/listQueueRoles'
 import listQueueUsers from '../moderation/listQueueUsers'
+import { strikeAutocomplete } from '../../utils/Autocompletions'
+import listStrikes from '../moderation/playerModeration/listStrikes'
 
 export default {
   data: new SlashCommandBuilder()
@@ -54,6 +56,18 @@ export default {
             .setAutocomplete(true)
             .setRequired(true),
         ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('strikes')
+        .setDescription('List all strike(s) for a certain user')
+        .addStringOption((option) =>
+          option
+            .setName('user')
+            .setDescription('The user to list strike(s) of')
+            .setAutocomplete(true)
+            .setRequired(true),
+        ),
     ),
 
   async execute(interaction: ChatInputCommandInteraction) {
@@ -65,12 +79,17 @@ export default {
       await listQueueRoles.execute(interaction)
     } else if (interaction.options.getSubcommand() === 'queue-users') {
       await listQueueUsers.execute(interaction)
+    } else if (interaction.options.getSubcommand() === 'strikes') {
+      await listStrikes.execute(interaction)
     }
   },
 
   async autocomplete(interaction: AutocompleteInteraction) {
     const subcommand = interaction.options.getSubcommand()
 
+    if (subcommand === 'strikes') {
+      await strikeAutocomplete(interaction)
+    }
     if (subcommand === 'users-in-party') {
       await ListUsersInSpecificParty.autocomplete(interaction)
     } else if (subcommand === 'queue-roles' || subcommand === 'queue-users') {

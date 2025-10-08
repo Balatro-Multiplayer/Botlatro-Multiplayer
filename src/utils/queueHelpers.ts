@@ -16,7 +16,7 @@ import {
   StringSelectMenuInteraction,
   CommandInteraction,
 } from 'discord.js'
-import { sendMatchInitMessages } from './matchHelpers'
+import { sendMatchInitMessages, updateMatchCountChannel } from './matchHelpers'
 import {
   createQueueUser,
   getAllQueueRoles,
@@ -440,6 +440,9 @@ export async function createMatch(
   // Send queue start messages
   await sendMatchInitMessages(queueId, matchId, channel)
 
+  // Update match count channel
+  await updateMatchCountChannel()
+
   return channel
 }
 
@@ -486,4 +489,26 @@ export async function setUserQueueRole(
       await member.roles.remove(lbRole.role_id)
     }
   }
+}
+
+// setup view stats buttons
+export function setupViewStatsButtons(
+  queueName: string,
+): ActionRowBuilder<ButtonBuilder> {
+  const viewStatsBtn = new ButtonBuilder()
+    .setCustomId(`view-stats-${queueName}`)
+    .setLabel('Show My Stats')
+    .setStyle(ButtonStyle.Secondary)
+    .setEmoji('🔎')
+
+  const leaderboardBtn = new ButtonBuilder()
+    .setLabel('Leaderboard')
+    .setStyle(ButtonStyle.Link)
+    .setEmoji('📊')
+    .setURL('https://balatromp.com/leaderboards')
+
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    viewStatsBtn,
+    leaderboardBtn,
+  )
 }

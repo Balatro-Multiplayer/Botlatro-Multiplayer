@@ -23,19 +23,19 @@ const config = {
     textSecondary: '#b0b3b8',
     textTertiary: '#72767d',
     accent: '#4a4e54',
-    win: '#00ff3c',
-    lose: '#ff0000',
+    win: '#00ff38',
+    lose: '#ff3636',
     graphLine: '#ff0000',
   },
   fonts: {
     ui: font,
     title: `bold 52px ${font}`,
-    value: `bold 42px ${font}`,
+    value: `bold 44px ${font}`,
     statLabel: `bold 24px ${font}`,
     label: `bold 18px ${font}`,
     small: `bold 20px ${font}`,
     graphSmall: `16px ${font}`,
-    percentile: `19px ${font}`,
+    percentile: `16px ${font}`,
     gameList: `17px ${font}`,
   },
 }
@@ -116,7 +116,8 @@ async function drawHeader(
   const guild =
     client.guilds.cache.get(process.env.GUILD_ID!) ??
     (await client.guilds.fetch(process.env.GUILD_ID!))
-  const member = await guild.members.fetch(playerData.user_id)
+  const member = await guild.members.fetch(playerData.user_id).catch(() => null)
+  const user = await client.users.fetch(playerData.user_id)
   const avatarY = (150 - 110) / 2
 
   await drawAvatar(ctx, padding, avatarY, 110, playerData)
@@ -127,32 +128,66 @@ async function drawHeader(
   ctx.fillStyle = config.colors.textSecondary
   ctx.fillText(
     playerData.leaderboard_position
-      ? `${queueName.toUpperCase()} RANK: #${playerData.leaderboard_position}`
+      ? `${queueName.toUpperCase()}: #${playerData.leaderboard_position}`
       : `${queueName.toUpperCase()} PLAYER`,
     padding + 128,
-    45,
+    40,
   )
 
-  ctx.font = config.fonts.title
+  // Player name with dynamic font sizing
+  const displayName = !member ? user.username : member.displayName
+  const nameStartX = padding + 125
+  const nameMaxWidth = config.width - nameStartX - 300
+
+  // Start with the default title font size (52px)
+  let nameFontSize = 52
+  ctx.font = `bold ${nameFontSize}px ${font}`
+  let nameWidth = ctx.measureText(displayName).width
+
+  // Scale down if name is too wide
+  if (nameWidth > nameMaxWidth) {
+    nameFontSize = Math.max(
+      32,
+      Math.floor((nameMaxWidth / nameWidth) * nameFontSize),
+    )
+    ctx.font = `bold ${nameFontSize}px ${font}`
+  }
+
   ctx.fillStyle = config.colors.textPrimary
   ctx.textBaseline = 'middle'
-  ctx.fillText(member.displayName, padding + 125, 80)
+  ctx.fillText(displayName, nameStartX, 75)
 
   // Rank progress bar
   const barHeight = 22
-  const barWidth = padding + 110 * 2
-  const barX = padding + 195
   const barY = 115
   const rankColor = playerData.rank_color || config.colors.textTertiary
   const nextRankColor = playerData.next_rank_color || config.colors.textPrimary
   const rankName = (playerData.rank_name || 'UNRANKED').toUpperCase()
+  const nextRankName = playerData.next_rank_name
+    ? playerData.next_rank_name.toUpperCase()
+    : ''
+
+  // Measure rank name widths to calculate bar width dynamically
+  ctx.font = config.fonts.small
+  const rankNameWidth = ctx.measureText(rankName).width
+  const nextRankNameWidth = nextRankName
+    ? ctx.measureText(nextRankName).width
+    : 0
+  const rankNameX = padding + 125
+  const barX = rankNameX + rankNameWidth + 15 // 15px spacing after rank name
+
+  // Calculate maximum available width for bar and next rank label
+  // Leave space for MMR on the right (around 260px from the right edge)
+  const maxRightX = config.width - 240
+  const availableWidth = maxRightX - barX - 10 - nextRankNameWidth // 10px spacing before next rank
+  const barWidth = Math.max(120, Math.min(260, availableWidth)) // Between 120-260px
 
   if (
     rankName != 'UNRANKED' &&
     playerData.next_rank_mmr &&
     playerData.rank_mmr !== null
   ) {
-    // Draw progress bar showing advancement to next rank
+    // MMR-based ranks: Draw progress bar showing advancement to next rank
     const mmrRange = playerData.next_rank_mmr - playerData.rank_mmr!
     const mmrProgress = playerData.mmr - playerData.rank_mmr!
     const progress = Math.max(0, Math.min(1, mmrProgress / mmrRange))
@@ -166,8 +201,34 @@ async function drawHeader(
       barWidth * (1 - progress),
       barHeight,
     )
-  } else if (rankName != 'UNRANKED') {
-    // Max rank - fully filled bar
+  } else if (rankName != 'UNRANKED' && playerData.rank_mmr !== null) {
+    // Max MMR-based rank - fully filled bar
+    ctx.fillStyle = rankColor
+    ctx.fillRect(barX, barY, barWidth, barHeight)
+  } else if (
+    rankName != 'UNRANKED' &&
+    playerData.rank_mmr === null &&
+    playerData.next_rank_name &&
+    playerData.next_rank_position &&
+    playerData.rank_position
+  ) {
+    // Leaderboard-based ranks: Draw progress bar showing advancement to next rank
+    const rankRange = playerData.rank_position - playerData.next_rank_position
+    const currentPos = playerData.leaderboard_position || 999
+    const rankProgress = playerData.rank_position - currentPos
+    const progress = Math.max(0, Math.min(1, rankProgress / rankRange))
+
+    ctx.fillStyle = rankColor
+    ctx.fillRect(barX, barY, barWidth * progress, barHeight)
+    ctx.fillStyle = nextRankColor
+    ctx.fillRect(
+      barX + barWidth * progress,
+      barY,
+      barWidth * (1 - progress),
+      barHeight,
+    )
+  } else if (rankName != 'UNRANKED' && playerData.rank_mmr === null) {
+    // Max leaderboard rank - fully filled bar
     ctx.fillStyle = rankColor
     ctx.fillRect(barX, barY, barWidth, barHeight)
   }
@@ -175,15 +236,55 @@ async function drawHeader(
   // Current rank label
   ctx.fillStyle = rankColor
   ctx.font = config.fonts.small
-  ctx.fillText(rankName, padding + 125, barY + barHeight - 12)
+  ctx.fillText(rankName, rankNameX, barY + barHeight - 12)
 
-  // Next rank label and MMR needed
+  // Next rank label and requirement
   if (playerData.next_rank_name && playerData.next_rank_mmr) {
+    // MMR-based next rank
     const mmrNeeded = playerData.next_rank_mmr - playerData.mmr
     ctx.fillStyle = config.colors.textPrimary
     ctx.textAlign = 'left'
     ctx.font = config.fonts.graphSmall
-    ctx.fillText(`+${mmrNeeded} MMR`, barX + 10, barY + barHeight / 2)
+
+    ctx.letterSpacing = '1px'
+    ctx.shadowColor = 'rgba(0, 0, 0, 1)'
+    ctx.shadowBlur = 4
+    ctx.fillText(
+      `+${mmrNeeded.toFixed(1)} MMR`,
+      barX + 10,
+      barY + barHeight / 2,
+    )
+    ctx.shadowColor = 'rgba(0, 0, 0, 0)'
+    ctx.shadowBlur = 0
+    ctx.letterSpacing = '0px'
+
+    ctx.font = config.fonts.small
+    ctx.fillStyle = nextRankColor
+    ctx.fillText(
+      `${playerData.next_rank_name.toUpperCase()}`,
+      barX + barWidth + 10,
+      barY + barHeight - 12,
+    )
+  } else if (playerData.next_rank_name && playerData.next_rank_position) {
+    // Leaderboard-based next rank
+    const nextRankPos = playerData.next_rank_position
+    const currentPos = playerData.leaderboard_position || 999
+    const positionsNeeded = Math.max(0, currentPos - nextRankPos)
+
+    ctx.fillStyle = config.colors.textPrimary
+    ctx.textAlign = 'left'
+    ctx.font = config.fonts.graphSmall
+
+    ctx.shadowColor = 'rgba(0, 0, 0, 1)'
+    ctx.shadowBlur = 4
+    ctx.fillText(
+      `↑ ${positionsNeeded}  ${positionsNeeded === 1 ? 'RANK' : 'RANKS'}`,
+      barX + 10,
+      barY + barHeight / 2,
+    )
+    ctx.shadowColor = 'rgba(0, 0, 0, 0)'
+    ctx.shadowBlur = 0
+
     ctx.font = config.fonts.small
     ctx.fillStyle = nextRankColor
     ctx.fillText(
@@ -201,12 +302,12 @@ async function drawHeader(
 
   ctx.font = config.fonts.title
   ctx.fillStyle = config.colors.textPrimary
-  ctx.fillText(formatNumber(playerData.mmr), config.width - padding - 20, 80)
+  ctx.fillText(`${playerData.mmr}`, config.width - padding - 20, 80)
 
   ctx.font = config.fonts.small
   ctx.fillStyle = config.colors.textTertiary
   ctx.fillText(
-    `PEAK: ${formatNumber(playerData.peak_mmr)}`,
+    `PEAK: ${playerData.peak_mmr}`,
     config.width - padding - 20,
     barY + barHeight - 12,
   )
@@ -242,12 +343,13 @@ function drawStats(
       : isNaN(Number(stat.value))
         ? stat.value
         : formatNumber(Number(stat.value))
-    ctx.fillText(displayValue, cx, y + valueOffsetY - 5)
+    ctx.fillText(displayValue, cx, y + valueOffsetY)
 
     if (stat.percentile !== undefined) {
       ctx.font = config.fonts.percentile
       ctx.fillStyle = config.colors.textSecondary
-      ctx.fillText(`TOP ${stat.percentile}%`, cx, y + valueOffsetY + 60)
+      const prefix = stat.isTop ? 'TOP' : 'BOTTOM'
+      ctx.fillText(`${prefix} ${stat.percentile}%`, cx, y + valueOffsetY + 69)
     }
   })
 
@@ -284,17 +386,23 @@ function drawPreviousGames(
       const game = playerData.previous_games[i]
       const numberText = `${i + 1}.`
       const resultText = game.change > 0 ? 'WIN' : 'LOSS'
-      const changeText = `${game.change > 0 ? '+' : ''}${game.change}`
+      const changeText = `${game.change > 0 ? '+' : ''}${game.change.toFixed(1)}`
 
       ctx.fillStyle = config.colors.textPrimary
       ctx.fillText(numberText, startX - 120, y)
 
       ctx.fillStyle = game.change > 0 ? config.colors.win : config.colors.lose
       const numberWidth = ctx.measureText(numberText).width
-      ctx.fillText(resultText, startX + numberWidth - 115, y)
+      ctx.fillText(
+        resultText,
+        i == 0 ? startX + numberWidth - 112 : startX + numberWidth - 115,
+        y,
+      )
 
       const resultWidth = ctx.measureText(resultText).width
+      ctx.letterSpacing = '2px'
       ctx.fillText(changeText, startX + resultWidth + numberWidth - 108, y)
+      ctx.letterSpacing = '0px'
 
       ctx.fillStyle = config.colors.textSecondary
       ctx.textAlign = 'right'
@@ -331,10 +439,12 @@ function drawGraph(
     height: config.height - 400 - 50,
   }
 
+  const graphPadding = 4 // Padding for the line within the graph area
+
   const data = playerData.elo_graph_data
-  const minRating = data.length > 0 ? Math.min(...data.map((d) => d.rating)) : 0
+  const dataMinRating =
+    data.length > 0 ? Math.min(...data.map((d) => d.rating)) : 0
   const maxRating = playerData.peak_mmr
-  const ratingRange = maxRating - minRating
 
   ctx.strokeStyle = config.colors.gridLines
   ctx.lineWidth = 1
@@ -345,25 +455,30 @@ function drawGraph(
 
   // Y-axis grid lines and labels
   const targetGridLines = 6
-  const rawInterval = ratingRange / targetGridLines
+  const tempRange = maxRating - dataMinRating
+  const rawInterval = tempRange / targetGridLines
   let niceInterval = 5
   if (rawInterval > 100) niceInterval = 100
   else if (rawInterval > 50) niceInterval = 50
   else if (rawInterval > 25) niceInterval = 25
   else if (rawInterval > 10) niceInterval = 10
 
-  const startValue = Math.floor(minRating / niceInterval) * niceInterval
+  // Start from 0 only if the player actually has a rating at or near 0
+  const startValue =
+    dataMinRating <= 5
+      ? 0
+      : Math.floor(dataMinRating / niceInterval) * niceInterval
+  const minRating = startValue
+  const ratingRange = maxRating - minRating
 
   for (let value = startValue; value <= maxRating; value += niceInterval) {
-    if (value >= minRating) {
-      const y =
-        area.y + area.height - ((value - minRating) / ratingRange) * area.height
-      ctx.beginPath()
-      ctx.moveTo(area.x, y)
-      ctx.lineTo(area.x + area.width, y)
-      ctx.stroke()
-      ctx.fillText(value.toString(), area.x - 10, y)
-    }
+    const y =
+      area.y + area.height - ((value - minRating) / ratingRange) * area.height
+    ctx.beginPath()
+    ctx.moveTo(area.x, y)
+    ctx.lineTo(area.x + area.width, y)
+    ctx.stroke()
+    ctx.fillText(value.toString(), area.x - 10, y)
   }
 
   // Y-axis title
@@ -380,25 +495,24 @@ function drawGraph(
   const maxLabels = 15
 
   data.forEach((_point, i) => {
-    const x = area.x + (i / (data.length - 1)) * area.width
-
-    ctx.beginPath()
-    ctx.moveTo(x, area.y)
-    ctx.lineTo(x, area.y + area.height)
-    ctx.stroke()
-
     // Determine label visibility
     let shouldShowLabel = data.length <= maxLabels
     if (!shouldShowLabel) {
       const gameNumber = i + 1
       const interval = data.length > 100 ? 10 : 5
       shouldShowLabel =
-        gameNumber === 1 ||
-        gameNumber === data.length ||
-        (gameNumber % interval === 0 && gameNumber !== 1)
+        gameNumber === 1 || (gameNumber % interval === 0 && gameNumber !== 1)
     }
 
     if (shouldShowLabel) {
+      const x = area.x + (i / (data.length - 1)) * area.width
+
+      // Draw grid line only where label is shown
+      ctx.beginPath()
+      ctx.moveTo(x, area.y)
+      ctx.lineTo(x, area.y + area.height)
+      ctx.stroke()
+
       ctx.fillText((i + 1).toString(), x, area.y + area.height + 18)
     }
   })
@@ -408,36 +522,39 @@ function drawGraph(
   ctx.lineWidth = 1.5
   ctx.strokeRect(area.x, area.y, area.width, area.height)
 
-  // Rating line
-  ctx.strokeStyle = config.colors.graphLine
-  ctx.fillStyle = config.colors.graphLine
-  ctx.lineWidth = 2.5
+  const shadowOffset = 3
 
+  // Draw shadow (black, transparent, offset)
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)'
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
+  ctx.lineWidth = 2
+
+  // Shadow lines
   for (let i = 0; i < data.length - 1; i++) {
-    const x1 = area.x + (i / (data.length - 1)) * area.width
+    const x1 =
+      area.x +
+      graphPadding +
+      (i / (data.length - 1)) * (area.width - graphPadding * 2) +
+      shadowOffset
     const y1 =
       area.y +
-      area.height -
-      ((data[i].rating - minRating) / ratingRange) * area.height
-    const x2 = area.x + ((i + 1) / (data.length - 1)) * area.width
+      graphPadding +
+      (area.height - graphPadding * 2) -
+      ((data[i].rating - minRating) / ratingRange) *
+        (area.height - graphPadding * 2) +
+      shadowOffset
+    const x2 =
+      area.x +
+      graphPadding +
+      ((i + 1) / (data.length - 1)) * (area.width - graphPadding * 2) +
+      shadowOffset
     const y2 =
       area.y +
-      area.height -
-      ((data[i + 1].rating - minRating) / ratingRange) * area.height
-
-    // Shadow direction based on line direction
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)'
-    ctx.shadowBlur = 1
-    if (y2 < y1) {
-      ctx.shadowOffsetX = 2
-      ctx.shadowOffsetY = 2
-    } else if (y2 > y1) {
-      ctx.shadowOffsetX = -2
-      ctx.shadowOffsetY = 2
-    } else {
-      ctx.shadowOffsetX = 0
-      ctx.shadowOffsetY = 2
-    }
+      graphPadding +
+      (area.height - graphPadding * 2) -
+      ((data[i + 1].rating - minRating) / ratingRange) *
+        (area.height - graphPadding * 2) +
+      shadowOffset
 
     ctx.beginPath()
     ctx.moveTo(x1, y1)
@@ -445,49 +562,77 @@ function drawGraph(
     ctx.stroke()
   }
 
-  // Rating points
+  // Shadow points
   data.forEach((point, i) => {
-    const x = area.x + (i / (data.length - 1)) * area.width
+    const x =
+      area.x +
+      graphPadding +
+      (i / (data.length - 1)) * (area.width - graphPadding * 2) +
+      shadowOffset
     const y =
       area.y +
-      area.height -
-      ((point.rating - minRating) / ratingRange) * area.height
-
-    let shadowOffsetX = 0
-    let shadowOffsetY = 2
-
-    if (i > 0 && i < data.length - 1) {
-      const prevY =
-        area.y +
-        area.height -
-        ((data[i - 1].rating - minRating) / ratingRange) * area.height
-      const nextY =
-        area.y +
-        area.height -
-        ((data[i + 1].rating - minRating) / ratingRange) * area.height
-      const avgDirection = (prevY + nextY) / 2
-
-      if (avgDirection < y) {
-        shadowOffsetX = 2
-      } else {
-        shadowOffsetX = -2
-      }
-    }
-
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)'
-    ctx.shadowBlur = 1
-    ctx.shadowOffsetX = shadowOffsetX
-    ctx.shadowOffsetY = shadowOffsetY
+      graphPadding +
+      (area.height - graphPadding * 2) -
+      ((point.rating - minRating) / ratingRange) *
+        (area.height - graphPadding * 2) +
+      shadowOffset
 
     ctx.beginPath()
-    ctx.arc(x, y, 4, 0, Math.PI * 2)
+    ctx.arc(x, y, 3, 0, Math.PI * 2)
     ctx.fill()
   })
 
-  ctx.shadowColor = 'transparent'
-  ctx.shadowBlur = 0
-  ctx.shadowOffsetX = 0
-  ctx.shadowOffsetY = 0
+  // Draw actual graph
+  ctx.strokeStyle = config.colors.graphLine
+  ctx.fillStyle = config.colors.graphLine
+  ctx.lineWidth = 2
+
+  // Actual lines
+  for (let i = 0; i < data.length - 1; i++) {
+    const x1 =
+      area.x +
+      graphPadding +
+      (i / (data.length - 1)) * (area.width - graphPadding * 2)
+    const y1 =
+      area.y +
+      graphPadding +
+      (area.height - graphPadding * 2) -
+      ((data[i].rating - minRating) / ratingRange) *
+        (area.height - graphPadding * 2)
+    const x2 =
+      area.x +
+      graphPadding +
+      ((i + 1) / (data.length - 1)) * (area.width - graphPadding * 2)
+    const y2 =
+      area.y +
+      graphPadding +
+      (area.height - graphPadding * 2) -
+      ((data[i + 1].rating - minRating) / ratingRange) *
+        (area.height - graphPadding * 2)
+
+    ctx.beginPath()
+    ctx.moveTo(x1, y1)
+    ctx.lineTo(x2, y2)
+    ctx.stroke()
+  }
+
+  // Actual points
+  data.forEach((point, i) => {
+    const x =
+      area.x +
+      graphPadding +
+      (i / (data.length - 1)) * (area.width - graphPadding * 2)
+    const y =
+      area.y +
+      graphPadding +
+      (area.height - graphPadding * 2) -
+      ((point.rating - minRating) / ratingRange) *
+        (area.height - graphPadding * 2)
+
+    ctx.beginPath()
+    ctx.arc(x, y, 3, 0, Math.PI * 2)
+    ctx.fill()
+  })
 }
 
 export async function drawPlayerStatsCanvas(

@@ -22,20 +22,19 @@ import {
   getQueueSettings,
   getStakeList,
   getWinningTeamFromMatch,
-  isQueueGlicko,
   setMatchStakeVoteTeam,
   setMatchVoiceChannel,
   updatePlayerWinStreak,
 } from './queryDB'
 import { Decks, MatchUsers, Stakes, teamResults } from 'psqlDB'
 import dotenv from 'dotenv'
-import { calculateGlicko2 } from './algorithms/calculateGlicko-2'
 import { QueryResult } from 'pg'
 import * as fs from 'fs'
 import * as path from 'path'
 import { glob } from 'glob'
 import { parseLogLines } from './transcriptHelpers'
 import { client } from '../client'
+import { calculateNewMMR } from './algorithms/calculateMMR'
 
 require('dotenv').config()
 
@@ -358,6 +357,9 @@ export async function endMatch(
     console.log(`Closing match: ${matchId}`)
     await closeMatch(matchId)
 
+    // Update match count channel
+    await updateMatchCountChannel()
+
     // get log file using glob library
     const pattern = path
       .join(__dirname, '..', 'logs', `match-${matchId}_*.log`)
@@ -418,35 +420,32 @@ export async function endMatch(
 
   const queueId = await getQueueIdFromMatch(matchId)
   const queueName = await getQueueSettings(queueId, ['queue_name'])
-  const isGlicko = await isQueueGlicko(queueId)
 
   let teamResults: teamResults | null = null
-  if (isGlicko) {
-    // create our teamResults object here
-    const teamResultsData: teamResults = {
-      teams: matchTeams.teams.map((teamResult) => ({
-        id: teamResult.id,
-        score: teamResult.score as 0 | 0.5 | 1,
-        players: teamResult.players as MatchUsers[],
-      })),
-    }
+  // create our teamResults object here
+  const teamResultsData: teamResults = {
+    teams: matchTeams.teams.map((teamResult) => ({
+      id: teamResult.id,
+      score: teamResult.score as 0 | 0.5 | 1,
+      players: teamResult.players as MatchUsers[],
+    })),
+  }
 
-    teamResults = await calculateGlicko2(queueId, matchId, teamResultsData)
+  teamResults = await calculateNewMMR(queueId, matchId, teamResultsData)
 
-    // Save elo_change and winstreak to database
-    for (const team of teamResults.teams) {
-      for (const player of team.players) {
-        if (team.score == 1) {
-          await updatePlayerWinStreak(player.user_id, queueId, true)
-        } else {
-          await updatePlayerWinStreak(player.user_id, queueId, false)
-        }
-        if (player.elo_change !== undefined && player.elo_change !== null) {
-          await pool.query(
-            `UPDATE match_users SET elo_change = $1 WHERE match_id = $2 AND user_id = $3`,
-            [player.elo_change, matchId, player.user_id],
-          )
-        }
+  // Save elo_change and winstreak to database
+  for (const team of teamResults.teams) {
+    for (const player of team.players) {
+      if (team.score == 1) {
+        await updatePlayerWinStreak(player.user_id, queueId, true)
+      } else {
+        await updatePlayerWinStreak(player.user_id, queueId, false)
+      }
+      if (player.elo_change !== undefined && player.elo_change !== null) {
+        await pool.query(
+          `UPDATE match_users SET elo_change = $1 WHERE match_id = $2 AND user_id = $3`,
+          [player.elo_change, matchId, player.user_id],
+        )
       }
     }
   }
@@ -581,4 +580,36 @@ export async function setupMatchVoiceChannel(
   await setMatchVoiceChannel(matchId, voiceChannel.id)
 
   return voiceChannel
+}
+
+// Update match count voice channel name
+export async function updateMatchCountChannel(): Promise<void> {
+  try {
+    // Get count of active matches
+    const matchCountRes = await pool.query(
+      `SELECT COUNT(*) as count FROM matches WHERE open = true`
+    )
+    const activeMatchCount = parseInt(matchCountRes.rows[0].count) || 0
+
+    // Get match count channel ID from settings
+    const settingsRes = await pool.query(
+      `SELECT match_count_channel_id FROM settings WHERE singleton = true`
+    )
+    const channelId = settingsRes.rows[0]?.match_count_channel_id
+
+    if (!channelId) return
+
+    // Fetch and update the channel
+    const guild =
+      client.guilds.cache.get(process.env.GUILD_ID!) ??
+      (await client.guilds.fetch(process.env.GUILD_ID!))
+
+    const channel = await guild.channels.fetch(channelId).catch(() => null)
+
+    if (channel && channel.type === ChannelType.GuildVoice) {
+      await channel.setName(`${activeMatchCount} Active Matches`)
+    }
+  } catch (err) {
+    console.error('Failed to update match count channel:', err)
+  }
 }
