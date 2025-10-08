@@ -35,7 +35,7 @@ const config = {
     label: `bold 18px ${font}`,
     small: `bold 20px ${font}`,
     graphSmall: `16px ${font}`,
-    percentile: `17px ${font}`,
+    percentile: `16px ${font}`,
     gameList: `17px ${font}`,
   },
 }
@@ -116,7 +116,8 @@ async function drawHeader(
   const guild =
     client.guilds.cache.get(process.env.GUILD_ID!) ??
     (await client.guilds.fetch(process.env.GUILD_ID!))
-  const member = await guild.members.fetch(playerData.user_id)
+  const member = await guild.members.fetch(playerData.user_id).catch(() => null)
+  const user = await client.users.fetch(playerData.user_id)
   const avatarY = (150 - 110) / 2
 
   await drawAvatar(ctx, padding, avatarY, 110, playerData)
@@ -127,16 +128,34 @@ async function drawHeader(
   ctx.fillStyle = config.colors.textSecondary
   ctx.fillText(
     playerData.leaderboard_position
-      ? `${queueName.toUpperCase()} RANK: #${playerData.leaderboard_position}`
+      ? `${queueName.toUpperCase()}: #${playerData.leaderboard_position}`
       : `${queueName.toUpperCase()} PLAYER`,
     padding + 128,
     40,
   )
 
-  ctx.font = config.fonts.title
+  // Player name with dynamic font sizing
+  const displayName = !member ? user.username : member.displayName
+  const nameStartX = padding + 125
+  const nameMaxWidth = config.width - nameStartX - 300
+
+  // Start with the default title font size (52px)
+  let nameFontSize = 52
+  ctx.font = `bold ${nameFontSize}px ${font}`
+  let nameWidth = ctx.measureText(displayName).width
+
+  // Scale down if name is too wide
+  if (nameWidth > nameMaxWidth) {
+    nameFontSize = Math.max(
+      32,
+      Math.floor((nameMaxWidth / nameWidth) * nameFontSize),
+    )
+    ctx.font = `bold ${nameFontSize}px ${font}`
+  }
+
   ctx.fillStyle = config.colors.textPrimary
   ctx.textBaseline = 'middle'
-  ctx.fillText(member.displayName, padding + 125, 75)
+  ctx.fillText(displayName, nameStartX, 75)
 
   // Rank progress bar
   const barHeight = 22
@@ -144,13 +163,24 @@ async function drawHeader(
   const rankColor = playerData.rank_color || config.colors.textTertiary
   const nextRankColor = playerData.next_rank_color || config.colors.textPrimary
   const rankName = (playerData.rank_name || 'UNRANKED').toUpperCase()
+  const nextRankName = playerData.next_rank_name
+    ? playerData.next_rank_name.toUpperCase()
+    : ''
 
-  // Measure rank name width to position bar dynamically
+  // Measure rank name widths to calculate bar width dynamically
   ctx.font = config.fonts.small
   const rankNameWidth = ctx.measureText(rankName).width
+  const nextRankNameWidth = nextRankName
+    ? ctx.measureText(nextRankName).width
+    : 0
   const rankNameX = padding + 125
   const barX = rankNameX + rankNameWidth + 15 // 15px spacing after rank name
-  const barWidth = 260 // Fixed bar width
+
+  // Calculate maximum available width for bar and next rank label
+  // Leave space for MMR on the right (around 260px from the right edge)
+  const maxRightX = config.width - 240
+  const availableWidth = maxRightX - barX - 10 - nextRankNameWidth // 10px spacing before next rank
+  const barWidth = Math.max(120, Math.min(260, availableWidth)) // Between 120-260px
 
   if (
     rankName != 'UNRANKED' &&
@@ -217,11 +247,15 @@ async function drawHeader(
     ctx.font = config.fonts.graphSmall
 
     ctx.letterSpacing = '1px'
+    ctx.shadowColor = 'rgba(0, 0, 0, 1)'
+    ctx.shadowBlur = 4
     ctx.fillText(
       `+${mmrNeeded.toFixed(1)} MMR`,
       barX + 10,
       barY + barHeight / 2,
     )
+    ctx.shadowColor = 'rgba(0, 0, 0, 0)'
+    ctx.shadowBlur = 0
     ctx.letterSpacing = '0px'
 
     ctx.font = config.fonts.small
@@ -241,13 +275,15 @@ async function drawHeader(
     ctx.textAlign = 'left'
     ctx.font = config.fonts.graphSmall
 
-    ctx.letterSpacing = '1px'
+    ctx.shadowColor = 'rgba(0, 0, 0, 1)'
+    ctx.shadowBlur = 4
     ctx.fillText(
-      `↑ ${positionsNeeded} ${positionsNeeded === 1 ? 'RANK' : 'RANKS'}`,
+      `↑ ${positionsNeeded}  ${positionsNeeded === 1 ? 'RANK' : 'RANKS'}`,
       barX + 10,
       barY + barHeight / 2,
     )
-    ctx.letterSpacing = '0px'
+    ctx.shadowColor = 'rgba(0, 0, 0, 0)'
+    ctx.shadowBlur = 0
 
     ctx.font = config.fonts.small
     ctx.fillStyle = nextRankColor
@@ -266,12 +302,12 @@ async function drawHeader(
 
   ctx.font = config.fonts.title
   ctx.fillStyle = config.colors.textPrimary
-  ctx.fillText(formatNumber(playerData.mmr), config.width - padding - 20, 80)
+  ctx.fillText(`${playerData.mmr}`, config.width - padding - 20, 80)
 
   ctx.font = config.fonts.small
   ctx.fillStyle = config.colors.textTertiary
   ctx.fillText(
-    `PEAK: ${formatNumber(playerData.peak_mmr)}`,
+    `PEAK: ${playerData.peak_mmr}`,
     config.width - padding - 20,
     barY + barHeight - 12,
   )
@@ -427,9 +463,9 @@ function drawGraph(
   else if (rawInterval > 25) niceInterval = 25
   else if (rawInterval > 10) niceInterval = 10
 
-  // Start from 0 only if interval is 25 or less
+  // Start from 0 only if the player actually has a rating at or near 0
   const startValue =
-    niceInterval <= 25
+    dataMinRating <= 5
       ? 0
       : Math.floor(dataMinRating / niceInterval) * niceInterval
   const minRating = startValue
