@@ -30,11 +30,11 @@ export default {
       const errorMsg = err.detail || err.message || 'Unknown'
       if (interaction.deferred || interaction.replied) {
         await interaction.editReply({
-          content: `Failed to resend message. Reason: ${errorMsg}`,
+          content: `Failed to view queue stats. Reason: ${errorMsg}`,
         })
       } else {
         await interaction.reply({
-          content: `Failed to resend message. Reason: ${errorMsg}`,
+          content: `Failed to view queue stats. Reason: ${errorMsg}`,
           flags: MessageFlags.Ephemeral,
         })
       }
