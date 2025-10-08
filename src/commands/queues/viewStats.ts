@@ -8,11 +8,9 @@ export default {
       await interaction.deferReply()
 
       const queueName = interaction.options.getString('queue-name', true)
+      const targetUser = interaction.options.getUser('user') || interaction.user
       const queueId = await getQueueIdFromName(queueName)
-      const playerStats = await getStatsCanvasUserData(
-        interaction.user.id,
-        queueId,
-      )
+      const playerStats = await getStatsCanvasUserData(targetUser.id, queueId)
       const statFile = await drawPlayerStatsCanvas(queueName, playerStats)
 
       await interaction.editReply({ files: [statFile] })

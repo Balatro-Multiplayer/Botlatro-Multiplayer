@@ -24,7 +24,7 @@ const config = {
     textTertiary: '#72767d',
     accent: '#4a4e54',
     win: '#00ff3c',
-    lose: '#ff0000',
+    lose: '#ff3636',
     graphLine: '#ff0000',
   },
   fonts: {
@@ -35,7 +35,7 @@ const config = {
     label: `bold 18px ${font}`,
     small: `bold 20px ${font}`,
     graphSmall: `16px ${font}`,
-    percentile: `19px ${font}`,
+    percentile: `17px ${font}`,
     gameList: `17px ${font}`,
   },
 }
@@ -130,7 +130,7 @@ async function drawHeader(
       ? `${queueName.toUpperCase()} RANK: #${playerData.leaderboard_position}`
       : `${queueName.toUpperCase()} PLAYER`,
     padding + 128,
-    45,
+    50,
   )
 
   ctx.font = config.fonts.title
@@ -141,7 +141,7 @@ async function drawHeader(
   // Rank progress bar
   const barHeight = 22
   const barWidth = padding + 110 * 2
-  const barX = padding + 195
+  const barX = padding + 210
   const barY = 115
   const rankColor = playerData.rank_color || config.colors.textTertiary
   const nextRankColor = playerData.next_rank_color || config.colors.textPrimary
@@ -166,11 +166,12 @@ async function drawHeader(
       barWidth * (1 - progress),
       barHeight,
     )
-  } else if (rankName != 'UNRANKED') {
-    // Max rank - fully filled bar
+  } else if (rankName != 'UNRANKED' && playerData.rank_mmr !== null) {
+    // Max rank - fully filled bar (only for MMR-based roles)
     ctx.fillStyle = rankColor
     ctx.fillRect(barX, barY, barWidth, barHeight)
   }
+  // Leaderboard roles (rank_mmr is null) display no bar
 
   // Current rank label
   ctx.fillStyle = rankColor
@@ -183,7 +184,15 @@ async function drawHeader(
     ctx.fillStyle = config.colors.textPrimary
     ctx.textAlign = 'left'
     ctx.font = config.fonts.graphSmall
-    ctx.fillText(`+${mmrNeeded} MMR`, barX + 10, barY + barHeight / 2)
+
+    ctx.letterSpacing = '1px'
+    ctx.fillText(
+      `+${mmrNeeded.toFixed(1)} MMR`,
+      barX + 10,
+      barY + barHeight / 2,
+    )
+    ctx.letterSpacing = '0px'
+
     ctx.font = config.fonts.small
     ctx.fillStyle = nextRankColor
     ctx.fillText(
@@ -247,7 +256,8 @@ function drawStats(
     if (stat.percentile !== undefined) {
       ctx.font = config.fonts.percentile
       ctx.fillStyle = config.colors.textSecondary
-      ctx.fillText(`TOP ${stat.percentile}%`, cx, y + valueOffsetY + 60)
+      const prefix = stat.isTop ? 'TOP' : 'BOTTOM'
+      ctx.fillText(`${prefix} ${stat.percentile}%`, cx, y + valueOffsetY + 60)
     }
   })
 
@@ -284,17 +294,23 @@ function drawPreviousGames(
       const game = playerData.previous_games[i]
       const numberText = `${i + 1}.`
       const resultText = game.change > 0 ? 'WIN' : 'LOSS'
-      const changeText = `${game.change > 0 ? '+' : ''}${game.change}`
+      const changeText = `${game.change > 0 ? '+' : ''}${game.change.toFixed(1)}`
 
       ctx.fillStyle = config.colors.textPrimary
       ctx.fillText(numberText, startX - 120, y)
 
       ctx.fillStyle = game.change > 0 ? config.colors.win : config.colors.lose
       const numberWidth = ctx.measureText(numberText).width
-      ctx.fillText(resultText, startX + numberWidth - 115, y)
+      ctx.fillText(
+        resultText,
+        i == 0 ? startX + numberWidth - 112 : startX + numberWidth - 115,
+        y,
+      )
 
       const resultWidth = ctx.measureText(resultText).width
+      ctx.letterSpacing = '2px'
       ctx.fillText(changeText, startX + resultWidth + numberWidth - 108, y)
+      ctx.letterSpacing = '0px'
 
       ctx.fillStyle = config.colors.textSecondary
       ctx.textAlign = 'right'

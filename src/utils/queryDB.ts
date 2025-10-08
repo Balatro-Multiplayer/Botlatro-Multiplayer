@@ -77,6 +77,11 @@ export async function createQueueUser(
   const queueSettings = await getQueueSettings(queueId)
 
   await pool.query(
+    'INSERT INTO users (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING',
+    [userId],
+  )
+
+  await pool.query(
     `
     INSERT INTO queue_users (user_id, elo, peak_elo, queue_id, queue_join_time)
     VALUES ($1, $2::real, $2::real, $3, NOW())
@@ -1217,8 +1222,6 @@ export async function getStatsCanvasUserData(
     date: r.date as Date,
   }))
 
-  eloChanges = eloChanges.filter((r) => r.change !== 0)
-
   const totalChange = eloChanges.reduce((sum, r) => sum + r.change, 0)
   let running = (p.elo ?? 0) - totalChange
   const elo_graph_data = eloChanges.map((r) => {
@@ -1248,9 +1251,9 @@ export async function getStatsCanvasUserData(
     )
     SELECT
       COUNT(*) as total_players,
-      COUNT(CASE WHEN wins < $2 THEN 1 END) as wins_rank,
+      COUNT(CASE WHEN wins >= $2 THEN 1 END) as wins_rank,
       COUNT(CASE WHEN losses > $3 THEN 1 END) as losses_rank,
-      COUNT(CASE WHEN games_played < $4 THEN 1 END) as games_rank,
+      COUNT(CASE WHEN games_played >= $4 THEN 1 END) as games_rank,
       COUNT(CASE WHEN winrate < $5 THEN 1 END) as winrate_rank
     FROM player_stats
     `,
@@ -1265,46 +1268,54 @@ export async function getStatsCanvasUserData(
 
   const playerCount = parseInt(percentilesRes.rows[0].total_players)
   const winsPercentile =
-    playerCount > 1
-      ? 100 - (parseInt(percentilesRes.rows[0].wins_rank) / playerCount) * 100
+    playerCount > 0
+      ? (parseInt(percentilesRes.rows[0].wins_rank) / playerCount) * 100
       : 0
   const lossesPercentile =
-    playerCount > 1
-      ? 100 - (parseInt(percentilesRes.rows[0].losses_rank) / playerCount) * 100
+    playerCount > 0
+      ? (parseInt(percentilesRes.rows[0].losses_rank) / playerCount) * 100
       : 0
   const gamesPercentile =
-    playerCount > 1
-      ? 100 - (parseInt(percentilesRes.rows[0].games_rank) / playerCount) * 100
+    playerCount > 0
+      ? (parseInt(percentilesRes.rows[0].games_rank) / playerCount) * 100
       : 0
   const winratePercentile =
-    playerCount > 1
-      ? 100 -
-        (parseInt(percentilesRes.rows[0].winrate_rank) / playerCount) * 100
+    playerCount > 0
+      ? (parseInt(percentilesRes.rows[0].winrate_rank) / playerCount) * 100
       : 0
 
   // Winrate calculation
   const winrate = games_played > 0 ? (wins / games_played) * 100 : 0
 
-  const stats: { label: string; value: string; percentile: number }[] = [
+  const stats: {
+    label: string
+    value: string
+    percentile: number
+    isTop: boolean
+  }[] = [
     {
       label: 'WINS',
       value: String(wins),
-      percentile: Math.round(winsPercentile * 10) / 10,
+      percentile: Math.round(winsPercentile),
+      isTop: true,
     },
     {
       label: 'LOSSES',
       value: String(losses),
-      percentile: Math.round(lossesPercentile * 10) / 10,
+      percentile: Math.round(lossesPercentile),
+      isTop: false,
     },
     {
       label: 'GAMES',
       value: String(games_played),
-      percentile: Math.round(gamesPercentile * 10) / 10,
+      percentile: Math.round(gamesPercentile),
+      isTop: true,
     },
     {
       label: 'WINRATE',
       value: `${Math.round(winrate)}%`,
-      percentile: Math.round(winratePercentile * 10) / 10,
+      percentile: Math.round(winratePercentile),
+      isTop: false,
     },
   ]
 
@@ -1329,51 +1340,74 @@ export async function getStatsCanvasUserData(
   }
 
   try {
-    const queueRole = await getUserQueueRole(queueId, userId)
-    if (queueRole) {
+    // Try leaderboard role first (prioritized)
+    const leaderboardRole = await getLeaderboardQueueRole(queueId, userId)
+
+    if (leaderboardRole) {
+      // User has a leaderboard role - display it without bar
       const guild =
         client.guilds.cache.get(process.env.GUILD_ID!) ??
         (await client.guilds.fetch(process.env.GUILD_ID!))
       const role =
-        guild.roles.cache.get(queueRole.role_id) ||
-        (await guild.roles.fetch(queueRole.role_id))
+        guild.roles.cache.get(leaderboardRole.role_id) ||
+        (await guild.roles.fetch(leaderboardRole.role_id))
       if (role) {
         const colorNumber = (role as any).color as number
         const hex =
           `#${colorNumber.toString(16).padStart(6, '0')}`.toUpperCase()
         data.rank_name = role.name
         data.rank_color = hex
-        data.rank_mmr = queueRole.mmr_threshold
+        data.rank_mmr = null // No MMR threshold for leaderboard roles
+        // Leave next_rank fields null - no progression bar for leaderboard roles
       }
-    }
+    } else {
+      // Fall back to MMR-based role
+      const queueRole = await getUserQueueRole(queueId, userId)
+      if (queueRole) {
+        const guild =
+          client.guilds.cache.get(process.env.GUILD_ID!) ??
+          (await client.guilds.fetch(process.env.GUILD_ID!))
+        const role =
+          guild.roles.cache.get(queueRole.role_id) ||
+          (await guild.roles.fetch(queueRole.role_id))
+        if (role) {
+          const colorNumber = (role as any).color as number
+          const hex =
+            `#${colorNumber.toString(16).padStart(6, '0')}`.toUpperCase()
+          data.rank_name = role.name
+          data.rank_color = hex
+          data.rank_mmr = queueRole.mmr_threshold
+        }
+      }
 
-    // Get the next rank role
-    const nextRankRes = await pool.query(
-      `
-      SELECT *
-      FROM queue_roles
-      WHERE queue_id = $1 AND mmr_threshold > $2
-      ORDER BY mmr_threshold
-      LIMIT 1
-    `,
-      [queueId, p.elo],
-    )
+      // Get the next rank role (only for MMR-based roles)
+      const nextRankRes = await pool.query(
+        `
+        SELECT *
+        FROM queue_roles
+        WHERE queue_id = $1 AND mmr_threshold > $2
+        ORDER BY mmr_threshold
+        LIMIT 1
+      `,
+        [queueId, p.elo],
+      )
 
-    if (nextRankRes.rowCount && nextRankRes.rowCount > 0) {
-      const nextRank = nextRankRes.rows[0]
-      const guild =
-        client.guilds.cache.get(process.env.GUILD_ID!) ??
-        (await client.guilds.fetch(process.env.GUILD_ID!))
-      const nextRole =
-        guild.roles.cache.get(nextRank.role_id) ||
-        (await guild.roles.fetch(nextRank.role_id))
-      if (nextRole) {
-        const colorNumber = (nextRole as any).color as number
-        const hex =
-          `#${colorNumber.toString(16).padStart(6, '0')}`.toUpperCase()
-        data.next_rank_name = nextRole.name
-        data.next_rank_mmr = nextRank.mmr_threshold
-        data.next_rank_color = hex
+      if (nextRankRes.rowCount && nextRankRes.rowCount > 0) {
+        const nextRank = nextRankRes.rows[0]
+        const guild =
+          client.guilds.cache.get(process.env.GUILD_ID!) ??
+          (await client.guilds.fetch(process.env.GUILD_ID!))
+        const nextRole =
+          guild.roles.cache.get(nextRank.role_id) ||
+          (await guild.roles.fetch(nextRank.role_id))
+        if (nextRole) {
+          const colorNumber = (nextRole as any).color as number
+          const hex =
+            `#${colorNumber.toString(16).padStart(6, '0')}`.toUpperCase()
+          data.next_rank_name = nextRole.name
+          data.next_rank_mmr = nextRank.mmr_threshold
+          data.next_rank_color = hex
+        }
       }
     }
   } catch {

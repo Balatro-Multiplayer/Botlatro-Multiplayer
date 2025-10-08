@@ -4,7 +4,6 @@ import {
   getMatchData,
   ratingUtils,
   getWinningTeamFromMatch,
-  updatePlayerWinStreak,
 } from '../queryDB'
 import type { teamResults } from 'psqlDB'
 import { setUserQueueRole } from 'utils/queueHelpers'
@@ -17,24 +16,26 @@ export async function calculateGlicko2(
 ): Promise<teamResults> {
   const matchData = await getMatchData(matchId)
   const settings = await getQueueSettings(matchData.queue_id)
+  const defaultRd = 200
+  const defaultVol = 0.06
 
   const glick = new Glicko2({
     tau: settings.glicko_tau,
     rating: settings.default_elo,
-    rd: 100,
-    vol: 0.08,
+    rd: defaultRd,
+    vol: defaultVol,
   })
 
   // Create Glicko-2 players for each participant using stored data
   const Player1 = glick.makePlayer(
     teamResults.teams[0].players[0].elo ?? settings.default_elo,
-    teamResults.teams[0].players[0].rating_deviation ?? 100,
-    teamResults.teams[0].players[0].volatility ?? 0.08,
+    teamResults.teams[0].players[0].rating_deviation ?? defaultRd,
+    teamResults.teams[0].players[0].volatility ?? defaultVol,
   )
   const Player2 = glick.makePlayer(
     teamResults.teams[1].players[0].elo ?? settings.default_elo,
-    teamResults.teams[1].players[0].rating_deviation ?? 100,
-    teamResults.teams[1].players[0].volatility ?? 0.08,
+    teamResults.teams[1].players[0].rating_deviation ?? defaultRd,
+    teamResults.teams[1].players[0].volatility ?? defaultVol,
   )
 
   const match: [Player, Player, number][] = [
