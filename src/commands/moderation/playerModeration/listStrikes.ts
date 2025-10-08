@@ -36,7 +36,7 @@ export default {
         const blame = blameMember.displayName
         embed.addFields({
           name: ` `,
-          value: `#${index} by ${blame} · ${strike.reason} · <#${strike.reference}> · ${formattedDate} · (${strike.amount})`,
+          value: `#${index} by ${blame} · ${strike.reason} · #${strike.reference} · ${formattedDate} · (${strike.amount})`,
           inline: false,
         })
         index++

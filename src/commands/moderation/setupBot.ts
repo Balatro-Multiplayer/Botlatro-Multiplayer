@@ -3,6 +3,7 @@ import {
   ChatInputCommandInteraction,
   MessageFlags,
   PermissionFlagsBits,
+  PermissionsBitField,
   SlashCommandBuilder,
 } from 'discord.js'
 import { pool } from '../../db'
@@ -13,6 +14,7 @@ class Settings {
   qResultsId: string
   logsId: string
   qLogsId: string
+  qMatchesId: string
   categoryId: string
   guild: any = null
 
@@ -22,12 +24,14 @@ class Settings {
     qResultsId: string = '',
     logsId: string = '',
     qLogsId: string = '',
+    qMatchesId: string = '',
     categoryId = '',
   ) {
     this.qId = qId
     this.qResultsId = qResultsId
     this.logsId = logsId
     this.qLogsId = qLogsId
+    this.qMatchesId = qMatchesId
     this.categoryId = categoryId
     this.guild = guild
   }
@@ -60,6 +64,12 @@ class Settings {
         )
         break
     }
+    if (name.includes('Active Matches')) {
+      await pool.query(
+        `UPDATE settings SET match_count_channel_id = $1 WHERE singleton = true`,
+        [id],
+      )
+    }
   }
 
   // updates object with a list of (user inputs ?? up-to-date settings)
@@ -68,6 +78,7 @@ class Settings {
     queueResultsChannelId: any = null,
     logsChannelId: any = null,
     queueLogsChannelId: any = null,
+    queueMatchChannelId: any = null,
     category: any = null,
   ) {
     const settings = await pool.query(
@@ -78,12 +89,14 @@ class Settings {
       queue_results_channel_id,
       logs_channel_id,
       queue_logs_channel_id,
+      match_count_channel_id,
       queue_category_id,
     } = settings?.rows?.[0] ?? {}
     this.qId = queueChannelId ?? queue_channel_id
     this.qResultsId = queueResultsChannelId ?? queue_results_channel_id
     this.logsId = logsChannelId ?? logs_channel_id
     this.qLogsId = queueLogsChannelId ?? queue_logs_channel_id
+    this.qMatchesId = queueMatchChannelId ?? match_count_channel_id
     this.categoryId = category ?? queue_category_id
   }
 
@@ -103,11 +116,20 @@ class Settings {
 class Channel extends Settings {
   id: string = ''
   name: string = ''
+  type: ChannelType = ChannelType.GuildText
+  helper: boolean = false
 
-  constructor(name: string = '', id: string = '') {
+  constructor(
+    name: string = '',
+    id: string = '',
+    type: ChannelType = ChannelType.GuildText,
+    helper: boolean = false,
+  ) {
     super()
     this.id = id
     this.name = name
+    this.type = type
+    this.helper = helper
   }
 
   // checks if channel exists in discord's API
@@ -128,11 +150,33 @@ class Channel extends Settings {
     await this.updateMe()
     // await this.updateMe()
     if (await this.isExists()) return null
+    let perms: any[] = []
+    if (this.helper) {
+      if (this.type === ChannelType.GuildVoice) {
+        // Voice channels: deny Connect
+        perms = [
+          {
+            id: this.guild.id,
+            deny: [PermissionsBitField.Flags.Connect],
+          },
+        ]
+      } else {
+        // Text channels: deny ViewChannel
+        perms = [
+          {
+            id: this.guild.id,
+            deny: [PermissionsBitField.Flags.ViewChannel],
+          },
+        ]
+      }
+    }
+
     await this.updateCategory()
     const channel = await this.guild.channels.create({
       name: name ?? this.name,
-      type: 0, // text channel
+      type: this.type, // text channel
       parent: categoryId ?? this.categoryId,
+      permissionOverwrites: perms,
     })
     return { channelName: name ?? this.name, channelId: channel.id }
   }
@@ -160,6 +204,8 @@ class Channel extends Settings {
       case 'queue-log':
         this.id = this.qLogsId
         break
+      default:
+        this.id = this.qMatchesId
     }
     await this.addGuild()
     // await this.updateCategory()
@@ -210,6 +256,7 @@ class Channels extends Channel {
   qResults: Channel
   logs: Channel
   qLogs: Channel
+  qMatches: Channel
   category: string = ''
 
   constructor(
@@ -217,6 +264,7 @@ class Channels extends Channel {
     qResults: Channel,
     logs: Channel,
     qLogs: Channel,
+    qMatches: Channel,
     category: string,
   ) {
     super()
@@ -224,6 +272,7 @@ class Channels extends Channel {
     this.qResults = qResults
     this.logs = logs
     this.qLogs = qLogs
+    this.qMatches = qMatches
     this.category = category
   }
 
@@ -233,6 +282,7 @@ class Channels extends Channel {
     await this.qResults.updateMe()
     await this.logs.updateMe()
     await this.qLogs.updateMe()
+    await this.qMatches.updateMe()
     await this.update()
   }
 
@@ -242,6 +292,7 @@ class Channels extends Channel {
     await this.qResults.compare(old.qResults, newCatId, oldCatId)
     await this.logs.compare(old.logs, newCatId, oldCatId)
     await this.qLogs.compare(old.qLogs, newCatId, oldCatId)
+    await this.qMatches.compare(old.qMatches, newCatId, oldCatId)
   }
 }
 
@@ -249,7 +300,7 @@ export default {
   data: new SlashCommandBuilder()
     .setName('setup-bot')
     .setDescription('[ADMIN] Setup the initial settings for the bot')
-    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addChannelOption((option) =>
       option
         .setName('queue-category')
@@ -276,9 +327,9 @@ export default {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
     // get guild object
-    const guild =
-      client.guilds.cache.get(process.env.GUILD_ID!) ??
-      (await client.guilds.fetch(process.env.GUILD_ID!))
+    // const guild =
+    //   client.guilds.cache.get(process.env.GUILD_ID!) ??
+    //   (await client.guilds.fetch(process.env.GUILD_ID!))
 
     // // old category id
     // const res = await pool.query(
@@ -296,10 +347,11 @@ export default {
 
     // create list of old channels
     const oldChannels = new Channels(
-      new Channel('queue'),
-      new Channel('queue-results'),
-      new Channel('activity-log'),
-      new Channel('queue-log'),
+      new Channel('queue', ''),
+      new Channel('queue-results', ''),
+      new Channel('activity-log', '', ChannelType.GuildText, true),
+      new Channel('queue-log', '', ChannelType.GuildText, true),
+      new Channel('0 Active Matches', '', ChannelType.GuildVoice, true),
       queueCategoryId,
     )
 
@@ -326,8 +378,9 @@ export default {
     const newChannels = new Channels(
       new Channel('queue'),
       new Channel('queue-results'),
-      new Channel('activity-log'),
-      new Channel('queue-log'),
+      new Channel('activity-log', '', ChannelType.GuildText, true),
+      new Channel('queue-log', '', ChannelType.GuildText, true),
+      new Channel('0 Active Matches', '', ChannelType.GuildVoice, true),
       queueCategoryId,
     )
 
@@ -342,6 +395,6 @@ export default {
       oldChannels.category,
     )
 
-    await interaction.editReply('channels created successfully!')
+    await interaction.editReply('Channels created successfully!')
   },
 }
