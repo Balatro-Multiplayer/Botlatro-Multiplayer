@@ -878,24 +878,23 @@ export const ratingUtils = {
   getPlayerElo,
   getPlayerVolatility,
   getPlayerDeviation,
-  updatePlayerGlickoAll,
+  updatePlayerMmrAll,
   updatePlayerWinStreak,
 }
 
-// updates all of a player's glicko values at once
-export async function updatePlayerGlickoAll(
+// updates all of a player's MMR related values at once
+export async function updatePlayerMmrAll(
   queueId: number,
   userId: string,
   newElo: number,
-  newDeviation: number,
   newVolatility: number,
 ): Promise<void> {
   // Clamp elo between 0 and 9999
   const clampedElo = Math.max(0, Math.min(9999, newElo))
 
   await pool.query(
-    `UPDATE queue_users SET elo = $1, peak_elo = GREATEST(peak_elo, $1), rating_deviation = $2, volatility = $3 WHERE user_id = $4 AND queue_id = $5`,
-    [clampedElo, newDeviation, newVolatility, userId, queueId],
+    `UPDATE queue_users SET elo = $1, peak_elo = GREATEST(peak_elo, $1), volatility = $2 WHERE user_id = $3 AND queue_id = $4`,
+    [clampedElo, newVolatility, userId, queueId],
   )
 }
 
