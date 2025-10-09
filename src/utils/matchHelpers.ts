@@ -587,13 +587,13 @@ export async function updateMatchCountChannel(): Promise<void> {
   try {
     // Get count of active matches
     const matchCountRes = await pool.query(
-      `SELECT COUNT(*) as count FROM matches WHERE open = true`
+      `SELECT COUNT(*) as count FROM matches WHERE open = true`,
     )
     const activeMatchCount = parseInt(matchCountRes.rows[0].count) || 0
 
     // Get match count channel ID from settings
     const settingsRes = await pool.query(
-      `SELECT match_count_channel_id FROM settings WHERE singleton = true`
+      `SELECT match_count_channel_id FROM settings WHERE singleton = true`,
     )
     const channelId = settingsRes.rows[0]?.match_count_channel_id
 
@@ -604,7 +604,7 @@ export async function updateMatchCountChannel(): Promise<void> {
       client.guilds.cache.get(process.env.GUILD_ID!) ??
       (await client.guilds.fetch(process.env.GUILD_ID!))
 
-    const channel = await guild.channels.fetch(channelId).catch(() => null)
+    const channel = await guild.channels.fetch(channelId)
 
     if (channel && channel.type === ChannelType.GuildVoice) {
       await channel.setName(`${activeMatchCount} Active Matches`)
