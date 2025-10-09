@@ -49,6 +49,13 @@ export default {
       const firstUser = interaction.options.getUser('first-user', true)
       const secondUser = interaction.options.getUser('second-user', true)
 
+      if (firstUser.bot || secondUser.bot) {
+        await interaction.editReply({
+          content: 'Bots cannot be added to the queue.',
+        })
+        return
+      }
+
       for (let user of [firstUser, secondUser]) {
         await createQueueUser(user.id, queueId)
       }
