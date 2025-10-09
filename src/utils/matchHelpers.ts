@@ -221,6 +221,7 @@ export async function sendMatchInitMessages(
   let teamPingString = ``
   const queueSettings = await getQueueSettings(queueId)
   const deckBanFirstNum = queueSettings.first_deck_ban_num
+  const deckBanSecondNum = queueSettings.second_deck_ban_num
 
   let teamFields: any = teamData.teams.map(async (t, idx) => {
     let teamQueueUsersData = await pool.query(
@@ -314,7 +315,7 @@ export async function sendMatchInitMessages(
   const deckEmbed = new EmbedBuilder()
     .setTitle(`Deck Bans`)
     .setDescription(
-      `**${randomTeams[0].name}** bans 5 decks.\n**${randomTeams[1].name}** chooses 3 decks.\n**${randomTeams[0].name}** picks 1 deck.\nVote using the dropdown below!\n\nAlternately, you can do </random deck:1414248501742669937> and randomly pick one.`,
+      `**${randomTeams[0].name}** bans up to ${deckBanFirstNum} decks.\n**${randomTeams[1].name}** chooses ${deckBanSecondNum} decks.\n**${randomTeams[0].name}** picks 1 deck.\nVote using the dropdown below!\n\nAlternately, you can do </random deck:1414248501742669937> and randomly pick one.`,
     )
     .setColor(0xff0000)
 
@@ -322,8 +323,8 @@ export async function sendMatchInitMessages(
 
   const deckSelMenu = await setupDeckSelect(
     `deck-bans-1-${matchId}-${randomTeams[1].teamIndex}`,
-    `${randomTeams[0].name}: Select ${deckBanFirstNum} decks to ban.`,
-    deckBanFirstNum,
+    `${randomTeams[0].name}: Select up to ${deckBanFirstNum} decks to ban.`,
+    1,
     deckBanFirstNum,
     true,
     [],
@@ -421,7 +422,7 @@ export async function endMatch(
   const queueId = await getQueueIdFromMatch(matchId)
   const queueName = await getQueueSettings(queueId, ['queue_name'])
 
-  let teamResults: teamResults | null = null
+  let teamResults: teamResults | null
   // create our teamResults object here
   const teamResultsData: teamResults = {
     teams: matchTeams.teams.map((teamResult) => ({
@@ -607,7 +608,11 @@ export async function updateMatchCountChannel(): Promise<void> {
     const channel = await guild.channels.fetch(channelId)
 
     if (channel && channel.type === ChannelType.GuildVoice) {
-      await channel.setName(`${activeMatchCount} Active Matches`)
+      await channel
+        .setName(`${activeMatchCount} Active Matches`)
+        .catch((err) => {
+          console.log('Failed to update match count channel:', err)
+        })
     }
   } catch (err) {
     console.error('Failed to update match count channel:', err)

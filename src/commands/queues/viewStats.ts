@@ -1,10 +1,4 @@
-import {
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  ChatInputCommandInteraction,
-  MessageFlags,
-} from 'discord.js'
+import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
 import { drawPlayerStatsCanvas } from '../../utils/canvasHelpers'
 import { getQueueIdFromName, getStatsCanvasUserData } from '../../utils/queryDB'
 import { setupViewStatsButtons } from '../../utils/queueHelpers'
