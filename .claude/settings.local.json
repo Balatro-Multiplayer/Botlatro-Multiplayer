@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git grep:*)"
+      "Bash(git grep:*)",
+      "Bash(bunx node-pg-migrate create:*)",
+      "Bash(npm run migrate:*)"
     ],
     "deny": [],
     "ask": []

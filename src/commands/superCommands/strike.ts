@@ -1,6 +1,7 @@
 import {
   AutocompleteInteraction,
   ChatInputCommandInteraction,
+  PermissionFlagsBits,
   SlashCommandBuilder,
 } from 'discord.js'
 
@@ -12,6 +13,7 @@ export default {
   data: new SlashCommandBuilder()
     .setName('strike')
     .setDescription('strike related commands')
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
 
     .addSubcommand((sub) =>
       sub
@@ -76,12 +78,6 @@ export default {
             .setMaxLength(500),
         ),
     ),
-
-  // .addSubcommand((sub) =>
-  //   sub
-  //     .setName('list')
-  //     .setDescription('Remove strike(s) from a user')
-  // ),
 
   async execute(interaction: ChatInputCommandInteraction) {
     if (interaction.options.getSubcommand() === 'give') {
