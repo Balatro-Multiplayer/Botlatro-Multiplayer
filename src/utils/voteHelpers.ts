@@ -98,6 +98,7 @@ export async function handleTwoPlayerMatchVoting(
   },
 ) {
   const embed = interaction.message.embeds[0]
+  if (!embed) return console.error('No embed found in message')
   const fields = embed.data.fields
   if (!fields) return console.error('No fields found in embed')
 

@@ -47,9 +47,10 @@ import {
   userInQueue,
   getSettings,
   partyUtils,
-  setWinningTeam,
+  // setWinningTeam,
   getQueueIdFromName,
   getStatsCanvasUserData,
+  setWinningTeam,
 } from '../utils/queryDB'
 import {
   handleTwoPlayerMatchVoting,
@@ -156,16 +157,15 @@ export default {
         const winMatchData: string[] = interaction.values[0].split('_')
         const winMatchTeamId = parseInt(winMatchData[2])
 
-        // Check if helper clicked the button
-        if (member) {
-          if (
-            member.roles.cache.has(botSettings.helper_role_id) ||
-            member.roles.cache.has(botSettings.queue_helper_role_id)
-          ) {
-            await setWinningTeam(matchId, winMatchTeamId)
-            await endMatch(matchId)
-          }
-        }
+        // // Check if helper clicked the button
+        // if (member) {
+        //   if (
+        //     member.roles.cache.has(botSettings.helper_role_id) ||
+        //     member.roles.cache.has(botSettings.queue_helper_role_id)
+        //   ) {
+        //     // Do nothing special
+        //   }
+        // }
 
         await handleTwoPlayerMatchVoting(interaction, {
           participants: matchUsersArray,
@@ -180,6 +180,7 @@ export default {
             const isBo5 = matchDataObj.best_of_5
 
             if (!isBo3 && !isBo5) {
+              await setWinningTeam(matchId, winner)
               await endMatch(matchId)
               return
             }
@@ -441,14 +442,18 @@ export default {
 
           async function cancel(interaction: any, matchId: number) {
             try {
-              await endMatch(matchId, true)
               if (interaction.message) {
-                await interaction.update({
-                  content: 'The match has been cancelled.',
-                  embeds: [],
-                  components: [],
-                })
+                await interaction
+                  .update({
+                    content: 'The match has been cancelled.',
+                    embeds: [],
+                    // components: [],
+                  })
+                  .catch((err: any) => {
+                    console.log(err)
+                  })
               }
+              await endMatch(matchId, true)
             } catch (err) {
               console.error('Error in finishing match:', err)
             }
@@ -494,7 +499,7 @@ export default {
               })
 
               await matchChannel.send(
-                `<@&${helperRole.id}> have been called into this queue by <@${interaction.user.id}>!`,
+                `Helpers have been added into this queue by <@${interaction.user.id}>!`,
               )
               const rows = interaction.message.components.map((row) =>
                 ActionRowBuilder.from(row as any),

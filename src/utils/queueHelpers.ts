@@ -104,6 +104,7 @@ export async function updateQueueMessage(): Promise<Message | undefined> {
     .setCustomId(`set-priority-queue`)
     .setLabel('Set Priority Queue')
     .setStyle(ButtonStyle.Primary)
+    .setDisabled(true)
 
   const buttonRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
     leaveQueue,
@@ -388,26 +389,32 @@ export async function createMatch(
     })
   }
 
+  const response = await pool.query(
+    `
+        INSERT INTO matches (queue_id)
+        VALUES ($1)
+        RETURNING id
+    `,
+    [queue.rows[0].id],
+  )
+
+  const matchId = response.rows[0].id
+
   const channel = await guild.channels.create({
-    name: 'reserved-match-channel',
+    name: `match-${matchId}`,
     type: ChannelType.GuildText,
     parent: categoryId,
     permissionOverwrites: permissionOverwrites,
   })
 
-  const response = await pool.query(
+  await pool.query(
     `
-        INSERT INTO matches (queue_id, channel_id)
-        VALUES ($1, $2)
-        RETURNING id
+        UPDATE matches 
+        SET channel_id = $1
+        WHERE id = $2
     `,
-    [queue.rows[0].id, channel.id],
+    [channel.id, matchId],
   )
-
-  const matchId = response.rows[0].id
-
-  // rename channel to match-{id}
-  channel.setName(`match-${matchId}`)
 
   for (const userId of userIds) {
     await pool.query(
