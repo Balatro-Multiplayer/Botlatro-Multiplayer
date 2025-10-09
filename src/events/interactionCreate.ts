@@ -116,13 +116,19 @@ export default {
           interaction.user.id,
         )
 
-        await interaction.followUp({
+        const reply = await interaction.followUp({
           content:
             joinedQueues.length > 0
               ? `You joined: ${joinedQueues.join(', ')}`
               : 'You left the queue.',
           flags: MessageFlags.Ephemeral,
+          fetchReply: true,
         })
+
+        // Delete the message after 10 seconds
+        setTimeout(async () => {
+          await interaction.deleteReply(reply.id).catch(() => {})
+        }, 10000)
       }
 
       if (interaction.customId === 'priority-queue-sel') {
@@ -361,10 +367,16 @@ export default {
           )
 
           await updateQueueMessage()
-          await interaction.followUp({
+          const reply = await interaction.followUp({
             content: `You left the queue!`,
             flags: MessageFlags.Ephemeral,
+            fetchReply: true,
           })
+
+          // Delete the message after 10 seconds
+          setTimeout(async () => {
+            await interaction.deleteReply(reply.id).catch(() => {})
+          }, 10000)
         }
 
         if (interaction.customId === 'check-queued') {

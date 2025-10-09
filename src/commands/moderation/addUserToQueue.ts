@@ -33,6 +33,14 @@ export default {
 
       const queueName = interaction.options.getString('queue-name', true)
       const user = interaction.options.getUser('user', true)
+
+      if (user.bot) {
+        await interaction.editReply({
+          content: 'Bots cannot be added to the queue.',
+        })
+        return
+      }
+
       const queueId = await getQueueIdFromName(queueName)
       if (!queueId) {
         await interaction.editReply({
