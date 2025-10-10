@@ -25,10 +25,12 @@ import {
   endMatch,
   getTeamsInMatch,
   setupDeckSelect,
+  applyDefaultDeckBansAndAdvance,
+  advanceDeckBanStep,
 } from '../utils/matchHelpers'
 import {
   getActiveQueues,
-  getDecksInQueue,
+  getDeckList,
   getHelperRoleId,
   getMatchChannel,
   getMatchData,
@@ -40,7 +42,6 @@ import {
   getUserPriorityQueueId,
   getUserQueues,
   setMatchStakeVoteTeam,
-  setPickedMatchDeck,
   setPickedMatchStake,
   setQueueDeckBans,
   setUserPriorityQueue,
@@ -49,10 +50,10 @@ import {
   getSettings,
   partyUtils,
   setUserDefaultDeckBans,
-  // setWinningTeam,
   getQueueIdFromName,
   getStatsCanvasUserData,
   setWinningTeam,
+  getUserDefaultDeckBans,
 } from '../utils/queryDB'
 import {
   handleTwoPlayerMatchVoting,
@@ -176,15 +177,17 @@ export default {
         const winMatchData: string[] = interaction.values[0].split('_')
         const winMatchTeamId = parseInt(winMatchData[2])
 
-        // // Check if helper clicked the button
-        // if (member) {
-        //   if (
-        //     member.roles.cache.has(botSettings.helper_role_id) ||
-        //     member.roles.cache.has(botSettings.queue_helper_role_id)
-        //   ) {
-        //     // Do nothing special
-        //   }
-        // }
+        // Check if helper clicked the button
+        if (member) {
+          if (
+            (member.roles.cache.has(botSettings.helper_role_id) ||
+              member.roles.cache.has(botSettings.queue_helper_role_id)) &&
+            !matchUsersArray.includes(interaction.user.id)
+          ) {
+            await setWinningTeam(matchId, winMatchTeamId)
+            await endMatch(matchId)
+          }
+        }
 
         await handleTwoPlayerMatchVoting(interaction, {
           participants: matchUsersArray,
@@ -255,17 +258,13 @@ export default {
         })
       }
 
-      if (interaction.customId.includes('deck-bans-')) {
+      if (interaction.customId.startsWith('deck-bans-')) {
         const channel = interaction.channel as TextChannel
         const parts = interaction.customId.split('-')
         const step = parseInt(parts[2])
         const matchId = parseInt(parts[3])
-        const queueId = await getQueueIdFromMatch(matchId)
         const startingTeamId = parseInt(parts[4])
         const matchTeams = await getTeamsInMatch(matchId)
-        const deckOptions = await getDecksInQueue(queueId)
-        const queueSettings = await getQueueSettings(queueId)
-        const step2Amt = queueSettings.second_deck_ban_num
 
         // Determine which team is active for this step
         const activeTeamId = (startingTeamId + step) % 2
@@ -282,51 +281,14 @@ export default {
 
         await interaction.message.delete()
 
-        if (step === 3) {
-          const finalDeckPick = deckOptions.find(
-            (deck) => deck.id === parseInt(interaction.values[0]),
-          )
-
-          if (finalDeckPick) {
-            await setPickedMatchDeck(matchId, finalDeckPick.deck_name)
-            await channel.send({
-              content: `## Selected Deck: ${finalDeckPick.deck_emote} ${finalDeckPick.deck_name}`,
-            })
-          }
-          return
-        }
-
-        // Prepare next step
-        const nextStep = step + 1
-        const nextTeamId = (startingTeamId + nextStep) % 2
-        const nextMember = await interaction.client.guilds
-          .fetch(process.env.GUILD_ID!)
-          .then((g) =>
-            g.members.fetch(matchTeams.teams[nextTeamId].players[0].user_id),
-          )
-
         const deckChoices = interaction.values.map((deckId) => parseInt(deckId))
-
-        const deckSelMenu = await setupDeckSelect(
-          `deck-bans-${nextStep}-${matchId}-${startingTeamId}`,
-          matchTeams.teams[nextTeamId].players.length > 1
-            ? `Team ${matchTeams.teams[nextTeamId].id}: Select ${nextStep === 2 ? step2Amt : 1} decks to play.`
-            : `${nextMember.displayName}: Select ${nextStep === 2 ? step2Amt : 1} decks to play.`,
-          nextStep === 2 ? step2Amt : 1,
-          nextStep === 2 ? step2Amt : 1,
-          true,
-          nextStep === 3 ? [] : deckChoices,
-          nextStep === 3 ? deckChoices : deckOptions.map((deck) => deck.id),
+        await advanceDeckBanStep(
+          deckChoices,
+          step,
+          matchId,
+          startingTeamId,
+          channel,
         )
-
-        const deckPicks = deckOptions
-          .filter((deck) => interaction.values.includes(`${deck.id}`))
-          .map((deck) => `${deck.deck_emote} - ${deck.deck_name}`)
-
-        await channel.send({
-          content: `<@${matchTeams.teams[nextTeamId].players[0].user_id}>\n### ${step == 1 ? `Banned Decks:\n` : `Decks Picked:\n`}${deckPicks.join('\n')}`,
-          components: [deckSelMenu],
-        })
       }
 
       if (interaction.customId.startsWith('queue-ban-decks-')) {
@@ -339,12 +301,18 @@ export default {
       }
 
       if (interaction.customId.startsWith('user-default-deck-bans-')) {
-        console.log('test')
         const queueId = parseInt(interaction.customId.split('-')[4])
         const deckIds = interaction.values.map((id) => parseInt(id))
         await setUserDefaultDeckBans(interaction.user.id, queueId, deckIds)
+
+        // Get deck information to display names
+        const deckList = await getDeckList(true)
+        const selectedDecks = deckList
+          .filter((deck) => deckIds.includes(deck.id))
+          .map((deck) => `${deck.deck_emote} ${deck.deck_name}`)
+
         await interaction.update({
-          content: `Successfully set ${deckIds.length} default deck ban(s).`,
+          content: `Successfully set default deck bans:\n${selectedDecks.join('\n')}`,
           components: [],
         })
       }
@@ -353,6 +321,53 @@ export default {
     // Button interactions
     if (interaction.isButton()) {
       try {
+        if (interaction.customId.startsWith('use-default-bans-')) {
+          const parts = interaction.customId.split('-')
+          const step = parseInt(parts[3])
+          const matchId = parseInt(parts[4])
+          const startingTeamId = parseInt(parts[5])
+
+          await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+
+          const channel = interaction.channel as TextChannel
+          const matchTeams = await getTeamsInMatch(matchId)
+          const activeTeamId = (startingTeamId + step) % 2
+
+          // Check if it's the user's turn
+          if (
+            interaction.user.id !==
+            matchTeams.teams[activeTeamId].players[0].user_id
+          ) {
+            await interaction.followUp({
+              content: `It's not your turn to select decks!`,
+              flags: MessageFlags.Ephemeral,
+            })
+            return
+          }
+
+          const result = await applyDefaultDeckBansAndAdvance(
+            interaction.user.id,
+            matchId,
+            step,
+            startingTeamId,
+            channel,
+          )
+
+          if (!result) {
+            await interaction.followUp({
+              content: `You don't have any default deck bans set for this queue. You can set some with </config default-deck-bans:1414248501742669939>.`,
+              flags: MessageFlags.Ephemeral,
+            })
+            return
+          }
+
+          await interaction.message.delete()
+          await interaction.followUp({
+            content: `Applied your default deck bans!`,
+            flags: MessageFlags.Ephemeral,
+          })
+        }
+
         if (interaction.customId.startsWith('remove-user-deck-bans-')) {
           const queueId = parseInt(interaction.customId.split('-')[4])
           await setUserDefaultDeckBans(interaction.user.id, queueId, [])
@@ -384,6 +399,7 @@ export default {
             })
           }
         }
+
         if (interaction.customId == 'leave-queue') {
           await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
@@ -399,10 +415,10 @@ export default {
           // Update the user's queue status and join with the queues table based on channel id
           await pool.query(
             `
-                      UPDATE queue_users
-                      SET queue_join_time = NULL
-                      WHERE user_id = $1
-                  `,
+              UPDATE queue_users
+              SET queue_join_time = NULL
+              WHERE user_id = $1
+            `,
             [interaction.user.id],
           )
 
@@ -445,6 +461,7 @@ export default {
             })
           }
         }
+
         if (interaction.customId === 'set-priority-queue') {
           await interaction.deferReply({ flags: MessageFlags.Ephemeral })
           const queueList = await getActiveQueues()
@@ -482,6 +499,7 @@ export default {
             components: [selectRow],
           })
         }
+
         if (interaction.customId.startsWith('cancel-')) {
           const matchId = parseInt(interaction.customId.split('-')[1])
           const botSettings = await getSettings()
@@ -565,6 +583,7 @@ export default {
             }
           }
         }
+
         if (interaction.customId.startsWith('rematch-')) {
           const matchId = parseInt(interaction.customId.split('-')[1])
           const matchData = await getMatchData(matchId)
@@ -879,12 +898,12 @@ export default {
         console.error(err)
         if (interaction.replied || interaction.deferred) {
           await interaction.followUp({
-            content: 'There was an error.',
+            content: `There was an error: ${err}`,
             flags: MessageFlags.Ephemeral,
           })
         } else if (interaction.channel) {
           await interaction.reply({
-            content: 'There was an error.',
+            content: `There was an error: ${err}`,
             flags: MessageFlags.Ephemeral,
           })
         }

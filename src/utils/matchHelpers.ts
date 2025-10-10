@@ -25,6 +25,8 @@ import {
   setMatchStakeVoteTeam,
   setMatchVoiceChannel,
   updatePlayerWinStreak,
+  getUserDefaultDeckBans,
+  setPickedMatchDeck,
 } from './queryDB'
 import { Decks, MatchUsers, Stakes, teamResults } from 'psqlDB'
 import dotenv from 'dotenv'
@@ -98,6 +100,102 @@ export async function setupDeckSelect(
   return new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
     selectMenu,
   )
+}
+
+/**
+ * Advances the deck ban/pick process to the next step
+ * @param deckChoices - Array of deck IDs chosen in the current step
+ * @param step - Current step (1, 2, or 3)
+ * @param matchId - Match ID
+ * @param startingTeamId - The team that started the banning process
+ * @param channel - Text channel to send messages to
+ */
+export async function advanceDeckBanStep(
+  deckChoices: number[],
+  step: number,
+  matchId: number,
+  startingTeamId: number,
+  channel: TextChannel,
+): Promise<void> {
+  const queueId = await getQueueIdFromMatch(matchId)
+  const matchTeams = await getTeamsInMatch(matchId)
+  const deckOptions = await getDecksInQueue(queueId)
+  const queueSettings = await getQueueSettings(queueId)
+  const step2Amt = queueSettings.second_deck_ban_num
+
+  // Handle final deck pick (step 3)
+  if (step === 3) {
+    const finalDeckPick = deckOptions.find((deck) =>
+      deckChoices.includes(deck.id),
+    )
+
+    if (finalDeckPick) {
+      await setPickedMatchDeck(matchId, finalDeckPick.deck_name)
+      await channel.send({
+        content: `## Selected Deck: ${finalDeckPick.deck_emote} ${finalDeckPick.deck_name}`,
+      })
+    }
+    return
+  }
+
+  // Prepare next step
+  const nextStep = step + 1
+  const nextTeamId = (startingTeamId + nextStep) % 2
+  const nextMember = await client.guilds
+    .fetch(process.env.GUILD_ID!)
+    .then((g) =>
+      g.members.fetch(matchTeams.teams[nextTeamId].players[0].user_id),
+    )
+
+  const deckSelMenu = await setupDeckSelect(
+    `deck-bans-${nextStep}-${matchId}-${startingTeamId}`,
+    matchTeams.teams[nextTeamId].players.length > 1
+      ? `Team ${matchTeams.teams[nextTeamId].id}: Select ${nextStep === 2 ? step2Amt : 1} decks to play.`
+      : `${nextMember.displayName}: Select ${nextStep === 2 ? step2Amt : 1} decks to play.`,
+    nextStep === 2 ? step2Amt : 1,
+    nextStep === 2 ? step2Amt : 1,
+    true,
+    nextStep === 3 ? [] : deckChoices,
+    nextStep === 3 ? deckChoices : deckOptions.map((deck) => deck.id),
+  )
+
+  const deckPicks = deckOptions
+    .filter((deck) => deckChoices.includes(deck.id))
+    .map((deck) => `${deck.deck_emote} - ${deck.deck_name}`)
+
+  await channel.send({
+    content: `<@${matchTeams.teams[nextTeamId].players[0].user_id}>\n### ${step == 1 ? `Banned Decks:\n` : `Decks Picked:\n`}${deckPicks.join('\n')}`,
+    components: [deckSelMenu],
+  })
+}
+
+/**
+ * Applies a user's saved default deck bans and advances to the next step
+ * Returns the deck IDs that were banned, or null if user has no saved bans
+ */
+export async function applyDefaultDeckBansAndAdvance(
+  userId: string,
+  matchId: number,
+  step: number,
+  startingTeamId: number,
+  channel: TextChannel,
+): Promise<number[] | null> {
+  const queueId = await getQueueIdFromMatch(matchId)
+  const userDefaultBans = await getUserDefaultDeckBans(userId, queueId)
+
+  if (userDefaultBans.length === 0) {
+    return null
+  }
+
+  await advanceDeckBanStep(
+    userDefaultBans,
+    step,
+    matchId,
+    startingTeamId,
+    channel,
+  )
+
+  return userDefaultBans
 }
 
 export async function setupStakeButtons(
@@ -297,13 +395,26 @@ export async function sendMatchInitMessages(
     deckList.map((deck) => deck.id),
   )
 
+  const useDefaultBansButton =
+    new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId(
+          `use-default-bans-1-${matchId}-${randomTeams[1].teamIndex}`,
+        )
+        .setLabel('Use Preset Bans')
+        .setStyle(ButtonStyle.Primary),
+    )
+
   await setMatchStakeVoteTeam(matchId, randomTeams[0].teamIndex)
   const stakeBanButtons = await setupStakeButtons(matchId)
   const teamUsers = randomTeams[0].players
     .map((user: MatchUsers) => `<@${user.user_id}>`)
     .join('\n')
 
-  await textChannel.send({ embeds: [deckEmbed], components: [deckSelMenu] })
+  await textChannel.send({
+    embeds: [deckEmbed],
+    components: [deckSelMenu, useDefaultBansButton],
+  })
   await textChannel.send({
     content: `Stake Bans:\n${teamUsers}`,
     components: stakeBanButtons,
