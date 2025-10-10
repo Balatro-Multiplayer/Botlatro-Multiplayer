@@ -211,6 +211,8 @@ export async function runDecayTick() {
     },
     1000 * 60 * 60 * 2, // every 2 hours,
   )
+}
+
 // update match count channel every 5 minutes
 export async function updateMatchCountCronJob() {
   setInterval(

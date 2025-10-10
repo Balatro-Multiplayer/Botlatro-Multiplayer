@@ -1611,6 +1611,8 @@ export async function applyDecayToUsers(
   `,
     [decay_amount, decay_interval],
   )
+}
+
 // Get user's default deck bans for a queue (returns deck IDs)
 export async function getUserDefaultDeckBans(
   userId: string,
