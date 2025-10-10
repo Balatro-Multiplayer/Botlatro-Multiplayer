@@ -1,4 +1,5 @@
 /// <reference path="./@types/discord.d.ts" />
+import './register-paths'
 import {
   deleteOldTranscriptsCronJob,
   partyDeleteCronJob,
