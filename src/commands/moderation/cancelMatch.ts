@@ -1,27 +1,35 @@
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
+  AutocompleteInteraction,
   MessageFlags,
   PermissionFlagsBits,
 } from 'discord.js'
 import { COMMAND_HANDLERS } from '../../command-handlers'
+import {
+  getActiveMatches,
+  getQueueIdFromMatch,
+  getQueueSettings,
+} from '../../utils/queryDB'
 
 export default {
   data: new SlashCommandBuilder()
     .setName('cancel-match')
     .setDescription('Cancel a specific match')
     // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .addIntegerOption((option) =>
+    .addStringOption((option) =>
       option
         .setName('match-id')
         .setDescription('The match ID to cancel')
         .setRequired(true)
-        .setMinValue(0),
+        .setAutocomplete(true),
     ),
   async execute(interaction: ChatInputCommandInteraction) {
     try {
-      const matchId = interaction.options.getInteger('match-id')
-      if (matchId === null) {
+      const matchIdStr = interaction.options.getString('match-id', true)
+      const matchId = parseInt(matchIdStr)
+
+      if (isNaN(matchId)) {
         await interaction.reply({
           content: 'Invalid match ID provided.',
           flags: MessageFlags.Ephemeral,
@@ -37,7 +45,9 @@ export default {
           content: `Successfully cancelled match ${matchId}`,
         })
       } else {
-        await interaction.reply({ content: `Failed to cancel match ${matchId}.` })
+        await interaction.reply({
+          content: `Failed to cancel match ${matchId}.`,
+        })
       }
     } catch (err: any) {
       console.error(err)
@@ -52,6 +62,33 @@ export default {
           flags: MessageFlags.Ephemeral,
         })
       }
+    }
+  },
+
+  async autocomplete(interaction: AutocompleteInteraction) {
+    try {
+      const focusedValue = interaction.options.getFocused().toLowerCase()
+      const activeMatches = await getActiveMatches()
+
+      const choices = await Promise.all(
+        activeMatches.map(async (match) => {
+          const queueId = await getQueueIdFromMatch(match.id)
+          const queueSettings = await getQueueSettings(queueId, ['queue_name'])
+          return {
+            name: `Match ${match.id} - ${queueSettings.queue_name}`,
+            value: match.id.toString(),
+          }
+        }),
+      )
+
+      const filtered = choices.filter((choice) =>
+        choice.name.toLowerCase().includes(focusedValue),
+      )
+
+      await interaction.respond(filtered.slice(0, 25))
+    } catch (err) {
+      console.error('Error in cancel-match autocomplete:', err)
+      await interaction.respond([])
     }
   },
 }

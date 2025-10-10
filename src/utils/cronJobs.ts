@@ -11,6 +11,8 @@ import {
   updateCurrentEloRangeForUser,
 } from './queryDB'
 import { createMatch, timeSpentInQueue } from './queueHelpers'
+import { updateMatchCountChannel } from './matchHelpers'
+import { pool } from '../db'
 import * as fs from 'fs'
 import * as path from 'path'
 import { glob } from 'glob'
@@ -52,7 +54,6 @@ export async function partyDeleteCronJob() {
 }
 
 // increment elo search globally across all queues
-// TODO: Make this work with the priority_queue_id in the users table
 export async function incrementEloCronJobAllQueues() {
   const speedDefault = 2
 
@@ -187,4 +188,34 @@ export async function deleteOldTranscriptsCronJob() {
     },
     5 * 60 * 1000,
   ) // every 5 mins
+}
+
+// update match count channel every 5 minutes
+export async function updateMatchCountCronJob() {
+  setInterval(
+    async () => {
+      await updateMatchCountChannel()
+    },
+    5 * 60 * 1000,
+  ) // every 5 mins
+}
+
+// delete expired strikes every 2 hours
+export async function deleteExpiredStrikesCronJob() {
+  setInterval(
+    async () => {
+      try {
+        const res = await pool.query(
+          `DELETE FROM strikes WHERE expires_at < NOW() RETURNING id`,
+        )
+        const deletedCount = res.rowCount || 0
+        if (deletedCount > 0) {
+          console.log(`Deleted ${deletedCount} expired strike(s)`)
+        }
+      } catch (err) {
+        console.error('Error deleting expired strikes:', err)
+      }
+    },
+    2 * 60 * 60 * 1000,
+  ) // every 2 hours
 }

@@ -11,30 +11,30 @@ export default {
   data: new SlashCommandBuilder()
     .setName('queue')
     .setDescription('adjust things with queues')
-    .addSubcommand((sub) =>
-      sub
-        .setName('lock')
-        .setDescription('Locks a queue from being accessed.')
-        .addStringOption((option) =>
-          option
-            .setName('queue-name')
-            .setDescription('The queue name to lock')
-            .setRequired(true)
-            .setAutocomplete(true),
-        ),
-    )
-    .addSubcommand((sub) =>
-      sub
-        .setName('unlock')
-        .setDescription('Unlocks a queue.')
-        .addStringOption((option) =>
-          option
-            .setName('queue-name')
-            .setDescription('The queue name to unlock')
-            .setRequired(true)
-            .setAutocomplete(true),
-        ),
-    )
+    // .addSubcommand((sub) =>
+    //   sub
+    //     .setName('lock')
+    //     .setDescription('Locks a queue from being accessed.')
+    //     .addStringOption((option) =>
+    //       option
+    //         .setName('queue-name')
+    //         .setDescription('The queue name to lock')
+    //         .setRequired(true)
+    //         .setAutocomplete(true),
+    //     ),
+    // )
+    // .addSubcommand((sub) =>
+    //   sub
+    //     .setName('unlock')
+    //     .setDescription('Unlocks a queue.')
+    //     .addStringOption((option) =>
+    //       option
+    //         .setName('queue-name')
+    //         .setDescription('The queue name to unlock')
+    //         .setRequired(true)
+    //         .setAutocomplete(true),
+    //     ),
+    // )
     .addSubcommand((sub) =>
       sub
         .setName('stats')
