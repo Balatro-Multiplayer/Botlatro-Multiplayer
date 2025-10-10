@@ -16,7 +16,7 @@ export default {
 
       const queueUsers = await getUsersInQueue(queueId)
       const formattedQueueUsers = queueUsers
-        .map((userId) => {
+        .map((userId: string) => {
           return `<@${userId}>`
         })
         .join('\n')
