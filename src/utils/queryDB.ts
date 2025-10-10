@@ -131,7 +131,7 @@ export async function getUserPriorityQueueId(
     [userId],
   )
 
-  return 9
+  return res.rows[0].priority_queue_id ?? null
 }
 
 // create a queue role
