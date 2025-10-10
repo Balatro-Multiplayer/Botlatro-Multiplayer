@@ -102,6 +102,20 @@ export default {
             .setDescription('Amount of decks for the second player to pick')
             .setRequired(false)
             .setMinValue(2),
+        )
+        .addRoleOption((option) =>
+          option
+            .setName('role-lock')
+            .setDescription('The role to lock the queue to')
+            .setRequired(false),
+        )
+        .addNumberOption((option) =>
+          option
+            .setName('veto-mmr-threshold')
+            .setDescription(
+              'The amount of MMR a user has at minimum to not be able to veto',
+            )
+            .setRequired(false),
         ),
     ),
   async execute(interaction: ChatInputCommandInteraction) {

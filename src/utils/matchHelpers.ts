@@ -31,10 +31,10 @@ import {
 import { Decks, MatchUsers, Stakes, teamResults } from 'psqlDB'
 import dotenv from 'dotenv'
 import { QueryResult } from 'pg'
-import * as fs from 'fs'
-import * as path from 'path'
-import { glob } from 'glob'
-import { parseLogLines } from './transcriptHelpers'
+// import * as fs from 'fs'
+// import * as path from 'path'
+// import { glob } from 'glob'
+// import { parseLogLines } from './transcriptHelpers'
 import { client } from '../client'
 import {
   calculateNewMMR,
@@ -416,7 +416,7 @@ export async function sendMatchInitMessages(
     components: [deckSelMenu, useDefaultBansButton],
   })
   await textChannel.send({
-    content: `Stake Bans:\n${teamUsers}`,
+    content: `**Stake Bans:**\n${teamUsers}`,
     components: stakeBanButtons,
   })
 }
@@ -559,24 +559,25 @@ export async function endMatch(
     await closeMatch(matchId)
 
     // get log file using glob library
-    const pattern = path
-      .join(__dirname, '..', 'logs', `match-${matchId}_*.log`)
-      .replace(/\\/g, '/')
-    const files = await glob(pattern)
-    const file: string | null = files[0] ?? null
+    // const pattern = path
+    //   .join(__dirname, '..', 'logs', `match-${matchId}_*.log`)
+    //   .replace(/\\/g, '/')
+    // const files = await glob(pattern)
+    // const file: string | null = files[0] ?? null
 
-    if (file) {
-      // format and send transcript
-      const logContent = fs.readFileSync(file, 'utf8')
-      const logLines = logContent
-        .split('\n')
-        .filter((line) => line.trim() !== '')
-      const parsedLogLines = await parseLogLines(logLines)
-      console.log(parsedLogLines) // json body
-
-      // delete the log file after transcript is sent
-      fs.unlinkSync(file)
-    }
+    // TODO: Re-add this and send it to the website
+    // if (file) {
+    //   // format and send transcript
+    //   const logContent = fs.readFileSync(file, 'utf8')
+    //   const logLines = logContent
+    //     .split('\n')
+    //     .filter((line) => line.trim() !== '')
+    //   const parsedLogLines = await parseLogLines(logLines)
+    //   console.log(parsedLogLines) // json body
+    //
+    //   // delete the log file after transcript is sent
+    //   fs.unlinkSync(file)
+    // }
 
     // delete match channel (failure results in early return)
     const wasSuccessfullyDeleted = await deleteMatchChannel(matchId)

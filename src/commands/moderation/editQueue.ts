@@ -30,8 +30,6 @@ export default {
       'queue-elo-search-speed',
       false,
     )
-    const minimumElo = interaction.options.getInteger('minimum-elo', false)
-    const maximumElo = interaction.options.getInteger('maximum-elo', false)
     const maxPartyEloDifference = interaction.options.getInteger(
       'max-party-elo-difference',
       false,
@@ -43,6 +41,16 @@ export default {
     )
     const deckBanSecondNum = interaction.options.getNumber(
       'deck-ban-pick-amount',
+      false,
+    )
+    const roleLock = interaction.options.getRole('role-lock', false)
+    let roleLockId = null
+    if (roleLock) {
+      roleLockId = roleLock.id
+    }
+
+    const vetoMmrThreshold = interaction.options.getNumber(
+      'veto-mmr-threshold',
       false,
     )
 
@@ -61,7 +69,9 @@ export default {
           max_party_elo_difference = COALESCE($9, max_party_elo_difference),
           best_of_allowed = COALESCE($10, best_of_allowed),
           first_deck_ban_num = COALESCE($11, first_deck_ban_num),
-          second_deck_ban_num = COALESCE($12, second_deck_ban_num)
+          second_deck_ban_num = COALESCE($12, second_deck_ban_num),
+          role_lock_id = COALESCE($13, role_lock_id),
+          veto_mmr_threshold = COALESCE($14, veto_mmr_threshold)
         WHERE queue_name = $1
         RETURNING queue_name
         `,
@@ -78,6 +88,8 @@ export default {
           bestOf,
           deckBanFirstNum,
           deckBanSecondNum,
+          roleLockId,
+          vetoMmrThreshold,
         ],
       )
 

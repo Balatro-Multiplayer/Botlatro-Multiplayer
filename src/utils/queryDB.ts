@@ -32,6 +32,30 @@ export async function queueChangeLock(queueId: number, lock: boolean = true) {
   return res.rowCount !== 0
 }
 
+// Get the role lock for a queue
+export async function getQueueRoleLock(queueId: number): Promise<string | null> {
+  const res = await pool.query(
+    `SELECT role_lock_id FROM queues WHERE id = $1`,
+    [queueId],
+  )
+
+  if (res.rowCount === 0) return null
+  return res.rows[0].role_lock_id
+}
+
+// Set the role lock for a queue
+export async function setQueueRoleLock(
+  queueId: number,
+  roleId: string | null,
+): Promise<boolean> {
+  const res = await pool.query(
+    `UPDATE queues SET role_lock_id = $2 WHERE id = $1 RETURNING id`,
+    [queueId, roleId],
+  )
+
+  return res.rowCount !== 0
+}
+
 // Get the queue names of all queues that exist
 export async function getQueueNames(): Promise<string[]> {
   const res = await pool.query('SELECT queue_name FROM queues')

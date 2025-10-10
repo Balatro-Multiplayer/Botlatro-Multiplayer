@@ -24,7 +24,6 @@ import {
 import {
   endMatch,
   getTeamsInMatch,
-  setupDeckSelect,
   applyDefaultDeckBansAndAdvance,
   advanceDeckBanStep,
 } from '../utils/matchHelpers'
@@ -35,7 +34,6 @@ import {
   getMatchChannel,
   getMatchData,
   getMatchStakeVoteTeam,
-  getQueueIdFromMatch,
   getQueueSettings,
   getStake,
   getStakeByName,
@@ -53,7 +51,9 @@ import {
   getQueueIdFromName,
   getStatsCanvasUserData,
   setWinningTeam,
-  getUserDefaultDeckBans,
+  getPlayerElo,
+  getQueueIdFromMatch,
+  getMatchIdFromChannel,
 } from '../utils/queryDB'
 import {
   handleTwoPlayerMatchVoting,
@@ -130,19 +130,23 @@ export default {
           interaction.user.id,
         )
 
-        const reply = await interaction.followUp({
-          content:
-            joinedQueues.length > 0
-              ? `You joined: ${joinedQueues.join(', ')}`
-              : 'You left the queue.',
-          flags: MessageFlags.Ephemeral,
-          fetchReply: true,
-        })
+        if (joinedQueues) {
+          const reply = await interaction.followUp({
+            content:
+              joinedQueues.length > 0
+                ? `You joined: ${joinedQueues.join(', ')}`
+                : 'You left the queue.',
+            flags: MessageFlags.Ephemeral,
+            fetchReply: true,
+          })
 
-        // Delete the message after 10 seconds
-        setTimeout(async () => {
-          await interaction.deleteReply(reply.id).catch(() => {})
-        }, 10000)
+          // Delete the message after 10 seconds
+          setTimeout(async () => {
+            await interaction.deleteReply(reply.id).catch(() => {})
+          }, 10000)
+        } else {
+          await updateQueueMessage()
+        }
       }
 
       if (interaction.customId === 'priority-queue-sel') {
@@ -559,6 +563,51 @@ export default {
           const matchId = parseInt(interaction.customId.split('-')[2])
           const matchChannel = await getMatchChannel(matchId)
           const helperRoleId = await getHelperRoleId()
+
+          // Check if helpers already have access
+          if (helperRoleId && matchChannel) {
+            const helperRole =
+              await interaction.guild?.roles.fetch(helperRoleId)
+            if (helperRole) {
+              const existingPermissions =
+                matchChannel.permissionOverwrites.cache.get(helperRole.id)
+              if (
+                existingPermissions &&
+                existingPermissions.allow.has(PermissionFlagsBits.ViewChannel)
+              ) {
+                await interaction.reply({
+                  content: 'Helpers are already in this match.',
+                  flags: MessageFlags.Ephemeral,
+                })
+                return
+              }
+            }
+          }
+
+          // Show confirmation message
+          const confirmRow =
+            new ActionRowBuilder<ButtonBuilder>().addComponents(
+              new ButtonBuilder()
+                .setCustomId(`helpers-confirm-${matchId}`)
+                .setLabel('Yes, Call Helpers')
+                .setStyle(ButtonStyle.Danger),
+              new ButtonBuilder()
+                .setCustomId(`helpers-cancel-${matchId}`)
+                .setLabel('Cancel')
+                .setStyle(ButtonStyle.Secondary),
+            )
+
+          await interaction.reply({
+            content: 'Are you sure you want to call helpers into this match?',
+            components: [confirmRow],
+            flags: MessageFlags.Ephemeral,
+          })
+        }
+
+        if (interaction.customId.startsWith('helpers-confirm')) {
+          const matchId = parseInt(interaction.customId.split('-')[2])
+          const matchChannel = await getMatchChannel(matchId)
+          const helperRoleId = await getHelperRoleId()
           if (helperRoleId && matchChannel) {
             const helperRole =
               await interaction.guild?.roles.fetch(helperRoleId)
@@ -571,17 +620,16 @@ export default {
               await matchChannel.send(
                 `<@&${helperRole.id}> have been called into this queue by <@${interaction.user.id}>!`,
               )
-              const rows = interaction.message.components.map((row) =>
-                ActionRowBuilder.from(row as any),
-              ) as ActionRowBuilder<ButtonBuilder>[]
 
-              const helperButton = rows[1].components[1] as ButtonBuilder
-              rows[1].components[1] =
-                ButtonBuilder.from(helperButton).setDisabled(true)
-
-              await interaction.update({ components: rows })
+              await interaction.deferUpdate()
+              await interaction.deleteReply()
             }
           }
+        }
+
+        if (interaction.customId.startsWith('helpers-cancel-')) {
+          await interaction.deferUpdate()
+          await interaction.deleteReply()
         }
 
         if (interaction.customId.startsWith('rematch-')) {
@@ -822,7 +870,7 @@ export default {
               .map((plr) => `<@${plr.user_id}>`)
               .join('\n')
             await channel.send({
-              content: `Stake Bans:\n${nextTeamUsers}`,
+              content: `**Stake Bans:**\n${nextTeamUsers}`,
               components: rows,
             })
           }
@@ -830,6 +878,24 @@ export default {
 
         if (interaction.customId == 'veto-stake') {
           const channel = interaction.channel as TextChannel
+          const matchId = await getMatchIdFromChannel(channel.id)
+          if (!matchId) return
+          const queueId = await getQueueIdFromMatch(matchId)
+          if (!queueId) return
+
+          const queueUserMmr = await getPlayerElo(interaction.user.id, queueId)
+          if (!queueUserMmr) return
+          const queueSettings = await getQueueSettings(queueId)
+          if (!queueSettings.veto_mmr_threshold) return
+
+          if (queueUserMmr > queueSettings.veto_mmr_threshold) {
+            await interaction.reply({
+              content: `You are not allowed to veto because you are above **${queueSettings.veto_mmr_threshold} MMR**.`,
+              flags: MessageFlags.Ephemeral,
+            })
+            return
+          }
+
           await interaction.message.delete()
 
           const stakeData = await getStakeByName('White Stake')

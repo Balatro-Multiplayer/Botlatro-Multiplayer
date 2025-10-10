@@ -14,6 +14,8 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates fontconfig && rm -rf /var/lib/apt/lists/*
 
+RUN npm run deploy-commands
+
 # runtime deps + app
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json tsconfig.json ./

@@ -1,7 +1,4 @@
-import {
-  ChatInputCommandInteraction,
-  MessageFlags,
-} from 'discord.js'
+import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
 import { partyUtils } from '../../utils/queryDB'
 
 export default {
@@ -39,8 +36,8 @@ export default {
           if (isLeader) {
             displayTag = ' (leader)'
           }
-          const memberString = `- ${member.name}${displayTag}`
-          return memberString
+
+          return `- ${member.name}${displayTag}`
         }),
       )
 

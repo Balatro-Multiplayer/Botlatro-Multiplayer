@@ -2,10 +2,7 @@ import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
 import { setDecayValues } from '../../utils/queryDB'
 
 export default {
-  async execute(
-    interaction: ChatInputCommandInteraction,
-    lock: boolean = true,
-  ) {
+  async execute(interaction: ChatInputCommandInteraction) {
     try {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral })
       const threshold = interaction.options.getNumber('decay-threshold')!

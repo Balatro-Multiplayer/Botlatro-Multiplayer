@@ -18,6 +18,8 @@ declare module 'psqlDB' {
     best_of_allowed: boolean
     first_deck_ban_num: number
     second_deck_ban_num: number
+    role_lock_id?: string | null
+    veto_mmr_threshold?: number | null
   }
 
   export interface QueueRoles {
