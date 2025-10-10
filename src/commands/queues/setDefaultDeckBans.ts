@@ -11,7 +11,6 @@ import {
   getQueueIdFromName,
   getQueueNames,
   getQueueSettings,
-  setUserPriorityQueue,
 } from '../../utils/queryDB'
 import { setupDeckSelect } from '../../utils/matchHelpers'
 

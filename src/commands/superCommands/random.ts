@@ -1,7 +1,4 @@
-import {
-  SlashCommandBuilder,
-  ChatInputCommandInteraction
-} from 'discord.js'
+import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js'
 
 import randomDeck from '../other/randomDeck'
 import randomStake from '../other/randomStake'
@@ -11,16 +8,7 @@ export default {
     .setName('random')
     .setDescription('randomise things')
     .addSubcommand((sub) =>
-      sub
-        .setName('deck')
-        .setDescription('Roll a random deck')
-        .addStringOption((option) =>
-          option
-            .setName('custom-decks')
-            .setDescription('Include custom BMP decks in random deck pool')
-            .setRequired(false)
-            .addChoices({ name: 'yes', value: 'yes' }),
-        ),
+      sub.setName('deck').setDescription('Roll a random deck'),
     )
     .addSubcommand((sub) =>
       sub.setName('stake').setDescription('Roll a random stake'),
