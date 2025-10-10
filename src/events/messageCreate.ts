@@ -1,7 +1,24 @@
 import { Events } from 'discord.js'
-import { getSettings } from '../utils/queryDB'
+import { getMatchIdFromChannel, getSettings } from '../utils/queryDB'
+import { resendMatchWinVote } from '../utils/matchHelpers'
 import * as fs from 'fs'
 import * as path from 'path'
+
+// Track message count per channel
+const channelMessageCounts = new Map<string, number>()
+// Track the last win vote message ID per channel
+const lastWinVoteMessages = new Map<string, string>()
+
+// Helper function to clear message count for a channel
+export function clearChannelMessageCount(channelId: string) {
+  channelMessageCounts.delete(channelId)
+  lastWinVoteMessages.delete(channelId)
+}
+
+// Helper function to set the last win vote message ID
+export function setLastWinVoteMessage(channelId: string, messageId: string) {
+  lastWinVoteMessages.set(channelId, messageId)
+}
 
 export default {
   name: Events.MessageCreate,
@@ -27,6 +44,30 @@ export default {
       const queueResultsChannelId = settings.queue_results_channel_id
       if (channel.id === queueChannelId || channel.id === queueResultsChannelId)
         return
+
+      // Check if this is a match channel
+      const matchId = await getMatchIdFromChannel(channel.id)
+      if (matchId) {
+        // Increment message count
+        const currentCount = channelMessageCounts.get(channel.id) || 0
+        const newCount = currentCount + 1
+        channelMessageCounts.set(channel.id, newCount)
+
+        // Every 12 messages, resend the win vote message
+        if (newCount % 12 === 0) {
+          const lastMessageId = lastWinVoteMessages.get(channel.id)
+          const newMessageId = await resendMatchWinVote(
+            matchId,
+            channel,
+            undefined,
+            lastMessageId,
+          )
+          if (newMessageId) {
+            console.log(newMessageId)
+            setLastWinVoteMessage(channel.id, newMessageId)
+          }
+        }
+      }
 
       const outputFilePath: string = path.join(
         __dirname,

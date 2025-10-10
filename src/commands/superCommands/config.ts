@@ -2,8 +2,10 @@ import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   AutocompleteInteraction,
+  MessageFlags,
 } from 'discord.js'
 
+import setDefaultDeckBans from '../queues/setDefaultDeckBans'
 import setPriorityQueue from '../queues/setPriorityQueue'
 import queue from './queue'
 
@@ -27,13 +29,28 @@ export default {
         ),
     ),
 
+  // .addSubcommand((sub) =>
+  //   sub
+  //     .setName('default-deck-bans')
+  //     .setDescription('Set your default deck bans for a queue')
+  //     .addStringOption((option) =>
+  //       option
+  //         .setName('queue-name')
+  //         .setDescription('The queue to set default bans for')
+  //         .setRequired(true)
+  //         .setAutocomplete(true),
+  //     ),
+  // ),
+
   async execute(interaction: ChatInputCommandInteraction) {
     if (interaction.options.getSubcommand() === 'priority-queue') {
       await setPriorityQueue.execute(interaction)
+    } else if (interaction.options.getSubcommand() === 'default-deck-bans') {
+      await setDefaultDeckBans.execute(interaction)
     }
   },
 
   async autocomplete(interaction: AutocompleteInteraction) {
-    await queue.autocomplete(interaction);
+    await queue.autocomplete(interaction)
   },
 }

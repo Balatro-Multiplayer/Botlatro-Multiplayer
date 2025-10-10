@@ -26,6 +26,76 @@ function calculateRatingChange(
   return gMultiplier * (numerator / denominator)
 }
 
+// Calculate predicted MMR changes for each team without updating the database
+export async function calculatePredictedMMR(
+  queueId: number,
+  teamResults: teamResults,
+  winningTeamId: number,
+): Promise<Map<string, number>> {
+  const settings = await getQueueSettings(queueId)
+
+  // MMR formula constants
+  const C_MMR_CHANGE = 25
+  const V_VARIANCE = 1200
+
+  // Calculate average MMR and volatility for each team
+  const teamStats = teamResults.teams.map((team) => {
+    const players = team.players
+    const avgMMR =
+      players.reduce((sum, p) => sum + (p.elo ?? settings.default_elo), 0) /
+      players.length
+    const avgVolatility =
+      players.reduce((sum, p) => sum + (p.volatility ?? 0), 0) / players.length
+
+    return {
+      team,
+      avgMMR,
+      avgVolatility,
+      isWinner: team.id === winningTeamId,
+    }
+  })
+
+  const winnerStats = teamStats.find((ts) => ts.isWinner)
+  const loserStats = teamStats.filter((ts) => !ts.isWinner)
+
+  if (!winnerStats || loserStats.length === 0) {
+    return new Map()
+  }
+
+  const avgLoserMMR =
+    loserStats.reduce((sum, ts) => sum + ts.avgMMR, 0) / loserStats.length
+  const avgLoserVolatility =
+    loserStats.reduce((sum, ts) => sum + ts.avgVolatility, 0) /
+    loserStats.length
+
+  const globalAvgVolatility =
+    (winnerStats.avgVolatility + avgLoserVolatility) / 2
+
+  const ratingChange = calculateRatingChange(
+    C_MMR_CHANGE,
+    V_VARIANCE,
+    avgLoserMMR,
+    winnerStats.avgMMR,
+    globalAvgVolatility,
+  )
+
+  // Build map of user_id -> predicted MMR change
+  const predictions = new Map<string, number>()
+
+  for (const ts of teamStats) {
+    const isWinner = ts.isWinner
+    const mmrChange = isWinner
+      ? ratingChange
+      : -ratingChange / loserStats.length
+
+    for (const player of ts.team.players) {
+      predictions.set(player.user_id, parseFloat(mmrChange.toFixed(1)))
+    }
+  }
+
+  return predictions
+}
+
 export async function calculateNewMMR(
   queueId: number,
   matchId: number,
