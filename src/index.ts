@@ -3,6 +3,8 @@ import {
   deleteOldTranscriptsCronJob,
   partyDeleteCronJob,
   runDecayTick,
+  updateMatchCountCronJob,
+  deleteExpiredStrikesCronJob,
 } from './utils/cronJobs'
 import { app } from './api/app'
 import { client } from './client'
@@ -39,5 +41,9 @@ setupClientCommands(client, false)
 void partyDeleteCronJob()
 void deleteOldTranscriptsCronJob()
 void runDecayTick()
+//void partyDeleteCronJob()
+//void deleteOldTranscriptsCronJob()
+void updateMatchCountCronJob()
+void deleteExpiredStrikesCronJob()
 
 export default app

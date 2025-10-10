@@ -4,12 +4,12 @@ import {
   AutocompleteInteraction,
 } from 'discord.js'
 
-import partyCheckUsers from '../party/partyCheckUsers';
-import partyCreate from '../party/partyCreate';
-import partyDisband from '../party/partyDisband';
-import partyInvite from '../party/partyInvite';
-import partyKick from '../party/partyKick';
-import partyLeave from '../party/partyLeave';
+import partyCheckUsers from '../src/commands/party/partyCheckUsers'
+import partyCreate from '../src/commands/party/partyCreate'
+import partyDisband from '../src/commands/party/partyDisband'
+import partyInvite from '../src/commands/party/partyInvite'
+import partyKick from '../src/commands/party/partyKick'
+import partyLeave from '../src/commands/party/partyLeave'
 
 export default {
   data: new SlashCommandBuilder()
@@ -94,7 +94,7 @@ export default {
     const subcommand = interaction.options.getSubcommand()
 
     if (subcommand === 'kick') {
-      const partyKick = require('../party/partyKick').default;
+      const partyKick = require('../src/commands/party/partyKick').default
       await partyKick.autocomplete(interaction)
     }
   },

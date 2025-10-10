@@ -131,7 +131,7 @@ export async function getUserPriorityQueueId(
     [userId],
   )
 
-  return 9
+  return res.rows[0].priority_queue_id ?? null
 }
 
 // create a queue role
@@ -354,6 +354,20 @@ export async function getDecksInQueue(queueId: number): Promise<Decks[]> {
   )
 
   return res.rows
+}
+
+// get banned deck IDs for a queue
+export async function getBannedDeckIds(queueId: number): Promise<number[]> {
+  const res = await pool.query<{ deck_id: number }>(
+    `
+      SELECT deck_id
+      FROM banned_decks
+      WHERE queue_id = $1
+    `,
+    [queueId],
+  )
+
+  return res.rows.map((row) => row.deck_id)
 }
 
 // set queue deck bans
@@ -638,6 +652,14 @@ export async function userInMatch(userId: string): Promise<boolean> {
   }
 
   return response.length > 0
+}
+
+// Get all active/open matches
+export async function getActiveMatches(): Promise<Matches[]> {
+  const res = await pool.query<Matches>(
+    `SELECT * FROM matches WHERE open = true ORDER BY id DESC`,
+  )
+  return res.rows
 }
 
 export async function closeMatch(matchId: number): Promise<boolean> {
@@ -1589,4 +1611,46 @@ export async function applyDecayToUsers(
   `,
     [decay_amount, decay_interval],
   )
+// Get user's default deck bans for a queue (returns deck IDs)
+export async function getUserDefaultDeckBans(
+  userId: string,
+  queueId: number,
+): Promise<number[]> {
+  const res = await pool.query(
+    `
+    SELECT deck_id FROM user_default_deck_bans
+    WHERE user_id = $1 AND queue_id = $2
+    `,
+    [userId, queueId],
+  )
+
+  return res.rows.map((row) => row.deck_id)
+}
+
+// Set user's default deck bans for a queue (replaces all existing bans)
+export async function setUserDefaultDeckBans(
+  userId: string,
+  queueId: number,
+  deckIds: number[],
+): Promise<void> {
+  // Delete existing bans for this user/queue
+  await pool.query(
+    `
+    DELETE FROM user_default_deck_bans
+    WHERE user_id = $1 AND queue_id = $2
+    `,
+    [userId, queueId],
+  )
+
+  // Insert new bans
+  for (const deckId of deckIds) {
+    await pool.query(
+      `
+      INSERT INTO user_default_deck_bans (user_id, queue_id, deck_id)
+      VALUES ($1, $2, $3)
+      ON CONFLICT DO NOTHING
+      `,
+      [userId, queueId, deckId],
+    )
+  }
 }
