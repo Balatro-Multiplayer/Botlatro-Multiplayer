@@ -48,6 +48,7 @@ import {
   userInQueue,
   getSettings,
   partyUtils,
+  setUserDefaultDeckBans,
   // setWinningTeam,
   getQueueIdFromName,
   getStatsCanvasUserData,
@@ -110,6 +111,17 @@ export default {
     if (interaction.isStringSelectMenu()) {
       if (interaction.customId === 'join-queue') {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+        const member = interaction.member as GuildMember
+
+        // TEMPORARY BAN CHECK
+        if (member) {
+          if (member.roles.cache.has('1354296037094854788')) {
+            return await interaction.followUp({
+              content: 'You are queue blacklisted, and cannot join the queue.',
+              flags: MessageFlags.Ephemeral,
+            })
+          }
+        }
 
         const joinedQueues = await joinQueues(
           interaction,
@@ -117,13 +129,19 @@ export default {
           interaction.user.id,
         )
 
-        await interaction.followUp({
+        const reply = await interaction.followUp({
           content:
             joinedQueues.length > 0
               ? `You joined: ${joinedQueues.join(', ')}`
               : 'You left the queue.',
           flags: MessageFlags.Ephemeral,
+          fetchReply: true,
         })
+
+        // Delete the message after 10 seconds
+        setTimeout(async () => {
+          await interaction.deleteReply(reply.id).catch(() => {})
+        }, 10000)
       }
 
       if (interaction.customId === 'priority-queue-sel') {
@@ -319,25 +337,52 @@ export default {
           components: [],
         })
       }
+
+      if (interaction.customId.startsWith('user-default-deck-bans-')) {
+        console.log('test')
+        const queueId = parseInt(interaction.customId.split('-')[4])
+        const deckIds = interaction.values.map((id) => parseInt(id))
+        await setUserDefaultDeckBans(interaction.user.id, queueId, deckIds)
+        await interaction.update({
+          content: `Successfully set ${deckIds.length} default deck ban(s).`,
+          components: [],
+        })
+      }
     }
 
     // Button interactions
     if (interaction.isButton()) {
       try {
-        if (interaction.customId.startsWith('view-stats-')) {
-          const queueName = interaction.customId.split('-')[2]
-          const queueId = await getQueueIdFromName(queueName)
-          const playerStats = await getStatsCanvasUserData(
-            interaction.user.id,
-            queueId,
-          )
-          const statFile = await drawPlayerStatsCanvas(queueName, playerStats)
-          const viewStatsButtons = setupViewStatsButtons(queueName)
-
-          interaction.reply({
-            files: [statFile],
-            components: [viewStatsButtons],
+        if (interaction.customId.startsWith('remove-user-deck-bans-')) {
+          const queueId = parseInt(interaction.customId.split('-')[4])
+          await setUserDefaultDeckBans(interaction.user.id, queueId, [])
+          await interaction.update({
+            content: `Successfully removed all user deck bans.`,
+            components: [],
           })
+        }
+
+        if (interaction.customId.startsWith('view-stats-')) {
+          try {
+            const queueName = interaction.customId.split('-')[2]
+            const queueId = await getQueueIdFromName(queueName)
+            const playerStats = await getStatsCanvasUserData(
+              interaction.user.id,
+              queueId,
+            )
+            const statFile = await drawPlayerStatsCanvas(queueName, playerStats)
+            const viewStatsButtons = setupViewStatsButtons(queueName)
+
+            await interaction.reply({
+              files: [statFile],
+              components: [viewStatsButtons],
+            })
+          } catch (err) {
+            await interaction.reply({
+              content: `You don't have any stats for this queue.`,
+              flags: [MessageFlags.Ephemeral],
+            })
+          }
         }
         if (interaction.customId == 'leave-queue') {
           await interaction.deferReply({ flags: MessageFlags.Ephemeral })
@@ -362,10 +407,16 @@ export default {
           )
 
           await updateQueueMessage()
-          await interaction.followUp({
+          const reply = await interaction.followUp({
             content: `You left the queue!`,
             flags: MessageFlags.Ephemeral,
+            fetchReply: true,
           })
+
+          // Delete the message after 10 seconds
+          setTimeout(async () => {
+            await interaction.deleteReply(reply.id).catch(() => {})
+          }, 10000)
         }
 
         if (interaction.customId === 'check-queued') {
@@ -500,7 +551,7 @@ export default {
               })
 
               await matchChannel.send(
-                `Helpers have been added into this queue by <@${interaction.user.id}>!`,
+                `<@&${helperRole.id}> have been called into this queue by <@${interaction.user.id}>!`,
               )
               const rows = interaction.message.components.map((row) =>
                 ActionRowBuilder.from(row as any),

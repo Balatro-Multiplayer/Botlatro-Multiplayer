@@ -6,6 +6,7 @@ import {
   MessageFlags,
   StringSelectMenuInteraction,
 } from 'discord.js'
+import { setLastWinVoteMessage } from '../events/messageCreate'
 
 export async function handleVoting(
   interaction: MessageComponentInteraction,
@@ -191,10 +192,12 @@ export async function handleTwoPlayerMatchVoting(
 
   await interaction.message.delete()
   // @ts-ignore
-  await interaction.channel!.send({
+  const newVoteMsg = await interaction.channel!.send({
     embeds: interaction.message.embeds,
     components: interaction.message.components,
   })
+
+  setLastWinVoteMessage(interaction.channel!.id, newVoteMsg.id)
 
   // Update the message with new embed
 }
