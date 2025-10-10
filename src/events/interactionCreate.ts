@@ -550,7 +550,7 @@ export default {
               })
 
               await matchChannel.send(
-                `Helpers have been added into this queue by <@${interaction.user.id}>!`,
+                `<@&${helperRole.id}> have been called into this queue by <@${interaction.user.id}>!`,
               )
               const rows = interaction.message.components.map((row) =>
                 ActionRowBuilder.from(row as any),
