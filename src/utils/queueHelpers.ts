@@ -28,6 +28,7 @@ import {
   partyUtils,
   userInMatch,
   userInQueue,
+  getQueueRoleLock,
 } from './queryDB'
 import { Queues } from 'psqlDB'
 import { QueryResult } from 'pg'
@@ -104,7 +105,7 @@ export async function updateQueueMessage(): Promise<Message | undefined> {
     .setCustomId(`set-priority-queue`)
     .setLabel('Set Priority Queue')
     .setStyle(ButtonStyle.Primary)
-    .setDisabled(true)
+    .setDisabled(options.length < 2)
 
   const buttonRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
     leaveQueue,
@@ -149,9 +150,34 @@ export async function joinQueues(
   interaction: StringSelectMenuInteraction | CommandInteraction,
   selectedQueueIds: string[],
   userId: string,
-): Promise<string[]> {
+): Promise<string[] | null> {
   const allQueues: QueryResult<Queues> =
     await pool.query(`SELECT * FROM queues`)
+
+  // Get guild member for role checks
+  const guild =
+    interaction.client.guilds.cache.get(process.env.GUILD_ID!) ??
+    (await interaction.client.guilds.fetch(process.env.GUILD_ID!))
+  const member = await guild.members.fetch(userId)
+
+  // Role lock checks
+  for (let qId of selectedQueueIds) {
+    const queueId = parseInt(qId)
+    const queue = allQueues.rows.find((q) => q.id === queueId)
+    if (!queue) continue
+
+    const roleLockId = await getQueueRoleLock(queueId)
+    console.log(roleLockId)
+    if (roleLockId && !member.roles.cache.has(roleLockId)) {
+      const role = guild.roles.cache.get(roleLockId)
+      const roleName = role ? role.name : 'required role'
+      await interaction.followUp({
+        content: `You need the **${roleName}** role to join the ${queue.queue_name} queue.`,
+        flags: MessageFlags.Ephemeral,
+      })
+      return null
+    }
+  }
 
   // party checks
   const partyId = await partyUtils.getUserParty(userId)
@@ -165,7 +191,7 @@ export async function joinQueues(
           content: `Your party has too many members for the ${queue.queue_name} queue.`,
           flags: MessageFlags.Ephemeral,
         })
-        return []
+        return null
       }
     }
 
@@ -178,7 +204,7 @@ export async function joinQueues(
         content: `You're not the party leader.`,
         flags: MessageFlags.Ephemeral,
       })
-      return []
+      return null
     }
 
     // TODO: check for bans
@@ -199,7 +225,7 @@ export async function joinQueues(
       content: `You're already in a match! <#${matchData.rows[0].channel_id}>`,
       flags: MessageFlags.Ephemeral,
     })
-    return []
+    return null
   }
 
   // ensure user exists, if it doesn't, create

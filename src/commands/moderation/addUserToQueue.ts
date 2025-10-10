@@ -49,7 +49,17 @@ export default {
         return
       }
 
-      await joinQueues(interaction, [`${queueId}`], user.id)
+      const queuesJoined = await joinQueues(
+        interaction,
+        [`${queueId}`],
+        user.id,
+      )
+
+      if (queuesJoined && queuesJoined.length === 0) {
+        return await interaction.editReply({
+          content: `<@${user.id}> is not eligible to join ${queueName}.`,
+        })
+      }
 
       await interaction.editReply({
         content: `Added user <@${user.id}> to ${queueName}.`,

@@ -16,7 +16,7 @@ export default {
   data: new SlashCommandBuilder()
     .setName('cancel-match')
     .setDescription('Cancel a specific match')
-    // .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addStringOption((option) =>
       option
         .setName('match-id')

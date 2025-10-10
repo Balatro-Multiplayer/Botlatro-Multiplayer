@@ -6,10 +6,8 @@ import {
 } from 'discord.js'
 
 import deleteQueue from '../moderation/deleteQueue'
-import deleteQueueRole from '../moderation/deleteQueueRole';
-import { getQueueNames } from '../../utils/queryDB';
-import queue from './queue';
-
+import deleteQueueRole from '../moderation/deleteQueueRole'
+import queue from './queue'
 
 export default {
   data: new SlashCommandBuilder()
@@ -42,19 +40,21 @@ export default {
         .addRoleOption((option) =>
           option
             .setName('role')
-            .setDescription('The queue role you would like to remove from a queue')
-            .setRequired(true)
+            .setDescription(
+              'The queue role you would like to remove from a queue',
+            )
+            .setRequired(true),
         ),
     ),
 
   async execute(interaction: ChatInputCommandInteraction) {
     if (interaction.options.getSubcommand() === 'queue') {
-      await deleteQueue.execute(interaction);
+      await deleteQueue.execute(interaction)
     } else if (interaction.options.getSubcommand() === 'queue-role') {
-      await deleteQueueRole.execute(interaction);
+      await deleteQueueRole.execute(interaction)
     }
   },
   async autocomplete(interaction: AutocompleteInteraction) {
-    await queue.autocomplete(interaction);
+    await queue.autocomplete(interaction)
   },
 }
