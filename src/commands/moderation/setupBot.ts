@@ -64,7 +64,7 @@ class Settings {
         )
         break
     }
-    if (name.includes('Active Matches')) {
+    if (name.includes('Active')) {
       await pool.query(
         `UPDATE settings SET match_count_channel_id = $1 WHERE singleton = true`,
         [id],

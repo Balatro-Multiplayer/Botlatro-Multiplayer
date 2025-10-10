@@ -2,6 +2,8 @@
 import {
   deleteOldTranscriptsCronJob,
   partyDeleteCronJob,
+  updateMatchCountCronJob,
+  deleteExpiredStrikesCronJob,
 } from './utils/cronJobs'
 import { app } from './api/app'
 import { client } from './client'
@@ -35,7 +37,9 @@ for (const file of eventFiles) {
 
 void client.login(token)
 setupClientCommands(client, false)
-void partyDeleteCronJob()
-void deleteOldTranscriptsCronJob()
+//void partyDeleteCronJob()
+//void deleteOldTranscriptsCronJob()
+void updateMatchCountCronJob()
+void deleteExpiredStrikesCronJob()
 
 export default app

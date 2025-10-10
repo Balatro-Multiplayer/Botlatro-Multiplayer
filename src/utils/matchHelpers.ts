@@ -34,7 +34,14 @@ import * as path from 'path'
 import { glob } from 'glob'
 import { parseLogLines } from './transcriptHelpers'
 import { client } from '../client'
-import { calculateNewMMR } from './algorithms/calculateMMR'
+import {
+  calculateNewMMR,
+  calculatePredictedMMR,
+} from './algorithms/calculateMMR'
+import {
+  clearChannelMessageCount,
+  setLastWinVoteMessage,
+} from '../events/messageCreate'
 
 require('dotenv').config()
 
@@ -217,10 +224,109 @@ export async function sendMatchInitMessages(
   textChannel: TextChannel,
 ) {
   const teamData = await getTeamsInMatch(matchId)
-  const queueTeamSelectOptions: StringSelectMenuOptionBuilder[] = []
-  let teamPingString = ``
   const queueSettings = await getQueueSettings(queueId)
   const deckBanFirstNum = queueSettings.first_deck_ban_num
+  const deckBanSecondNum = queueSettings.second_deck_ban_num
+
+  // Build team ping string for initial message
+  let teamPingString = ``
+  for (const team of teamData.teams) {
+    for (const player of team.players) {
+      teamPingString += `<@${player.user_id}> `
+    }
+    teamPingString += 'vs. '
+  }
+  teamPingString = teamPingString.slice(0, -4)
+
+  // Get team fields for deck/stake setup
+  let teamFields: any = teamData.teams.map(async (t, idx) => {
+    let teamQueueUsersData = await pool.query(
+      `SELECT * FROM queue_users
+      WHERE user_id = ANY($1) AND queue_id = $2`,
+      [t.players.map((u) => u.user_id), queueId],
+    )
+
+    let onePersonTeam = teamQueueUsersData.rowCount === 1
+    let onePersonTeamName
+
+    if (teamQueueUsersData.rowCount == 0) return
+
+    for (const user of teamQueueUsersData.rows) {
+      let userDiscordInfo = await client.users.fetch(user.user_id)
+      if (onePersonTeam) {
+        onePersonTeamName = userDiscordInfo.displayName
+      }
+    }
+
+    return {
+      name: onePersonTeam ? `${onePersonTeamName}` : `Team ${t.id}`,
+      players: t.players,
+      teamIndex: idx,
+    }
+  })
+  teamFields = await Promise.all(teamFields)
+
+  // Send the win vote message using the shared function
+  const messageId = await resendMatchWinVote(
+    matchId,
+    textChannel,
+    teamPingString,
+  )
+  if (messageId) {
+    setLastWinVoteMessage(textChannel.id, messageId)
+  }
+
+  const randomTeams: any[] = shuffle(teamFields)
+
+  const deckEmbed = new EmbedBuilder()
+    .setTitle(`Deck Bans`)
+    .setDescription(
+      `**${randomTeams[0].name}** bans up to ${deckBanFirstNum} decks.\n**${randomTeams[1].name}** chooses ${deckBanSecondNum} decks.\n**${randomTeams[0].name}** picks 1 deck.\nVote using the dropdown below!\n\nAlternately, you can do </random deck:1414248501742669937> and randomly pick one.`,
+    )
+    .setColor(0xff0000)
+
+  const deckList = await getDecksInQueue(queueId)
+
+  const deckSelMenu = await setupDeckSelect(
+    `deck-bans-1-${matchId}-${randomTeams[1].teamIndex}`,
+    `${randomTeams[0].name}: Select up to ${deckBanFirstNum} decks to ban.`,
+    1,
+    deckBanFirstNum,
+    true,
+    [],
+    deckList.map((deck) => deck.id),
+  )
+
+  await setMatchStakeVoteTeam(matchId, randomTeams[0].teamIndex)
+  const stakeBanButtons = await setupStakeButtons(matchId)
+  const teamUsers = randomTeams[0].players
+    .map((user: MatchUsers) => `<@${user.user_id}>`)
+    .join('\n')
+
+  await textChannel.send({ embeds: [deckEmbed], components: [deckSelMenu] })
+  await textChannel.send({
+    content: `Stake Bans:\n${teamUsers}`,
+    components: stakeBanButtons,
+  })
+}
+
+export async function resendMatchWinVote(
+  matchId: number,
+  textChannel: TextChannel,
+  initialPingString?: string,
+  lastMessageId?: string,
+): Promise<string | null> {
+  const queueId = await getQueueIdFromMatch(matchId)
+  const teamData = await getTeamsInMatch(matchId)
+  const queueTeamSelectOptions: StringSelectMenuOptionBuilder[] = []
+  const queueSettings = await getQueueSettings(queueId)
+
+  // Calculate predicted MMR changes for each team winning
+  const teamPredictions = new Map<number, Map<string, number>>()
+  for (const team of teamData.teams) {
+    const predictions = await calculatePredictedMMR(queueId, teamData, team.id)
+    teamPredictions.set(team.id, predictions)
+  }
 
   let teamFields: any = teamData.teams.map(async (t, idx) => {
     let teamQueueUsersData = await pool.query(
@@ -236,15 +342,20 @@ export async function sendMatchInitMessages(
     if (teamQueueUsersData.rowCount == 0) return
     if (teamQueueUsersData.rowCount == 1) onePersonTeam = true
 
+    // Get predictions for this team winning
+    const predictions = teamPredictions.get(t.id)
+
     for (const user of teamQueueUsersData.rows) {
       let userDiscordInfo = await client.users.fetch(user.user_id)
-      teamPingString += `<@${user.user_id}> `
+      const predictedChange = predictions?.get(user.user_id) ?? 0
+      const changeStr =
+        predictedChange > 0 ? `+${predictedChange}` : `${predictedChange}`
 
       if (onePersonTeam) {
-        teamString += `\`${user.elo} MMR\`\n`
+        teamString += `\`${user.elo} MMR (${changeStr})\`\n`
         onePersonTeamName = userDiscordInfo.displayName
       } else {
-        teamString += `**${userDiscordInfo.displayName}** - ${user.elo} MMR\n`
+        teamString += `**${userDiscordInfo.displayName}** - ${user.elo} MMR **(${changeStr})**\n`
       }
     }
 
@@ -257,7 +368,6 @@ export async function sendMatchInitMessages(
         .setValue(`winmatch_${matchId}_${t.id}`),
     )
 
-    teamPingString += 'vs. '
     return {
       name: onePersonTeam ? `${onePersonTeamName}` : `Team ${t.id}`,
       players: t.players,
@@ -276,9 +386,6 @@ export async function sendMatchInitMessages(
         .setOptions(queueTeamSelectOptions),
     ),
   ]
-
-  // Slice off the last vs.
-  teamPingString = teamPingString.slice(0, -4)
 
   const eloEmbed = new EmbedBuilder()
     .setTitle(`${queueSettings.queue_name} Match #${matchId}`)
@@ -309,43 +416,26 @@ export async function sendMatchInitMessages(
 
   queueGameComponents.push(actionRow)
 
-  const randomTeams: any[] = shuffle(teamFields)
+  // Delete the previous win vote message if it exists
+  if (lastMessageId) {
+    try {
+      const oldMessage = await textChannel.messages.fetch(lastMessageId)
+      await oldMessage.delete()
+    } catch (err) {
+      // Message might already be deleted, ignore error
+    }
+  }
 
-  const deckEmbed = new EmbedBuilder()
-    .setTitle(`Deck Bans`)
-    .setDescription(
-      `**${randomTeams[0].name}** bans 5 decks.\n**${randomTeams[1].name}** chooses 3 decks.\n**${randomTeams[0].name}** picks 1 deck.\nVote using the dropdown below!\n\nAlternately, you can do </random deck:1414248501742669937> and randomly pick one.`,
-    )
-    .setColor(0xff0000)
+  // Use initial ping string if provided (first message)
+  const messageContent = initialPingString ? `# ${initialPingString}` : ` `
 
-  const deckList = await getDecksInQueue(queueId)
-
-  const deckSelMenu = await setupDeckSelect(
-    `deck-bans-1-${matchId}-${randomTeams[1].teamIndex}`,
-    `${randomTeams[0].name}: Select ${deckBanFirstNum} decks to ban.`,
-    deckBanFirstNum,
-    deckBanFirstNum,
-    true,
-    [],
-    deckList.map((deck) => deck.id),
-  )
-
-  await setMatchStakeVoteTeam(matchId, randomTeams[0].teamIndex)
-  const stakeBanButtons = await setupStakeButtons(matchId)
-  const teamUsers = randomTeams[0].players
-    .map((user: MatchUsers) => `<@${user.user_id}>`)
-    .join('\n')
-
-  await textChannel.send({
-    content: `# ${teamPingString}`,
+  const sentMessage = await textChannel.send({
+    content: messageContent,
     embeds: [eloEmbed],
     components: queueGameComponents,
   })
-  await textChannel.send({ embeds: [deckEmbed], components: [deckSelMenu] })
-  await textChannel.send({
-    content: `Stake Bans:\n${teamUsers}`,
-    components: stakeBanButtons,
-  })
+
+  return sentMessage.id
 }
 
 export async function endMatch(
@@ -356,9 +446,6 @@ export async function endMatch(
     // close match in DB
     console.log(`Closing match: ${matchId}`)
     await closeMatch(matchId)
-
-    // Update match count channel
-    await updateMatchCountChannel()
 
     // get log file using glob library
     const pattern = path
@@ -421,7 +508,7 @@ export async function endMatch(
   const queueId = await getQueueIdFromMatch(matchId)
   const queueName = await getQueueSettings(queueId, ['queue_name'])
 
-  let teamResults: teamResults | null = null
+  let teamResults: teamResults | null
   // create our teamResults object here
   const teamResultsData: teamResults = {
     teams: matchTeams.teams.map((teamResult) => ({
@@ -535,6 +622,10 @@ export async function deleteMatchChannel(matchId: number): Promise<boolean> {
     console.error(`No text channel found for match ${matchId}`)
     return false
   }
+
+  // Clear the message count for this channel
+  clearChannelMessageCount(textChannel.id)
+
   setTimeout(async () => {
     await textChannel.delete().catch((err) => {
       console.error(
@@ -587,13 +678,13 @@ export async function updateMatchCountChannel(): Promise<void> {
   try {
     // Get count of active matches
     const matchCountRes = await pool.query(
-      `SELECT COUNT(*) as count FROM matches WHERE open = true`
+      `SELECT COUNT(*) as count FROM matches WHERE open = true`,
     )
     const activeMatchCount = parseInt(matchCountRes.rows[0].count) || 0
 
     // Get match count channel ID from settings
     const settingsRes = await pool.query(
-      `SELECT match_count_channel_id FROM settings WHERE singleton = true`
+      `SELECT match_count_channel_id FROM settings WHERE singleton = true`,
     )
     const channelId = settingsRes.rows[0]?.match_count_channel_id
 
@@ -604,10 +695,19 @@ export async function updateMatchCountChannel(): Promise<void> {
       client.guilds.cache.get(process.env.GUILD_ID!) ??
       (await client.guilds.fetch(process.env.GUILD_ID!))
 
-    const channel = await guild.channels.fetch(channelId).catch(() => null)
+    const channel = await guild.channels.fetch(channelId)
 
     if (channel && channel.type === ChannelType.GuildVoice) {
-      await channel.setName(`${activeMatchCount} Active Matches`)
+      await channel
+        .setName(
+          `${activeMatchCount} Active Match${activeMatchCount === 1 ? '' : 'es'}`,
+        )
+        .catch((err) => {
+          if (err.code !== 50013) {
+            // Only log if it's not a rate limit error
+            console.log('Failed to update match count channel:', err.message)
+          }
+        })
     }
   } catch (err) {
     console.error('Failed to update match count channel:', err)
