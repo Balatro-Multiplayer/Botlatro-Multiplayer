@@ -914,6 +914,19 @@ export async function updatePlayerElo(
     `,
     [clampedElo, userId, queueId],
   )
+
+  // add decay grace to user, seeming as they have just played a match (in theory)
+  const res = await pool.query(`
+    SELECT decay_grace FROM settings WHERE singleton = true
+  `)
+  const decay_grace = res.rows[0].decay_grace
+
+  await pool.query(
+    `
+    UPDATE queue_users SET last_decay = clock_timestamp() + ($1::double precision * interval '1 hour') WHERE user_id = $2 AND queue_id = $3
+  `,
+    [decay_grace, userId, queueId],
+  )
 }
 
 // updates a player's volatility
@@ -1528,4 +1541,52 @@ export async function setDecayValues(d: {
   if (res.rowCount === 0) {
     throw new Error('no settings yet, please setup bot')
   }
+}
+
+// return all users who have is_decay == true
+export async function getDecayUsers(): Promise<{ user_id: string }[]> {
+  const res = await pool.query(
+    `SELECT user_id FROM queue_users WHERE is_decay = true`,
+  )
+  return res.rows
+}
+
+// set users above the mmr threshold (and who aren't already decaying) to start decaying, adding a last decay date to account for the grace period
+export async function addIsDecayToUsers(
+  decay_threshold: number,
+  decay_grace: number,
+  decay_interval: number,
+) {
+  await pool.query(
+    `
+    UPDATE queue_users SET (is_decay, last_decay) = (true, clock_timestamp() + ($1::double precision * interval '1 hour')) WHERE (elo >= $2) AND (is_decay = false)
+  `,
+    [decay_grace, decay_threshold],
+  )
+}
+
+// remove decay from users who are below the threshold and who currently have decay or a not null last_decay
+export async function removeIsDecayFromUsers(decay_threshold: number) {
+  await pool.query(
+    `
+      UPDATE queue_users SET (is_decay, last_decay) = (false, null) WHERE (elo < $1) AND ((is_decay = true) OR (last_decay IS DISTINCT FROM null)) RETURNING user_id
+  `,
+    [decay_threshold],
+  )
+}
+
+// decay users who have is_decay == true
+export async function applyDecayToUsers(
+  decay_interval: number,
+  decay_amount: number,
+) {
+  await pool.query(
+    `
+    UPDATE queue_users SET elo = greatest(elo - $1::numeric, 0::numeric), last_decay = clock_timestamp() 
+                       WHERE is_decay 
+                         AND ((last_decay IS null) 
+                                             OR (last_decay <= clock_timestamp() - ($2::double precision * interval '1 hour'))) 
+  `,
+    [decay_amount, decay_interval],
+  )
 }

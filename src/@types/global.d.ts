@@ -77,6 +77,9 @@ declare module 'psqlDB' {
     peak_win_streak: number
     current_elo_range: string[]
     queue_join_time?: Date | null
+    is_decay: boolean
+    next_decay_at: Date | null
+    decaying_since: Date | null
   }
 
   export interface MatchUsers extends QueueUsers {
@@ -117,6 +120,11 @@ declare module 'psqlDB' {
     queue_message_id: string
     logs_channel_id: string
     queue_logs_channel_id: string
+    decay_threshold: number
+    decay_amount: number
+    decay_interval: number
+    decay_grace: number
+    match_count_channel_id: string
   }
 
   export type teamResults = {
