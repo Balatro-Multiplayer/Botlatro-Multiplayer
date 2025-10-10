@@ -381,7 +381,7 @@ export async function endMatch(
       fs.unlinkSync(file)
     }
 
-    // delete match channel (faliure results in early return)
+    // delete match channel (failure results in early return)
     const wasSuccessfullyDeleted = await deleteMatchChannel(matchId)
     if (!wasSuccessfullyDeleted) {
       console.error(`Failed to delete match channel for match ${matchId}`)

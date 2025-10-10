@@ -11,7 +11,7 @@ export default {
       const threshold = interaction.options.getNumber('decay-threshold')!
       const amount = interaction.options.getNumber('decay-amount')!
       const interval = interaction.options.getNumber('decay-interval')!
-      const grace = interaction.options.getNumber('grace') ?? 24 * 7 // 1 week default grace
+      const grace = interaction.options.getNumber('grace-period') || 24 * 7 // 1 week default grace
       await setDecayValues({ threshold, amount, interval, grace })
       await interaction.editReply({ content: 'decay values set' })
     } catch (err: any) {

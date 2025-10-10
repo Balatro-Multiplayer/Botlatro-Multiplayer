@@ -1,12 +1,16 @@
 import {
+  addIsDecayToUsers,
+  applyDecayToUsers,
   getActiveQueues,
   getCurrentEloRangeForUser,
   getQueueSettings,
+  getSettings,
   getUserPriorityQueueId,
   getUserQueues,
   getUsersInQueue,
   partyUtils,
   ratingUtils,
+  removeIsDecayFromUsers,
   removeUserFromQueue,
   updateCurrentEloRangeForUser,
 } from './queryDB'
@@ -187,4 +191,23 @@ export async function deleteOldTranscriptsCronJob() {
     },
     5 * 60 * 1000,
   ) // every 5 mins
+}
+
+// decay users
+export async function runDecayTick() {
+  setInterval(
+    async () => {
+      console.log('DECAY TICK')
+      // 0: get data
+      const { decay_threshold, decay_interval, decay_grace, decay_amount } =
+        await getSettings()
+      // 1: all users who have reached decay threshold should have is_decay set to true, and last_decay set to null.
+      await addIsDecayToUsers(decay_threshold, decay_grace, decay_interval)
+      // 2: all users who have dropped below decay threshold should have is_decay removed, and last_decay set to null.
+      await removeIsDecayFromUsers(decay_threshold)
+      // 3: all users who still have is_decay == true, and who's last_decay is 'due', should have a decay tick applied, and last_decay set to now. If last_decay is null, set it to the future (after decay_grace)
+      await applyDecayToUsers(decay_interval, decay_amount)
+    },
+    1000 * 60 * 60 * 2, // every 2 hours,
+  )
 }
