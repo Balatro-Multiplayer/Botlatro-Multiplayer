@@ -6,10 +6,18 @@ import * as path from 'path'
 
 // Track message count per channel
 const channelMessageCounts = new Map<string, number>()
+// Track the last win vote message ID per channel
+const lastWinVoteMessages = new Map<string, string>()
 
 // Helper function to clear message count for a channel
 export function clearChannelMessageCount(channelId: string) {
   channelMessageCounts.delete(channelId)
+  lastWinVoteMessages.delete(channelId)
+}
+
+// Helper function to set the last win vote message ID
+export function setLastWinVoteMessage(channelId: string, messageId: string) {
+  lastWinVoteMessages.set(channelId, messageId)
 }
 
 export default {
@@ -47,7 +55,17 @@ export default {
 
         // Every 12 messages, resend the win vote message
         if (newCount % 12 === 0) {
-          await resendMatchWinVote(matchId, channel)
+          const lastMessageId = lastWinVoteMessages.get(channel.id)
+          const newMessageId = await resendMatchWinVote(
+            matchId,
+            channel,
+            undefined,
+            lastMessageId,
+          )
+          if (newMessageId) {
+            console.log(newMessageId)
+            setLastWinVoteMessage(channel.id, newMessageId)
+          }
         }
       }
 

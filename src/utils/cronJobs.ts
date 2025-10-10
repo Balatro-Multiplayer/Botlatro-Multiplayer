@@ -11,6 +11,7 @@ import {
   updateCurrentEloRangeForUser,
 } from './queryDB'
 import { createMatch, timeSpentInQueue } from './queueHelpers'
+import { updateMatchCountChannel } from './matchHelpers'
 import * as fs from 'fs'
 import * as path from 'path'
 import { glob } from 'glob'
@@ -184,6 +185,16 @@ export async function deleteOldTranscriptsCronJob() {
           fs.unlinkSync(file)
         }
       })
+    },
+    5 * 60 * 1000,
+  ) // every 5 mins
+}
+
+// update match count channel every 5 minutes
+export async function updateMatchCountCronJob() {
+  setInterval(
+    async () => {
+      await updateMatchCountChannel()
     },
     5 * 60 * 1000,
   ) // every 5 mins
