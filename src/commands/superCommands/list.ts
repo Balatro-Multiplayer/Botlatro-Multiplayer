@@ -21,30 +21,30 @@ export default {
     .addSubcommand((sub) =>
       sub.setName('parties').setDescription('[ADMIN] Lists all parties'),
     )
-    .addSubcommand((sub) =>
-      sub
-        .setName('users-in-party')
-        .setDescription('[ADMIN] Lists users in the specified party')
-        .addStringOption((option) =>
-          option
-            .setName('party-to-check')
-            .setDescription('[ADMIN] lists users in the specified party')
-            .setAutocomplete(true)
-            .setRequired(true),
-        ),
-    )
-    .addSubcommand((sub) =>
-      sub
-        .setName('queue-roles')
-        .setDescription('[ADMIN] Lists queue roles in a queue.')
-        .addStringOption((option) =>
-          option
-            .setName('queue-name')
-            .setDescription('The queue to check for roles in.')
-            .setAutocomplete(true)
-            .setRequired(true),
-        ),
-    )
+    // .addSubcommand((sub) =>
+    //   sub
+    //     .setName('users-in-party')
+    //     .setDescription('[ADMIN] Lists users in the specified party')
+    //     .addStringOption((option) =>
+    //       option
+    //         .setName('party-to-check')
+    //         .setDescription('[ADMIN] lists users in the specified party')
+    //         .setAutocomplete(true)
+    //         .setRequired(true),
+    //     ),
+    // )
+    // .addSubcommand((sub) =>
+    //   sub
+    //     .setName('queue-roles')
+    //     .setDescription('[ADMIN] Lists queue roles in a queue.')
+    //     .addStringOption((option) =>
+    //       option
+    //         .setName('queue-name')
+    //         .setDescription('The queue to check for roles in.')
+    //         .setAutocomplete(true)
+    //         .setRequired(true),
+    //     ),
+    // )
     .addSubcommand((sub) =>
       sub
         .setName('queue-users')
