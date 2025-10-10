@@ -2,6 +2,7 @@
 import {
   deleteOldTranscriptsCronJob,
   partyDeleteCronJob,
+  updateMatchCountCronJob,
 } from './utils/cronJobs'
 import { app } from './api/app'
 import { client } from './client'
@@ -37,5 +38,6 @@ void client.login(token)
 setupClientCommands(client, false)
 void partyDeleteCronJob()
 void deleteOldTranscriptsCronJob()
+void updateMatchCountCronJob()
 
 export default app
