@@ -69,12 +69,31 @@ export default {
         }
       }
 
-      const outputFilePath: string = path.join(
-        __dirname,
-        '..',
-        'logs',
-        `${channel.name}_${channel.id}.log`,
+      // const outputFilePath: string = path.join(
+      //   __dirname,
+      //   '..',
+      //   'logs',
+      //   `${channel.name}_${channel.id}.log`,
+      // )
+      // const hourTime = new Date().toTimeString().split(' ')[0].split(':')
+      // fs.appendFileSync(
+      //   outputFilePath,
+      //   `[${hourTime[0]}:${hourTime[1]}] ${message.author.tag}: ${content} ${attachments.map((a: any) => a.url).join(' ')}\n`,
+      //   'utf8',
+      // )
+
+      // THIS IS FOR PROD, USE ABOVE BLOCK FOR DEV
+      const logDir = process.env.LOG_DIR || path.join(process.cwd(), 'logs')
+      fs.mkdirSync(logDir, { recursive: true })
+
+      // sanitize channel name for filesystem
+      const safe = (s: string) => s.replace(/[^\w.\-]+/g, '-')
+
+      const outputFilePath = path.join(
+        logDir,
+        `${safe(channel.name)}_${channel.id}.log`,
       )
+
       const hourTime = new Date().toTimeString().split(' ')[0].split(':')
       fs.appendFileSync(
         outputFilePath,

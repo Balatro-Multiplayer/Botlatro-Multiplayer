@@ -9,8 +9,8 @@
     "start": "bun run src/index.ts",
     "dev": "bun run --watch src/index.ts",
     "deploy-commands": "bun src/scripts/deploy-commands.ts",
-    "migrate": "bunx node-pg-migrate up",
-    "migrate-down": "bunx node-pg-migrate down",
+    "migrate": "npx node-pg-migrate up",
+    "migrate-down": "npx node-pg-migrate down",
     "migrate-neatqueue": "bun run src/scripts/import-neatqueue-data.ts",
     "format": "prettier --write ."
   },
