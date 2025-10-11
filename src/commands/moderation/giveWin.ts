@@ -1,13 +1,13 @@
 import {
-  SlashCommandBuilder,
+  AutocompleteInteraction,
   ChatInputCommandInteraction,
   MessageFlags,
   PermissionFlagsBits,
-  AutocompleteInteraction,
+  SlashCommandBuilder,
 } from 'discord.js'
 import {
-  getUsersInMatch,
   getMatchIdFromChannel,
+  getUsersInMatch,
   getUserTeam,
 } from '../../utils/queryDB'
 import { pool } from '../../db'
@@ -16,7 +16,9 @@ import { endMatch } from '../../utils/matchHelpers'
 export default {
   data: new SlashCommandBuilder()
     .setName('give-win')
-    .setDescription('[ADMIN] Manually choose a winner for an in-progress match')
+    .setDescription(
+      '[HELPER] Manually choose a winner for an in-progress match',
+    )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addIntegerOption((option) =>
       option
