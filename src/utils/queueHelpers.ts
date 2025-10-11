@@ -426,9 +426,8 @@ export async function createMatch(
 
   const matchId = response.rows[0].id
 
-  // Arbitrarily add 140000 to account for old season data
   const channel = await guild.channels.create({
-    name: `match-${matchId + 140000}`,
+    name: `match-${matchId}`,
     type: ChannelType.GuildText,
     parent: categoryId,
     permissionOverwrites: permissionOverwrites,
