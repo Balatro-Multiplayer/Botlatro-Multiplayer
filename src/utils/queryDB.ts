@@ -33,7 +33,9 @@ export async function queueChangeLock(queueId: number, lock: boolean = true) {
 }
 
 // Get the role lock for a queue
-export async function getQueueRoleLock(queueId: number): Promise<string | null> {
+export async function getQueueRoleLock(
+  queueId: number,
+): Promise<string | null> {
   const res = await pool.query(
     `SELECT role_lock_id FROM queues WHERE id = $1`,
     [queueId],
@@ -358,6 +360,16 @@ export async function getStakeByName(
   const res: QueryResult<Stakes> = await pool.query(
     `SELECT * FROM stakes WHERE stake_name = $1`,
     [stakeName],
+  )
+
+  if (res.rowCount == 0) return null
+  return res.rows[0]
+}
+
+export async function getDeckByName(deckName: string): Promise<Decks | null> {
+  const res: QueryResult<Decks> = await pool.query(
+    `SELECT * FROM decks WHERE deck_name = $1`,
+    [deckName],
   )
 
   if (res.rowCount == 0) return null

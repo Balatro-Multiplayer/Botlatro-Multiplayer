@@ -117,6 +117,16 @@ export default {
               'The amount of MMR a user has at minimum to not be able to veto',
             )
             .setRequired(false),
+        )
+        .addStringOption((option) =>
+          option
+            .setName('color')
+            .setDescription(
+              'Hex color for the queue results embed (e.g., #FFD700)',
+            )
+            .setRequired(false)
+            .setMinLength(7)
+            .setMaxLength(7),
         ),
     )
     .addSubcommand((sub) =>

@@ -27,6 +27,10 @@ import {
   updatePlayerWinStreak,
   getUserDefaultDeckBans,
   setPickedMatchDeck,
+  getMatchData,
+  getUserQueueRole,
+  getStakeByName,
+  getDeckByName,
 } from './queryDB'
 import { Decks, MatchUsers, Stakes, teamResults } from 'psqlDB'
 import dotenv from 'dotenv'
@@ -618,7 +622,8 @@ export async function endMatch(
   }
 
   const queueId = await getQueueIdFromMatch(matchId)
-  const queueName = await getQueueSettings(queueId, ['queue_name'])
+  const queueSettings = await getQueueSettings(queueId, ['queue_name', 'color'])
+  const matchData = await getMatchData(matchId)
 
   let teamResults: teamResults | null
   // create our teamResults object here
@@ -651,8 +656,8 @@ export async function endMatch(
 
   // build results embed
   const resultsEmbed = new EmbedBuilder()
-    .setTitle(`🏆 Winner For ${queueName.queue_name} Match #${matchId} 🏆`)
-    .setColor('Gold')
+    .setTitle(`🏆 Winner For ${queueSettings.queue_name} Match #${matchId} 🏆`)
+    .setColor(queueSettings.color as any)
 
   // running for every team then combining at the end
   const embedFields = await Promise.all(
@@ -668,18 +673,33 @@ export async function endMatch(
           ? `__${playerNameList.join('\n')}__`
           : `${playerNameList.join('\n')}`
 
-      // show id, elo change, new elo for every player in team
-      const description = team.players
-        .map((player) => {
-          return `<@${player.user_id}> *${player.elo_change && player.elo_change > 0 ? `+` : ``}${player.elo_change}* **(${player.elo})**`
-        })
-        .join('\n')
+      // show id, elo change, new elo, and queue role for every player in team
+      const description = await Promise.all(
+        team.players.map(async (player) => {
+          // Get the player's queue role
+          const queueRole = await getUserQueueRole(queueId, player.user_id)
+          let roleText = ''
+
+          if (queueRole) {
+            // Fetch the role from Discord to get the name
+            const guild =
+              client.guilds.cache.get(process.env.GUILD_ID!) ??
+              (await client.guilds.fetch(process.env.GUILD_ID!))
+            const role = await guild.roles.fetch(queueRole.role_id)
+            if (role) {
+              roleText = `<@&${role.id}>`
+            }
+          }
+
+          return `<@${player.user_id}> *${player.elo_change && player.elo_change > 0 ? `+` : ``}${player.elo_change}* **(${player.elo})**\n${roleText}`
+        }),
+      )
 
       // return array of objects to embedFields
       return {
         isWinningTeam: team.score === 1,
         label,
-        description,
+        description: description.join('\n'),
       }
     }),
   )
@@ -713,6 +733,22 @@ export async function endMatch(
       inline: true,
     },
   )
+
+  // Add deck and stake information if available
+  if (matchData.deck || matchData.stake) {
+    const matchInfoParts: string[] = []
+    if (matchData.deck) {
+      const deckData = await getDeckByName(matchData.deck)
+      if (deckData) matchInfoParts.push(`${deckData.deck_emote}`)
+    }
+    if (matchData.stake) {
+      const stakeData = await getStakeByName(matchData.stake)
+      if (stakeData) matchInfoParts.push(`${stakeData.stake_emote}`)
+    }
+    resultsEmbed.setTitle(
+      `${matchInfoParts.join('')} Winner For ${queueSettings.queue_name} Match #${matchId} ${matchInfoParts.reverse().join('')}`,
+    )
+  }
 
   const resultsChannel = await getMatchResultsChannel()
   if (!resultsChannel) {

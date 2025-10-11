@@ -54,6 +54,8 @@ export default {
       false,
     )
 
+    const color = interaction.options.getString('color', false)
+
     try {
       const result = await pool.query(
         `
@@ -71,7 +73,8 @@ export default {
           first_deck_ban_num = COALESCE($11, first_deck_ban_num),
           second_deck_ban_num = COALESCE($12, second_deck_ban_num),
           role_lock_id = COALESCE($13, role_lock_id),
-          veto_mmr_threshold = COALESCE($14, veto_mmr_threshold)
+          veto_mmr_threshold = COALESCE($14, veto_mmr_threshold),
+          color = COALESCE($15, color)
         WHERE queue_name = $1
         RETURNING queue_name
         `,
@@ -90,6 +93,7 @@ export default {
           deckBanSecondNum,
           roleLockId,
           vetoMmrThreshold,
+          color,
         ],
       )
 

@@ -1,8 +1,8 @@
 /// <reference path="./@types/discord.d.ts" />
 import './register-paths'
 import {
-  deleteOldTranscriptsCronJob,
-  partyDeleteCronJob,
+  // deleteOldTranscriptsCronJob,
+  // partyDeleteCronJob,
   runDecayTick,
   updateMatchCountCronJob,
   deleteExpiredStrikesCronJob,
@@ -39,8 +39,6 @@ for (const file of eventFiles) {
 
 void client.login(token)
 setupClientCommands(client, false)
-void partyDeleteCronJob()
-void deleteOldTranscriptsCronJob()
 void runDecayTick()
 //void partyDeleteCronJob()
 //void deleteOldTranscriptsCronJob()
