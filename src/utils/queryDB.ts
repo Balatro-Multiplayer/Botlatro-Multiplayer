@@ -435,6 +435,7 @@ export async function setQueueDeckBans(
 export async function setPickedMatchDeck(
   matchId: number,
   deckName: string,
+  lockPick: boolean = false,
 ): Promise<void> {
   await pool.query(
     `
@@ -444,12 +445,24 @@ export async function setPickedMatchDeck(
   `,
     [matchId, deckName],
   )
+
+  if (lockPick) {
+    await pool.query(
+      `
+      UPDATE matches
+      SET deck_vote_ended = true
+      WHERE id = $1
+    `,
+      [matchId],
+    )
+  }
 }
 
 // Set the picked stake in the match data
 export async function setPickedMatchStake(
   matchId: number,
   stakeName: string,
+  lockPick: boolean = false,
 ): Promise<void> {
   await pool.query(
     `
@@ -459,6 +472,17 @@ export async function setPickedMatchStake(
   `,
     [matchId, stakeName],
   )
+
+  if (lockPick) {
+    await pool.query(
+      `
+      UPDATE matches
+      SET stake_vote_ended = true
+      WHERE id = $1
+    `,
+      [matchId],
+    )
+  }
 }
 
 // get stake voting team id

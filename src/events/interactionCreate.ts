@@ -632,46 +632,11 @@ export default {
           await interaction.deleteReply()
         }
 
-        if (interaction.customId.startsWith('rematch-')) {
-          const matchId = parseInt(interaction.customId.split('-')[1])
-          const matchData = await getMatchData(matchId)
-          const matchUsers = await getTeamsInMatch(matchId)
-          const matchUsersArray = matchUsers.teams.flatMap((t) =>
-            t.players.map((u) => u.user_id),
-          )
-
-          await handleVoting(interaction, {
-            voteType: 'Rematch Votes',
-            embedFieldIndex: 2,
-            participants: matchUsersArray,
-            onComplete: async (interaction, { embed }) => {
-              await interaction.update({
-                content: 'A Rematch for this matchup has begun!',
-                embeds: [embed],
-                components: [],
-              })
-              await createMatch(matchUsersArray, matchData.queue_id)
-            },
-          })
-        }
-
-        if (interaction.customId.startsWith('contest-')) {
-          const matchId = parseInt(interaction.customId.split('-')[1])
+        if (interaction.customId.startsWith('contest-confirm-')) {
+          const parts = interaction.customId.split('-')
+          const matchId = parseInt(parts[2])
+          const messageId = parts[3]
           const botSettings = await getSettings()
-
-          // Check if user was in the match
-          const matchUsers = await getTeamsInMatch(matchId)
-          const matchUsersArray = matchUsers.teams.flatMap((t) =>
-            t.players.map((u) => u.user_id),
-          )
-
-          if (!matchUsersArray.includes(interaction.user.id)) {
-            await interaction.reply({
-              content: 'You cannot contest a match you were not part of.',
-              flags: MessageFlags.Ephemeral,
-            })
-            return
-          }
 
           const helperRole = await interaction.guild!.roles.fetch(
             botSettings.helper_role_id,
@@ -720,26 +685,99 @@ export default {
           })
 
           if (!contestChannel.isTextBased()) {
-            await interaction.reply({
+            await interaction.update({
               content: 'Failed to create contest channel.',
-              flags: MessageFlags.Ephemeral,
+              components: [],
             })
             return
           }
 
           await contestChannel.send({
-            content: `<@&${helperRole!.id}>\n<@${interaction.user.id}> wants to contest the results of match ${matchId}.`,
+            content: `<@&${helperRole!.id}>\n<@${interaction.user.id}> wants to contest the results of **Match #${matchId}**.`,
           })
 
-          // Forward the results embed
-          if (interaction.message.embeds.length > 0) {
-            await contestChannel.send({
-              embeds: [interaction.message.embeds[0]],
-            })
+          // Fetch the original results message and forward the embed
+          try {
+            const originalMessage =
+              await interaction.channel?.messages.fetch(messageId)
+            if (originalMessage?.embeds.length) {
+              await contestChannel.send({
+                embeds: [originalMessage.embeds[0]],
+              })
+            }
+          } catch (err) {
+            console.error('Failed to fetch original message embed:', err)
           }
 
+          await interaction.update({
+            content: `Contest channel created! Please go here to contest this matchup with the staff: ${contestChannel}`,
+            components: [],
+          })
+        }
+
+        if (interaction.customId.startsWith('contest-cancel-')) {
+          await interaction.deferUpdate()
+          await interaction.deleteReply()
+        }
+
+        if (interaction.customId.startsWith('rematch-')) {
+          const matchId = parseInt(interaction.customId.split('-')[1])
+          const matchData = await getMatchData(matchId)
+          const matchUsers = await getTeamsInMatch(matchId)
+          const matchUsersArray = matchUsers.teams.flatMap((t) =>
+            t.players.map((u) => u.user_id),
+          )
+
+          await handleVoting(interaction, {
+            voteType: 'Rematch Votes',
+            embedFieldIndex: 2,
+            participants: matchUsersArray,
+            onComplete: async (interaction, { embed }) => {
+              await interaction.update({
+                content: 'A Rematch for this matchup has begun!',
+                embeds: [embed],
+                components: [],
+              })
+              await createMatch(matchUsersArray, matchData.queue_id)
+            },
+          })
+        }
+
+        if (interaction.customId.startsWith('match-contest-')) {
+          const matchId = parseInt(interaction.customId.split('-')[2])
+
+          // Check if user was in the match
+          const matchUsers = await getTeamsInMatch(matchId)
+          const matchUsersArray = matchUsers.teams.flatMap((t) =>
+            t.players.map((u) => u.user_id),
+          )
+
+          if (!matchUsersArray.includes(interaction.user.id)) {
+            await interaction.reply({
+              content: 'You cannot contest a match you were not part of.',
+              flags: MessageFlags.Ephemeral,
+            })
+            return
+          }
+
+          // Show confirmation message, including the message ID in the custom ID
+          const messageId = interaction.message.id
+          const confirmRow =
+            new ActionRowBuilder<ButtonBuilder>().addComponents(
+              new ButtonBuilder()
+                .setCustomId(`contest-confirm-${matchId}-${messageId}`)
+                .setLabel('Yes, Contest Match')
+                .setStyle(ButtonStyle.Danger),
+              new ButtonBuilder()
+                .setCustomId(`contest-cancel-${matchId}`)
+                .setLabel('Cancel')
+                .setStyle(ButtonStyle.Secondary),
+            )
+
           await interaction.reply({
-            content: `Please go here to contest this matchup with the staff: ${contestChannel}`,
+            content:
+              'Are you sure you want to contest this match? This will create a channel and alert staff members.',
+            components: [confirmRow],
             flags: MessageFlags.Ephemeral,
           })
         }
@@ -853,7 +891,7 @@ export default {
               parseInt(lastEnabled.data.custom_id.split('-')[1]),
             )
             if (stakeData) {
-              await setPickedMatchStake(matchId, stakeData.stake_name)
+              await setPickedMatchStake(matchId, stakeData.stake_name, true)
               await interaction.message.delete()
               await channel.send({
                 content: `## Selected Stake: ${stakeData.stake_emote} ${stakeData.stake_name} `,
@@ -900,6 +938,7 @@ export default {
 
           const stakeData = await getStakeByName('White Stake')
           if (stakeData) {
+            await setPickedMatchStake(matchId, stakeData.stake_name, true)
             await channel.send({
               content: `## VETO: ${stakeData.stake_emote} ${stakeData.stake_name} `,
             })

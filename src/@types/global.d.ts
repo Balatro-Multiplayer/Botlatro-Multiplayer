@@ -57,8 +57,10 @@ declare module 'psqlDB' {
     stake_vote_team_id: number
     best_of_3: boolean
     best_of_5: boolean
-    deck: string
-    stake: string
+    deck: string | null
+    stake: string | null
+    deck_vote_ended: boolean
+    stake_vote_ended: boolean
   }
 
   export interface Users {

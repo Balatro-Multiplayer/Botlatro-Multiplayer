@@ -4,6 +4,8 @@ import {
   getMatchIdFromChannel,
   getQueueIdFromMatch,
   getDecksInQueue,
+  setPickedMatchDeck,
+  getMatchData,
 } from '../../utils/queryDB'
 
 export default {
@@ -16,6 +18,7 @@ export default {
         // In a match channel - only pick from allowed decks in this queue
         const queueId = await getQueueIdFromMatch(matchId)
         const allowedDecks = await getDecksInQueue(queueId)
+        const matchData = await getMatchData(matchId)
 
         if (allowedDecks.length === 0) {
           await interaction.reply({
@@ -27,6 +30,10 @@ export default {
 
         const randomDeck =
           allowedDecks[Math.floor(Math.random() * allowedDecks.length)]
+
+        if (!matchData.deck_vote_ended)
+          await setPickedMatchDeck(matchId, randomDeck.deck_name)
+
         const deckStr = `${randomDeck.deck_emote} ${randomDeck.deck_name}`
         await interaction.reply({ content: deckStr })
       } else {

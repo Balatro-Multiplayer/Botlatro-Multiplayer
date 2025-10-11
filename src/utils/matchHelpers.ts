@@ -134,7 +134,7 @@ export async function advanceDeckBanStep(
     )
 
     if (finalDeckPick) {
-      await setPickedMatchDeck(matchId, finalDeckPick.deck_name)
+      await setPickedMatchDeck(matchId, finalDeckPick.deck_name, true)
       await channel.send({
         content: `## Selected Deck: ${finalDeckPick.deck_emote} ${finalDeckPick.deck_name}`,
       })
@@ -608,7 +608,7 @@ export async function endMatch(
         .setEmoji('⚔️')
         .setStyle(ButtonStyle.Primary),
       new ButtonBuilder()
-        .setCustomId(`contest-${matchId}`)
+        .setCustomId(`match-contest-${matchId}`)
         .setLabel('Contest Match')
         .setEmoji('📩')
         .setStyle(ButtonStyle.Danger),
