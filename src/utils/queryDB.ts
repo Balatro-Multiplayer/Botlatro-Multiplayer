@@ -1692,3 +1692,47 @@ export async function setUserDefaultDeckBans(
     )
   }
 }
+
+// Add a bmpctu room to the db
+export async function addRoomToDb(user_id: string, room_id: string) {
+  await pool.query(
+    `
+    INSERT INTO user_room (user_id, room_id, active) VALUES ($1, $2, $3) 
+  `,
+    [user_id, room_id, true],
+  )
+}
+
+// get the bmpctu category
+export async function getBmpctuCategory() {
+  const res = await pool.query(`
+    SELECT bmpctu_category FROM settings WHERE singleton = true
+  `)
+  return res.rows[0].bmpctu_category
+}
+
+// set a room to inactive
+export async function removeRoomFromDb(channelId: string) {
+  try {
+    await pool.query(
+      `
+      UPDATE user_room 
+      SET active = false 
+      WHERE room_id = $1  
+    `,
+      [channelId],
+    )
+  } catch (err) {
+    console.error(err)
+  }
+}
+
+// change bmpctu category
+export async function changeBmpctuCategoryDb(catId: string) {
+  await pool.query(
+    `
+    UPDATE settings SET bmpctu_category = $1 WHERE singleton = true
+  `,
+    [catId],
+  )
+}

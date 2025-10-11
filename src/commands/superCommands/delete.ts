@@ -1,13 +1,14 @@
 import {
-  SlashCommandBuilder,
+  AutocompleteInteraction,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  AutocompleteInteraction,
+  SlashCommandBuilder,
 } from 'discord.js'
 
 import deleteQueue from '../moderation/deleteQueue'
 import deleteQueueRole from '../moderation/deleteQueueRole'
 import queue from './queue'
+import deleteRoom from '../moderation/bmpctu/deleteRoom'
 
 export default {
   data: new SlashCommandBuilder()
@@ -45,6 +46,17 @@ export default {
             )
             .setRequired(true),
         ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('room')
+        .setDescription('[BMPCTU] Delete a room.')
+        .addStringOption((option) =>
+          option
+            .setName('room')
+            .setDescription('Room to delete.')
+            .setRequired(true),
+        ),
     ),
 
   async execute(interaction: ChatInputCommandInteraction) {
@@ -52,6 +64,8 @@ export default {
       await deleteQueue.execute(interaction)
     } else if (interaction.options.getSubcommand() === 'queue-role') {
       await deleteQueueRole.execute(interaction)
+    } else if (interaction.options.getSubcommand() === 'delete-room') {
+      await deleteRoom.execute(interaction)
     }
   },
   async autocomplete(interaction: AutocompleteInteraction) {

@@ -1,8 +1,8 @@
 import {
-  SlashCommandBuilder,
+  AutocompleteInteraction,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  AutocompleteInteraction,
+  SlashCommandBuilder,
 } from 'discord.js'
 
 import queue from './queue'
@@ -16,7 +16,7 @@ export default {
     .addSubcommand((sub) =>
       sub
         .setName('queue')
-        .setDescription('Edit information for a queue')
+        .setDescription('[ADMIN] Edit information for a queue')
         // required
         .addStringOption((option) =>
           option
