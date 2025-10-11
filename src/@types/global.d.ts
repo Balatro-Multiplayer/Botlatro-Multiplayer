@@ -20,6 +20,7 @@ declare module 'psqlDB' {
     second_deck_ban_num: number
     role_lock_id?: string | null
     veto_mmr_threshold?: number | null
+    color: string
   }
 
   export interface QueueRoles {
@@ -56,6 +57,8 @@ declare module 'psqlDB' {
     stake_vote_team_id: number
     best_of_3: boolean
     best_of_5: boolean
+    deck: string
+    stake: string
   }
 
   export interface Users {

@@ -38,6 +38,8 @@ export default {
     const vetoMmrThreshold =
       interaction.options.getInteger('veto-mmr-threshold', false) ?? null
 
+    const color = interaction.options.getString('color', false) ?? '#FFD700'
+
     try {
       const nameCheck = await pool.query(
         'SELECT 1 FROM queues WHERE queue_name = $1',
@@ -59,8 +61,8 @@ export default {
 				 elo_search_speed, default_elo,
 				 max_party_elo_difference, locked,
 				 best_of_allowed, first_deck_ban_num, second_deck_ban_num,
-				 role_lock_id, veto_mmr_threshold)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+				 role_lock_id, veto_mmr_threshold, color)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
                 `,
         [
           queueName,
@@ -78,6 +80,7 @@ export default {
           deckBanSecondNum,
           roleLockId,
           vetoMmrThreshold,
+          color,
         ],
       )
 
