@@ -611,7 +611,7 @@ export async function endMatch(
         .setCustomId(`match-contest-${matchId}`)
         .setLabel('Contest Match')
         .setEmoji('📩')
-        .setStyle(ButtonStyle.Danger),
+        .setStyle(ButtonStyle.Secondary),
     )
 
   const matchTeams = await getTeamsInMatch(matchId)
