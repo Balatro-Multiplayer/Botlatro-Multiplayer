@@ -1,9 +1,9 @@
 import {
-  SlashCommandBuilder,
-  ChatInputCommandInteraction,
-  PermissionFlagsBits,
-  MessageFlags,
   AutocompleteInteraction,
+  ChatInputCommandInteraction,
+  MessageFlags,
+  PermissionFlagsBits,
+  SlashCommandBuilder,
 } from 'discord.js'
 import { joinQueues } from '../../utils/queueHelpers'
 import queue from '../superCommands/queue'
@@ -12,7 +12,7 @@ import { getQueueIdFromName } from '../../utils/queryDB'
 export default {
   data: new SlashCommandBuilder()
     .setName('add-user-to-queue')
-    .setDescription('[ADMIN] Forces a user into a specific queue')
+    .setDescription('[HELPER] Forces a user into a specific queue')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addStringOption((option) =>
       option
