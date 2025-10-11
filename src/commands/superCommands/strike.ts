@@ -18,7 +18,7 @@ export default {
     .addSubcommand((sub) =>
       sub
         .setName('give')
-        .setDescription('Give strike(s) to a user')
+        .setDescription('[HELPER] Give strike(s) to a user')
         .addUserOption((option) =>
           option
             .setName('user')
@@ -58,7 +58,7 @@ export default {
     .addSubcommand((sub) =>
       sub
         .setName('remove')
-        .setDescription('Remove strike(s) from a user')
+        .setDescription('[HELPER] Remove strike(s) from a user')
 
         .addStringOption((option) =>
           option

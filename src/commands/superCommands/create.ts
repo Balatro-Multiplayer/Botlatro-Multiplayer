@@ -1,14 +1,15 @@
 import {
-  SlashCommandBuilder,
+  AutocompleteInteraction,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  AutocompleteInteraction,
+  SlashCommandBuilder,
 } from 'discord.js'
 
 import newQueue from '../moderation/newQueue'
 import addQueueRole from 'commands/moderation/addQueueRole'
 import queue from './queue'
 import addLeaderboardRole from '../moderation/addLeaderboardRole'
+import createRoom from '../moderation/bmpctu/createRoom'
 
 export default {
   data: new SlashCommandBuilder()
@@ -18,7 +19,7 @@ export default {
     .addSubcommand((sub) =>
       sub
         .setName('queue')
-        .setDescription('Create a new queue')
+        .setDescription('[ADMIN] Create a new queue')
         // required
         .addStringOption((option) =>
           option
@@ -133,7 +134,7 @@ export default {
       sub
         .setName('queue-leaderboard-role')
         .setDescription(
-          'Create a queue leaderboard role for use in a specific queue.',
+          '[ADMIN] Create a queue leaderboard role for use in a specific queue.',
         )
         .addStringOption((option) =>
           option
@@ -170,7 +171,9 @@ export default {
     .addSubcommand((sub) =>
       sub
         .setName('queue-role')
-        .setDescription('Create a queue rank role for use in a specific queue.')
+        .setDescription(
+          '[ADMIN] Create a queue rank role for use in a specific queue.',
+        )
         .addStringOption((option) =>
           option
             .setName('queue-name')
@@ -192,6 +195,17 @@ export default {
             .setDescription('The minimum MMR to gain to have this role')
             .setRequired(true),
         ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('room')
+        .setDescription('[BMPCTU] Create a BMPCTU room')
+        .addUserOption((option) =>
+          option
+            .setName('user')
+            .setDescription('User to create room for')
+            .setRequired(true),
+        ),
     ),
   async execute(interaction: ChatInputCommandInteraction) {
     if (interaction.options.getSubcommand() === 'queue') {
@@ -202,6 +216,8 @@ export default {
       interaction.options.getSubcommand() === 'queue-leaderboard-role'
     ) {
       await addLeaderboardRole.execute(interaction)
+    } else if (interaction.options.getSubcommand() === 'room') {
+      await createRoom.execute(interaction)
     }
   },
   async autocomplete(interaction: AutocompleteInteraction) {

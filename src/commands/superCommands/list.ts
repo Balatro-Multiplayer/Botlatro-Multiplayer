@@ -19,7 +19,7 @@ export default {
     .setDescription('List things')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addSubcommand((sub) =>
-      sub.setName('parties').setDescription('[ADMIN] Lists all parties'),
+      sub.setName('parties').setDescription('[HELPER] Lists all parties'),
     )
     // .addSubcommand((sub) =>
     //   sub
@@ -48,7 +48,7 @@ export default {
     .addSubcommand((sub) =>
       sub
         .setName('queue-users')
-        .setDescription('[ADMIN] Lists all users actively in a queue.')
+        .setDescription('[HELPER] Lists all users actively in a queue.')
         .addStringOption((option) =>
           option
             .setName('queue-name')
@@ -60,7 +60,7 @@ export default {
     .addSubcommand((sub) =>
       sub
         .setName('strikes')
-        .setDescription('List all strike(s) for a certain user')
+        .setDescription('[HELPER] List all strike(s) for a certain user')
         .addStringOption((option) =>
           option
             .setName('user')

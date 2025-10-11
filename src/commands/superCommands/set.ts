@@ -9,6 +9,7 @@ import changeMMR from '../moderation/changeMMR'
 import queue from './queue'
 import setBannedDecks from 'commands/moderation/setBannedDecks'
 import setDecay from '../moderation/setDecay'
+import setBmpctuCategory from '../moderation/bmpctu/setBmpctuCategory'
 
 export default {
   data: new SlashCommandBuilder()
@@ -80,6 +81,18 @@ export default {
             .setDescription('The grace before decay starts ticking, in hours')
             .setRequired(false),
         ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('bmpctu-category')
+        .setDescription('[BMPCTU] Set the BMPCTU category')
+        .addChannelOption((option) =>
+          option
+            .setName('category')
+            .setDescription('Choose a category')
+            .setRequired(true)
+            .addChannelTypes(4),
+        ),
     ),
 
   async execute(interaction: ChatInputCommandInteraction) {
@@ -89,6 +102,8 @@ export default {
       await setBannedDecks.execute(interaction)
     } else if (interaction.options.getSubcommand() === 'decay') {
       await setDecay.execute(interaction)
+    } else if (interaction.options.getSubcommand() === 'bmpctu-category') {
+      await setBmpctuCategory.execute(interaction)
     }
   },
 
