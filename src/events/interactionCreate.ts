@@ -618,7 +618,7 @@ export default {
               })
 
               await matchChannel.send(
-                `<@&${helperRole.id}> have been called into this queue by <@${interaction.user.id}>!`,
+                `<@&1352125716367540224> have been called into this queue by <@${interaction.user.id}>!`,
               )
 
               await interaction.deferUpdate()
