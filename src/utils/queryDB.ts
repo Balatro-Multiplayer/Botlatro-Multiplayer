@@ -1806,3 +1806,16 @@ export async function changeBmpctuCategoryDb(catId: string) {
     [catId],
   )
 }
+
+// get all open rooms
+export async function getAllOpenRooms() {
+  const res = await pool.query(`
+    SELECT * FROM user_room WHERE active = true
+  `)
+  return res.rows.map((row) => {
+    return {
+      userId: row.user_id,
+      roomId: row.room_id,
+    }
+  })
+}

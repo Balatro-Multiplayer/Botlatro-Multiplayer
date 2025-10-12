@@ -1,5 +1,5 @@
 import { AutocompleteInteraction, User } from 'discord.js'
-import { strikeUtils } from './queryDB'
+import { getAllOpenRooms, strikeUtils } from './queryDB'
 import { client } from '../client'
 
 const userCache = new Map<string, User>()
@@ -139,5 +139,22 @@ export async function strikeAutocomplete(interaction: AutocompleteInteraction) {
   } catch (err) {
     console.error('autocomplete error:', err)
     if (!interaction.responded) await interaction.respond([])
+  }
+}
+
+export async function deleteRoomAutoComplete(
+  interaction: AutocompleteInteraction,
+) {
+  try {
+    const rooms = await getAllOpenRooms()
+    const roomNames = await Promise.all(
+      rooms.map(async (room) => {
+        const channel = await interaction.guild?.channels.fetch(room.roomId)
+        return channel?.name
+      }),
+    )
+    const filtered = roomNames.filter((roonName) => {})
+  } catch (err) {
+    console.error(err)
   }
 }
