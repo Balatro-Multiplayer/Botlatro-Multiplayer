@@ -668,11 +668,15 @@ export async function endMatch(
     .setTitle(`🏆 ${queueSettings.queue_name} Match #${matchId} 🏆`)
     .setColor(queueSettings.color as any)
 
+  const guild =
+    client.guilds.cache.get(process.env.GUILD_ID!) ??
+    (await client.guilds.fetch(process.env.GUILD_ID!))
+
   // running for every team then combining at the end
   const embedFields = await Promise.all(
     (teamResults?.teams ?? []).map(async (team) => {
       const playerList = await Promise.all(
-        team.players.map((player) => client.users.fetch(player.user_id)),
+        team.players.map((player) => guild.members.fetch(player.user_id)),
       )
       const playerNameList = playerList.map((user) => user.displayName)
 
@@ -699,7 +703,7 @@ export async function endMatch(
               // Include emote if it exists
               emoteText = queueRole.emote ? `${queueRole.emote} ` : ''
               if (playerNameList.length == 1) {
-                label = `${emoteText}${label}`
+                label = `${label} ${emoteText}`
               }
             }
           }
@@ -759,7 +763,7 @@ export async function endMatch(
       if (stakeData) matchInfoParts.push(`${stakeData.stake_emote}`)
     }
     resultsEmbed.setTitle(
-      `${matchInfoParts.join('')} ${queueSettings.queue_name} Match #${matchId} ${matchInfoParts.reverse().join('')}`,
+      `${queueSettings.queue_name} Match #${matchId} ${matchInfoParts.join('')}`,
     )
   }
 
