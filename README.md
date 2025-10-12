@@ -5,5 +5,6 @@
 - Run `bun install`
 - Download postgresql and set it all up on your PC properly
 - Add the `.env` file to your project (see `.env.example`)
+- set 'type:' to 'module' in package.json
 - `bun run migrate` to initialize the DB
 - `bun run dev` to run the bot in development mode
