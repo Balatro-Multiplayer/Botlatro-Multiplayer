@@ -552,7 +552,6 @@ export default {
               onComplete: async (interaction) => {
                 await cancel(interaction, matchId)
               },
-              resendOnVote: true,
             })
           } catch (err) {
             console.error(err)
@@ -804,7 +803,6 @@ export default {
             voteType: voteFieldName,
             embedFieldIndex: 3,
             participants: matchUsersArray,
-            resendOnVote: true,
             onComplete: async (interaction, { embed }) => {
               const rows = interaction.message.components.map((row) =>
                 ActionRowBuilder.from(row as any),

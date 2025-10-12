@@ -165,14 +165,15 @@ export async function createQueueRole(
   queueId: number,
   roleId: string,
   mmrThreshold: number,
+  emote: string | null,
 ): Promise<boolean> {
   const res = await pool.query(
     `
-    INSERT INTO queue_roles (queue_id, role_id, mmr_threshold)
-    VALUES ($1, $2, $3)
+    INSERT INTO queue_roles (queue_id, role_id, mmr_threshold, emote)
+    VALUES ($1, $2, $3, $4)
     RETURNING queue_id
   `,
-    [queueId, roleId, mmrThreshold],
+    [queueId, roleId, mmrThreshold, emote],
   )
 
   return res.rowCount != 0
@@ -195,6 +196,46 @@ export async function createLeaderboardRole(
   )
 
   return res.rowCount != 0
+}
+
+// update a queue role
+export async function updateQueueRole(
+  queueId: number,
+  roleId: string,
+  mmrThreshold?: number,
+  emote?: string,
+): Promise<boolean> {
+  const updates: string[] = []
+  const values: any[] = [queueId, roleId]
+  let paramIndex = 3
+
+  if (mmrThreshold !== undefined) {
+    updates.push(`mmr_threshold = $${paramIndex}`)
+    values.push(mmrThreshold)
+    paramIndex++
+  }
+
+  if (emote !== undefined) {
+    updates.push(`emote = $${paramIndex}`)
+    values.push(emote)
+    paramIndex++
+  }
+
+  if (updates.length === 0) {
+    return false
+  }
+
+  const res = await pool.query(
+    `
+    UPDATE queue_roles
+    SET ${updates.join(', ')}
+    WHERE queue_id = $1 AND role_id = $2
+    RETURNING queue_id
+  `,
+    values,
+  )
+
+  return res.rowCount !== 0
 }
 
 // delete a queue role
@@ -306,17 +347,22 @@ export async function getUserPreviousQueueRole(
   queueId: number,
   userId: string,
 ): Promise<QueueRoles | null> {
-  const userElo = await getPlayerElo(userId, queueId)
+  // Get the user's current role first
+  const currentRole = await getUserQueueRole(queueId, userId)
 
+  // If they don't have a current role, they can't have a previous one
+  if (!currentRole || currentRole.mmr_threshold === null) return null
+
+  // Find the highest role with threshold below the current role's threshold
   const res = await pool.query(
     `
     SELECT *
     FROM queue_roles
-    WHERE queue_id = $1 AND mmr_threshold < $2
+    WHERE queue_id = $1 AND mmr_threshold < $2 AND mmr_threshold IS NOT NULL
     ORDER BY mmr_threshold DESC
     LIMIT 1
   `,
-    [queueId, userElo],
+    [queueId, currentRole.mmr_threshold],
   )
 
   if (res.rowCount === 0) return null

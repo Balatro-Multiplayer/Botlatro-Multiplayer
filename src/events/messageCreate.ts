@@ -53,8 +53,8 @@ export default {
         const newCount = currentCount + 1
         channelMessageCounts.set(channel.id, newCount)
 
-        // Every 12 messages, resend the win vote message
-        if (newCount % 12 === 0) {
+        // Every 10 messages, resend the win vote message
+        if (newCount % 10 === 0) {
           const lastMessageId = lastWinVoteMessages.get(channel.id)
           const newMessageId = await resendMatchWinVote(
             matchId,
@@ -63,7 +63,6 @@ export default {
             lastMessageId,
           )
           if (newMessageId) {
-            console.log(newMessageId)
             setLastWinVoteMessage(channel.id, newMessageId)
           }
         }
