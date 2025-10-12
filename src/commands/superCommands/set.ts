@@ -1,5 +1,6 @@
 import {
   AutocompleteInteraction,
+  ChannelType,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
   SlashCommandBuilder,
@@ -10,6 +11,7 @@ import queue from './queue'
 import setBannedDecks from 'commands/moderation/setBannedDecks'
 import setDecay from '../moderation/setDecay'
 import setBmpctuCategory from '../moderation/bmpctu/setBmpctuCategory'
+import setRoomLogChannel from '../moderation/bmpctu/setRoomLogChannel'
 
 export default {
   data: new SlashCommandBuilder()
@@ -86,12 +88,26 @@ export default {
       sub
         .setName('bmpctu-category')
         .setDescription('[BMPCTU] Set the BMPCTU category')
-        .addChannelOption((option) =>
-          option
-            .setName('category')
-            .setDescription('Choose a category')
-            .setRequired(true)
-            .addChannelTypes(4),
+        .addChannelOption(
+          (option) =>
+            option
+              .setName('category')
+              .setDescription('Choose a category')
+              .setRequired(true)
+              .addChannelTypes(4), // cat
+        ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('room-log')
+        .setDescription('[BMPCTU] Set the room log channel')
+        .addChannelOption(
+          (option) =>
+            option
+              .setName('channel')
+              .setDescription('Choose a channel')
+              .setRequired(true)
+              .addChannelTypes(0), // txt
         ),
     ),
 
@@ -104,6 +120,8 @@ export default {
       await setDecay.execute(interaction)
     } else if (interaction.options.getSubcommand() === 'bmpctu-category') {
       await setBmpctuCategory.execute(interaction)
+    } else if (interaction.options.getSubcommand() === 'room-log') {
+      await setRoomLogChannel.execute(interaction)
     }
   },
 
@@ -116,3 +134,4 @@ export default {
     }
   },
 }
+// this supercommand should only be usable by bmpctu+

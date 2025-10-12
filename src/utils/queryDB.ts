@@ -1,6 +1,6 @@
 import { TextChannel, VoiceChannel } from 'discord.js'
 import { pool } from '../db'
-import type { Strikes } from 'psqlDB'
+import type { Strikes, UserRoom } from 'psqlDB'
 import {
   Decks,
   Matches,
@@ -1764,13 +1764,33 @@ export async function setUserDefaultDeckBans(
 }
 
 // Add a bmpctu room to the db
-export async function addRoomToDb(user_id: string, room_id: string) {
-  await pool.query(
+export async function addRoomToDb(
+  userId: string,
+  roomId: string,
+  reason: string,
+) {
+  // make sure user exists
+  const user = await pool.query(
     `
-    INSERT INTO user_room (user_id, room_id, active) VALUES ($1, $2, $3) 
+    SELECT * FROM users WHERE user_id = $1
   `,
-    [user_id, room_id, true],
+    [userId],
   )
+  if (user.rowCount === 0) {
+    await pool.query(
+      `
+      INSERT INTO users (user_id) VALUES ($1)
+    `,
+      [userId],
+    )
+  }
+  const res = await pool.query(
+    `
+    INSERT INTO user_room (user_id, room_id, active, log_id, reason) VALUES ($1, $2, $3, $4, $5) RETURNING id
+  `,
+    [userId, roomId, true, null, reason],
+  )
+  return res.rows[0].id
 }
 
 // get the bmpctu category
@@ -1779,6 +1799,17 @@ export async function getBmpctuCategory() {
     SELECT bmpctu_category FROM settings WHERE singleton = true
   `)
   return res.rows[0].bmpctu_category
+}
+
+// get the bmpctu user for the current room
+export async function getBmpctuUser(channelId: string) {
+  const res = await pool.query(
+    `
+    SELECT user_id FROM user_room WHERE room_id = $1 AND active = true
+  `,
+    [channelId],
+  )
+  return res.rows[0].user_id
 }
 
 // set a room to inactive
@@ -1805,4 +1836,50 @@ export async function changeBmpctuCategoryDb(catId: string) {
   `,
     [catId],
   )
+}
+
+// sets the room log channel in the db
+export async function changeRoomLogChannel(channelId: string) {
+  await pool.query(
+    `
+    UPDATE settings SET room_log_id = $1 WHERE singleton = true
+  `,
+    [channelId],
+  )
+}
+
+// get log-message and channel id
+export async function getLogAndChannelId(channelId: string, userId: string) {
+  const res = await pool.query(
+    `
+    SELECT log_id FROM user_room WHERE room_id = $1 AND user_id = $2
+  `,
+    [channelId, userId],
+  )
+  const settingsRes = await pool.query(`
+    SELECT room_log_id FROM settings WHERE singleton = true
+  `)
+  return {
+    logId: res.rows[0].log_id,
+    logChannelId: settingsRes.rows[0].room_log_id,
+  }
+}
+
+// get primary key id for a room using channel and user id
+export async function getPrimaryRoomId(channelId: string, userId: string) {
+  const res = await pool.query(
+    `
+    SELECT id FROM user_room WHERE room_id = $1 AND user_id = $2
+  `,
+    [channelId, userId],
+  )
+  return res.rows[0].id
+}
+
+// gets all open rooms
+export async function getAllOpenRooms(): Promise<UserRoom[]> {
+  const res = await pool.query(`
+    SELECT * FROM user_room WHERE active = true
+  `)
+  return res.rows
 }

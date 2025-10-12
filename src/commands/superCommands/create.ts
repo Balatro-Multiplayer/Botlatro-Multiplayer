@@ -211,6 +211,12 @@ export default {
             .setName('user')
             .setDescription('User to create room for')
             .setRequired(true),
+        )
+        .addStringOption((option) =>
+          option
+            .setName('reason')
+            .setDescription('Reason to add this user to a room')
+            .setRequired(false),
         ),
     ),
   async execute(interaction: ChatInputCommandInteraction) {
@@ -230,3 +236,4 @@ export default {
     await queue.autocomplete(interaction)
   },
 }
+// this supercommand should only be usable by bmpctu+

@@ -97,3 +97,4 @@ export default {
     }
   },
 }
+// this supercommand should only be usable by helper+

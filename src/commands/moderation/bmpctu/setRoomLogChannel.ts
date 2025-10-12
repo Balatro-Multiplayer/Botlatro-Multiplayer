@@ -3,16 +3,16 @@ import {
   ChatInputCommandInteraction,
   MessageFlags,
 } from 'discord.js'
-import { changeBmpctuCategoryDb } from '../../../utils/queryDB'
+import { changeRoomLogChannel } from '../../../utils/queryDB'
 
 export default {
   execute: async function (interaction: ChatInputCommandInteraction) {
     try {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral })
-      const catId = interaction.options.getChannel('category', true).id
-      await changeBmpctuCategoryDb(catId)
+      const channelId = interaction.options.getChannel('channel', true).id
+      await changeRoomLogChannel(channelId)
       await interaction.editReply({
-        content: 'BMPCTU Category successfully set',
+        content: 'Room log channel successfully set',
       })
     } catch (err: any) {
       console.error(err)

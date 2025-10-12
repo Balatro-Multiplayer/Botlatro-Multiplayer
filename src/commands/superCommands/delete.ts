@@ -9,6 +9,7 @@ import deleteQueue from '../moderation/deleteQueue'
 import deleteQueueRole from '../moderation/deleteQueueRole'
 import queue from './queue'
 import deleteRoom from '../moderation/bmpctu/deleteRoom'
+import { roomDeleteAutoCompletion } from '../../utils/Autocompletions'
 
 export default {
   data: new SlashCommandBuilder()
@@ -55,7 +56,8 @@ export default {
           option
             .setName('room')
             .setDescription('Room to delete.')
-            .setRequired(true),
+            .setRequired(true)
+            .setAutocomplete(true),
         ),
     ),
 
@@ -64,11 +66,15 @@ export default {
       await deleteQueue.execute(interaction)
     } else if (interaction.options.getSubcommand() === 'queue-role') {
       await deleteQueueRole.execute(interaction)
-    } else if (interaction.options.getSubcommand() === 'delete-room') {
+    } else if (interaction.options.getSubcommand() === 'room') {
       await deleteRoom.execute(interaction)
     }
   },
   async autocomplete(interaction: AutocompleteInteraction) {
-    await queue.autocomplete(interaction)
+    if (interaction.options.getSubcommand() === 'queue')
+      await queue.autocomplete(interaction)
+    else if (interaction.options.getSubcommand() === 'room')
+      await roomDeleteAutoCompletion(interaction)
   },
 }
+// this supercommand should only be usable by bmpctu+

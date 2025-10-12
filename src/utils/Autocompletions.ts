@@ -1,5 +1,5 @@
 import { AutocompleteInteraction, User } from 'discord.js'
-import { strikeUtils } from './queryDB'
+import { getAllOpenRooms, strikeUtils } from './queryDB'
 import { client } from '../client'
 
 const userCache = new Map<string, User>()
@@ -140,4 +140,38 @@ export async function strikeAutocomplete(interaction: AutocompleteInteraction) {
     console.error('autocomplete error:', err)
     if (!interaction.responded) await interaction.respond([])
   }
+}
+
+export async function roomDeleteAutoCompletion(
+  interaction: AutocompleteInteraction,
+) {
+  const focused = interaction.options.getFocused(true)
+  const value = String(focused.value ?? '')
+
+  const options = await getAllOpenRooms()
+  const channelNames = await Promise.all(
+    options.map(async (option) => {
+      if (option.room_id)
+        return {
+          name:
+            (
+              await interaction
+                .guild!.channels.fetch(option.room_id)
+                .catch(() => null)
+            )?.name ?? `${option.room_id} (channel doesnt exist)`,
+          value: option.room_id,
+        }
+      return {
+        name: `No active rooms`,
+        value: ' ',
+      }
+    }),
+  )
+  const filtered = channelNames.filter((channelName) =>
+    String(channelName.name).toLowerCase().includes(value.toLowerCase()),
+  )
+  const choices = filtered.slice(0, 25)
+
+  await interaction.respond(choices)
+  return
 }
