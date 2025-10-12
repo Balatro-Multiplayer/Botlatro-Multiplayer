@@ -22,13 +22,13 @@ import {
   getAllQueueRoles,
   getLeaderboardQueueRole,
   getSettings,
+  getUserPreviousQueueRole,
   getUserQueueRole,
   getUsersInQueue,
   partyUtils,
   userInMatch,
   userInQueue,
   getQueueRoleLock,
-  getQueueSettings,
 } from './queryDB'
 import { Queues } from 'psqlDB'
 import { QueryResult } from 'pg'
@@ -53,7 +53,6 @@ export async function updateQueueMessage(): Promise<Message | undefined> {
   if (queueListResponse.rowCount == 0) return
   let queueList: Queues[] = queueListResponse.rows
   queueList = queueList.filter((queue) => !queue.locked)
-  queueList.sort((a, b) => a.id - b.id) // Sort by ID ascending (oldest to newest)
   const queueFields: APIEmbedField[] = await Promise.all(
     queueList.map(async (queue) => {
       const usersInQueue = await getUsersInQueue(queue.id)
@@ -168,6 +167,7 @@ export async function joinQueues(
     if (!queue) continue
 
     const roleLockId = await getQueueRoleLock(queueId)
+    console.log(roleLockId)
     if (roleLockId && !member.roles.cache.has(roleLockId)) {
       const role = guild.roles.cache.get(roleLockId)
       const roleName = role ? role.name : 'required role'
@@ -248,25 +248,22 @@ export async function joinQueues(
   const joinedQueues: string[] = []
   for (const qId of selectedQueueIds) {
     const queueId = parseInt(qId)
-    const queueSettings = await getQueueSettings(queueId)
     const queue = allQueues.rows.find((q) => q.id === queueId)
     if (!queue) continue
 
     const res = await pool.query(
       `
         UPDATE queue_users
-        SET queue_join_time = NOW(), current_elo_range = $1
-        WHERE user_id = $2 AND queue_id = $3
+        SET queue_join_time = NOW()
+        WHERE user_id = $1 AND queue_id = $2
         RETURNING *;`,
-      [queueSettings.elo_search_start, userId, queueId],
+      [userId, queueId],
     )
 
     // if not already in that queue, insert
     if (res.rows.length < 1) {
       await createQueueUser(userId, queueId)
     }
-
-    await setUserQueueRole(queueId, userId)
 
     joinedQueues.push(queue.queue_name)
   }
@@ -473,9 +470,6 @@ export async function createMatch(
 
   await updateQueueMessage()
 
-  // Wait 2 seconds for channel to fully propagate in Discord's API
-  await new Promise((resolve) => setTimeout(resolve, 2000))
-
   // Send queue start messages
   await sendMatchInitMessages(queueId, matchId, channel)
 
@@ -507,36 +501,23 @@ export async function setUserQueueRole(
   userId: string,
 ): Promise<void> {
   const currentRole = await getUserQueueRole(queueId, userId)
+  const previousRole = await getUserPreviousQueueRole(queueId, userId)
   const leaderboardRole = await getLeaderboardQueueRole(queueId, userId)
-  const allQueueRoles = await getAllQueueRoles(queueId, false)
+  const allLeaderboardRoles = await getAllQueueRoles(queueId, true)
 
   const guild =
     client.guilds.cache.get(process.env.GUILD_ID!) ??
     (await client.guilds.fetch(process.env.GUILD_ID!))
   const member = await guild.members.fetch(userId)
 
-  // Remove all MMR-based roles (where mmr_threshold is not null)
-  const mmrRoles = allQueueRoles.filter((role) => role.mmr_threshold !== null)
-  for (const role of mmrRoles) {
-    await member.roles.remove(role.role_id)
-  }
-
-  // Add the current MMR-based role if one exists
-  if (currentRole) {
-    await member.roles.add(currentRole.role_id)
-  }
-
-  // Remove all leaderboard roles (where leaderboard_min is not null)
-  const leaderboardRoles = allQueueRoles.filter(
-    (role) => role.leaderboard_min !== null,
-  )
-  for (const role of leaderboardRoles) {
-    await member.roles.remove(role.role_id)
-  }
-
-  // Add the current leaderboard role if one exists
+  if (currentRole) await member.roles.add(currentRole.role_id)
+  if (previousRole) await member.roles.remove(previousRole.role_id)
   if (leaderboardRole) {
     await member.roles.add(leaderboardRole.role_id)
+  } else {
+    for (const lbRole of allLeaderboardRoles) {
+      await member.roles.remove(lbRole.role_id)
+    }
   }
 }
 

@@ -76,7 +76,7 @@ export async function incrementEloCronJobAllQueues() {
         const start = queueSettings.elo_search_start || 0
 
         let usersInQueue = await getUsersInQueue(queue.id)
-        // if (usersInQueue.length <= 1) continue
+        if (usersInQueue.length <= 1) continue
 
         const candidates: {
           range: number
@@ -89,9 +89,9 @@ export async function incrementEloCronJobAllQueues() {
 
         for (const userId of usersInQueue) {
           const elo = await ratingUtils.getPlayerElo(userId, queue.id)
-          if (elo === null) continue
+          if (!elo) continue
           const userTimeSpent = await timeSpentInQueue(userId, queue.id)
-          if (userTimeSpent === null) continue
+          if (!userTimeSpent) continue
           const userPriorityQueueId = await getUserPriorityQueueId(userId)
 
           const currentRange = await getCurrentEloRangeForUser(userId, queue.id)

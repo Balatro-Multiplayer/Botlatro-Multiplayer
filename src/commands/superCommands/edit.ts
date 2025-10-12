@@ -7,7 +7,6 @@ import {
 
 import queue from './queue'
 import editQueue from '../moderation/editQueue'
-import editQueueRole from '../moderation/editQueueRole'
 
 export default {
   data: new SlashCommandBuilder()
@@ -128,42 +127,10 @@ export default {
             .setMinLength(7)
             .setMaxLength(7),
         ),
-    )
-    .addSubcommand((sub) =>
-      sub
-        .setName('queue-role')
-        .setDescription('[ADMIN] Edit a queue rank role in a specific queue')
-        .addStringOption((option) =>
-          option
-            .setName('queue-name')
-            .setDescription('The queue containing the role')
-            .setRequired(true)
-            .setAutocomplete(true),
-        )
-        .addRoleOption((option) =>
-          option
-            .setName('role')
-            .setDescription('The queue rank role to edit')
-            .setRequired(true),
-        )
-        .addNumberOption((option) =>
-          option
-            .setName('mmr-threshold')
-            .setDescription('The new minimum MMR to have this role')
-            .setRequired(false),
-        )
-        .addStringOption((option) =>
-          option
-            .setName('emote')
-            .setDescription('The new emote for this role')
-            .setRequired(false),
-        ),
     ),
   async execute(interaction: ChatInputCommandInteraction) {
     if (interaction.options.getSubcommand() === 'queue') {
       await editQueue.execute(interaction)
-    } else if (interaction.options.getSubcommand() === 'queue-role') {
-      await editQueueRole.execute(interaction)
     }
   },
   async autocomplete(interaction: AutocompleteInteraction) {
