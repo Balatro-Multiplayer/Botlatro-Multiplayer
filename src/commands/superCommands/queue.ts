@@ -1,9 +1,9 @@
 import queueLock from 'commands/moderation/queueLock'
 import viewStats from '../queues/viewStats'
 import {
-  SlashCommandBuilder,
-  ChatInputCommandInteraction,
   AutocompleteInteraction,
+  ChatInputCommandInteraction,
+  SlashCommandBuilder,
 } from 'discord.js'
 import { getQueueNames } from 'utils/queryDB'
 
@@ -73,3 +73,5 @@ export default {
     )
   },
 }
+// this supercommand should only be usable by mod+
+// (move stats to its own supercommand)

@@ -192,4 +192,13 @@ declare module 'psqlDB' {
     footer: { text: string } | null
     blame: string | null
   }
+
+  export type UserRoom = {
+    id: number
+    user_id: string
+    room_id: string | null
+    active: boolean
+    log_id: string | null
+    reason: string | null
+  }
 }

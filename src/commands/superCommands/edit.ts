@@ -137,3 +137,4 @@ export default {
     await queue.autocomplete(interaction)
   },
 }
+// this supercommand should only be usable by mod+

@@ -142,19 +142,36 @@ export async function strikeAutocomplete(interaction: AutocompleteInteraction) {
   }
 }
 
-export async function deleteRoomAutoComplete(
+export async function roomDeleteAutoCompletion(
   interaction: AutocompleteInteraction,
 ) {
-  try {
-    const rooms = await getAllOpenRooms()
-    const roomNames = await Promise.all(
-      rooms.map(async (room) => {
-        const channel = await interaction.guild?.channels.fetch(room.roomId)
-        return channel?.name
-      }),
-    )
-    const filtered = roomNames.filter((roonName) => {})
-  } catch (err) {
-    console.error(err)
-  }
+  const focused = interaction.options.getFocused(true)
+  const value = String(focused.value ?? '')
+
+  const options = await getAllOpenRooms()
+  const channelNames = await Promise.all(
+    options.map(async (option) => {
+      if (option.room_id)
+        return {
+          name:
+            (
+              await interaction
+                .guild!.channels.fetch(option.room_id)
+                .catch(() => null)
+            )?.name ?? `${option.room_id} (channel doesnt exist)`,
+          value: option.room_id,
+        }
+      return {
+        name: `No active rooms`,
+        value: ' ',
+      }
+    }),
+  )
+  const filtered = channelNames.filter((channelName) =>
+    String(channelName.name).toLowerCase().includes(value.toLowerCase()),
+  )
+  const choices = filtered.slice(0, 25)
+
+  await interaction.respond(choices)
+  return
 }

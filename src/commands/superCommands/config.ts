@@ -1,7 +1,7 @@
 import {
-  SlashCommandBuilder,
-  ChatInputCommandInteraction,
   AutocompleteInteraction,
+  ChatInputCommandInteraction,
+  SlashCommandBuilder,
 } from 'discord.js'
 
 import setDefaultDeckBans from '../queues/setDefaultDeckBans'
@@ -53,3 +53,4 @@ export default {
     await queue.autocomplete(interaction)
   },
 }
+// this supercommand should only be usable by everyone+

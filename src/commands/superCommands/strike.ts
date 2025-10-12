@@ -91,3 +91,4 @@ export default {
     await strikeAutocomplete(interaction)
   },
 }
+// this supercommand should only be usable by helper+

@@ -13,6 +13,8 @@ export abstract class Embed {
   title: string = 'TITLE'
   description: string = ' '
   blame: string = ' '
+  logType: string = 'command' // default to a command type log
+  id: number | undefined = undefined
 
   // create embed based on instance values
   public createEmbed() {
@@ -68,8 +70,21 @@ export abstract class Embed {
     const res = await pool.query(
       `SELECT * FROM settings WHERE singleton = true`,
     )
-    const channelId = res.rows[0].logs_channel_id
-    this.channel = await client.channels.fetch(channelId).catch(() => null)
+    let channelId: string = ''
+    switch (this.logType) {
+      case 'queue':
+        channelId = res.rows[0].queue_logs_channel_id
+        break
+      case 'room':
+        channelId = res.rows[0].room_log_id
+        break
+      case 'command':
+        channelId = res.rows[0].logs_channel_id
+        break
+    }
+    if (channelId !== '') {
+      this.channel = await client.channels.fetch(channelId).catch(() => null)
+    }
   }
 
   // build and send embed to logging channel
@@ -79,13 +94,23 @@ export abstract class Embed {
     this.addFields()
 
     // send embed
-    await this.channel.send({ embeds: [this.embed] }).catch(() => null)
+    const message = await this.channel
+      .send({ embeds: [this.embed] })
+      .catch(() => null)
+    if (this.logType === 'room') {
+      await pool.query(
+        `
+        UPDATE user_room SET log_id = $1 WHERE id = $2
+      `,
+        [message.id, this.id],
+      )
+    }
   }
 }
 
 export class CommandFactory extends Embed {
   // build child instances
-  static build(commandType: string) {
+  static build(commandType: string, id?: number) {
     switch (commandType) {
       case 'add_strike':
         return new AddStrike()
@@ -93,6 +118,8 @@ export class CommandFactory extends Embed {
         return new RemoveStrike()
       case 'general':
         return new General()
+      case 'room':
+        return new Room(id)
     }
   }
 }
@@ -100,24 +127,38 @@ export class CommandFactory extends Embed {
 export class General extends CommandFactory {
   color: number = 10070709 // grey
   title: string = 'COMMAND LOGGED'
+  logType: string = 'command'
+}
+
+export class Room extends CommandFactory {
+  color: number = 16776960 // yellow
+  title: string = 'Room created'
+  logType: string = 'room'
+
+  constructor(id?: number) {
+    super()
+    this.id = id
+  }
 }
 
 export class RemoveStrike extends CommandFactory {
-  color: number = 65280 // red
+  color: number = 65280 // green
   title: string = 'REMOVE STRIKE'
+  logType: string = 'command'
 }
 
 export class AddStrike extends CommandFactory {
-  color: number = 16711680 // green
+  color: number = 16711680 // red
   title: string = 'ADD STRIKE'
+  logType: string = 'command'
 }
 
 // distilled process to log an EmbedType object
 // @parameter
-// type - choose from a list of embed types ['add_strike', 'remove_strike', 'general']
-export async function logStrike(type: string, embed: EmbedType) {
+// type - choose from a list of embed types ['add_strike', 'remove_strike', 'general', 'room']
+export async function logStrike(type: string, embed: EmbedType, id?: number) {
   // build strike child class using type as parameter in factory
-  const strike = CommandFactory.build(type)
+  const strike = CommandFactory.build(type, id)
   if (!strike) return
 
   // build embed using info from an EmbedType object

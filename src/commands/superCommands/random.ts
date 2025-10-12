@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js'
+import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js'
 
 import randomDeck from '../other/randomDeck'
 import randomStake from '../other/randomStake'
@@ -22,3 +22,4 @@ export default {
     }
   },
 }
+// this supercommand should only be usable by everyone+
