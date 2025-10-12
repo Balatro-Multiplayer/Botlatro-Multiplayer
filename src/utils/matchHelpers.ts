@@ -703,7 +703,7 @@ export async function endMatch(
               // Include emote if it exists
               emoteText = queueRole.emote ? `${queueRole.emote} ` : ''
               if (playerNameList.length == 1) {
-                label = `${label}${emoteText}`
+                label = `${label} ${emoteText}`
               }
             }
           }
