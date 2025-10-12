@@ -7,6 +7,7 @@ import {
   StringSelectMenuInteraction,
 } from 'discord.js'
 import { setLastWinVoteMessage } from '../events/messageCreate'
+import { getSettings } from './queryDB'
 
 export async function handleVoting(
   interaction: MessageComponentInteraction,
@@ -26,6 +27,8 @@ export async function handleVoting(
   if (!embed) return console.error('No embed found in message')
   const fields = embed.data.fields
   if (!fields) return console.error('No fields found in embed')
+
+  const settings = await getSettings()
 
   // Ensure vote field exists
   if (!fields[embedFieldIndex]) {
@@ -76,10 +79,12 @@ export async function handleVoting(
   interaction.message.embeds[0] = embed
   await interaction.update({ embeds: interaction.message.embeds })
 
-  // Send a follow-up message confirming the vote
-  await interaction.followUp({
-    content: `<@${interaction.user.id}> has voted to end the match.`,
-  })
+  if (interaction.channel!.id != settings.queue_results_channel_id) {
+    // Send a follow-up message confirming the vote
+    await interaction.followUp({
+      content: `<@${interaction.user.id}> has voted to end the match.`,
+    })
+  }
 }
 
 export async function handleTwoPlayerMatchVoting(
