@@ -656,7 +656,7 @@ export async function endMatch(
 
   // build results embed
   const resultsEmbed = new EmbedBuilder()
-    .setTitle(`🏆 Winner For ${queueSettings.queue_name} Match #${matchId} 🏆`)
+    .setTitle(`🏆 ${queueSettings.queue_name} Match #${matchId} 🏆`)
     .setColor(queueSettings.color as any)
 
   // running for every team then combining at the end
@@ -746,7 +746,7 @@ export async function endMatch(
       if (stakeData) matchInfoParts.push(`${stakeData.stake_emote}`)
     }
     resultsEmbed.setTitle(
-      `${matchInfoParts.join('')} Winner For ${queueSettings.queue_name} Match #${matchId} ${matchInfoParts.reverse().join('')}`,
+      `${matchInfoParts.join('')} ${queueSettings.queue_name} Match #${matchId} ${matchInfoParts.reverse().join('')}`,
     )
   }
 
