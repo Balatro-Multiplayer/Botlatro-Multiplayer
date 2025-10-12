@@ -7,3 +7,4 @@ docker-compose.yml
 .env*
 *.log
 .idea/
+.env.temp

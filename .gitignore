@@ -7,6 +7,7 @@ package-lock.json
 .env.local
 .env.*.local
 .env.prod
+.env.temp
 
 # OS
 .DS_Store
