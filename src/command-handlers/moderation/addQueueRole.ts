@@ -12,7 +12,6 @@ export async function addQueueRole(
   queueId: number,
   roleId: string,
   mmrThreshold: number,
-  emote: string | null,
 ): Promise<boolean> {
-  return await createQueueRole(queueId, roleId, mmrThreshold, emote)
+  return await createQueueRole(queueId, roleId, mmrThreshold)
 }

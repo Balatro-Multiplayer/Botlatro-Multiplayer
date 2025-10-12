@@ -101,8 +101,6 @@ async function addTestMatches() {
     )
 
     // Update user's elo and streak in queue_users after each match
-    // Clamp elo to prevent going below 0
-    const clampedElo = Math.max(0, Math.min(9999, Math.round(currentElo)))
     await pool.query(
       `UPDATE queue_users
        SET elo = $1::integer,
@@ -110,7 +108,7 @@ async function addTestMatches() {
            win_streak = $2::integer,
            peak_win_streak = GREATEST(peak_win_streak, ABS($2))
        WHERE user_id = $3 AND queue_id = $4`,
-      [clampedElo, currentStreak, userId, queueId],
+      [Math.round(currentElo), currentStreak, userId, queueId],
     )
 
     if (i % 10 === 0) {
@@ -119,9 +117,6 @@ async function addTestMatches() {
   }
 
   // Update user's final elo and streak
-  // Clamp elo to prevent going below 0
-  const finalClampedElo = Math.max(0, Math.min(9999, Math.round(currentElo)))
-  const finalPeakElo = Math.max(0, Math.min(9999, Math.round(peakElo)))
   await pool.query(
     `UPDATE queue_users
      SET elo = $1::integer,
@@ -129,7 +124,13 @@ async function addTestMatches() {
          win_streak = $3::integer,
          peak_win_streak = GREATEST(peak_win_streak, ABS($3))
      WHERE user_id = $4 AND queue_id = $5`,
-    [finalClampedElo, finalPeakElo, currentStreak, userId, queueId],
+    [
+      Math.round(currentElo),
+      Math.round(peakElo),
+      currentStreak,
+      userId,
+      queueId,
+    ],
   )
 
   console.log(`✓ Successfully created ${numMatches} test matches!`)

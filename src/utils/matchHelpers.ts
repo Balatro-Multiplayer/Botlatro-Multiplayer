@@ -466,15 +466,9 @@ export async function resendMatchWinVote(
       const changeStr =
         predictedChange > 0 ? `+${predictedChange}` : `${predictedChange}`
 
-      const queueRole = await getUserQueueRole(queueId, user.user_id)
-
       if (onePersonTeam) {
         teamString += `\`${user.elo} MMR (${changeStr})\`\n`
-        if (queueRole && queueRole.emote) {
-          onePersonTeamName = `${queueRole.emote} ${userDiscordInfo.displayName}`
-        } else {
-          onePersonTeamName = userDiscordInfo.displayName
-        }
+        onePersonTeamName = userDiscordInfo.displayName
       } else {
         teamString += `**${userDiscordInfo.displayName}** - ${user.elo} MMR **(${changeStr})**\n`
       }
@@ -513,6 +507,8 @@ export async function resendMatchWinVote(
     .setFields(teamFields)
     .setColor(0xff0000)
 
+  eloEmbed.addFields({ name: 'Cancel Match Votes:', value: '-' })
+
   const actionRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`cancel-${matchId}`)
@@ -535,18 +531,13 @@ export async function resendMatchWinVote(
 
   queueGameComponents.push(actionRow)
 
-  // Try to fetch and preserve the old message's embed if it exists
-  let embedToUse = eloEmbed
+  // Delete the previous win vote message if it exists
   if (lastMessageId) {
     try {
       const oldMessage = await textChannel.messages.fetch(lastMessageId)
-      // Preserve the old embed with votes
-      if (oldMessage.embeds.length > 0) {
-        embedToUse = EmbedBuilder.from(oldMessage.embeds[0])
-      }
       await oldMessage.delete()
     } catch (err) {
-      // Message might already be deleted, ignore error and use new embed
+      // Message might already be deleted, ignore error
     }
   }
 
@@ -555,7 +546,7 @@ export async function resendMatchWinVote(
 
   const sentMessage = await textChannel.send({
     content: messageContent,
-    embeds: [embedToUse],
+    embeds: [eloEmbed],
     components: queueGameComponents,
   })
 
@@ -665,7 +656,7 @@ export async function endMatch(
 
   // build results embed
   const resultsEmbed = new EmbedBuilder()
-    .setTitle(`🏆 ${queueSettings.queue_name} Match #${matchId} 🏆`)
+    .setTitle(`🏆 Winner For ${queueSettings.queue_name} Match #${matchId} 🏆`)
     .setColor(queueSettings.color as any)
 
   // running for every team then combining at the end
@@ -677,7 +668,7 @@ export async function endMatch(
       const playerNameList = playerList.map((user) => user.displayName)
 
       // show name for every player in team
-      let label =
+      const label =
         team.score === 1
           ? `__${playerNameList.join('\n')}__`
           : `${playerNameList.join('\n')}`
@@ -687,7 +678,7 @@ export async function endMatch(
         team.players.map(async (player) => {
           // Get the player's queue role
           const queueRole = await getUserQueueRole(queueId, player.user_id)
-          let emoteText = ''
+          let roleText = ''
 
           if (queueRole) {
             // Fetch the role from Discord to get the name
@@ -696,15 +687,11 @@ export async function endMatch(
               (await client.guilds.fetch(process.env.GUILD_ID!))
             const role = await guild.roles.fetch(queueRole.role_id)
             if (role) {
-              // Include emote if it exists
-              emoteText = queueRole.emote ? `${queueRole.emote} ` : ''
-              if (playerNameList.length == 1) {
-                label = `${emoteText}${label}`
-              }
+              roleText = `<@&${role.id}>`
             }
           }
 
-          return `<@${player.user_id}> *${player.elo_change && player.elo_change > 0 ? `+` : ``}${player.elo_change}* **(${player.elo})**`
+          return `<@${player.user_id}> *${player.elo_change && player.elo_change > 0 ? `+` : ``}${player.elo_change}* **(${player.elo})**\n${roleText}`
         }),
       )
 
@@ -759,7 +746,7 @@ export async function endMatch(
       if (stakeData) matchInfoParts.push(`${stakeData.stake_emote}`)
     }
     resultsEmbed.setTitle(
-      `${matchInfoParts.join('')} ${queueSettings.queue_name} Match #${matchId} ${matchInfoParts.reverse().join('')}`,
+      `${matchInfoParts.join('')} Winner For ${queueSettings.queue_name} Match #${matchId} ${matchInfoParts.reverse().join('')}`,
     )
   }
 

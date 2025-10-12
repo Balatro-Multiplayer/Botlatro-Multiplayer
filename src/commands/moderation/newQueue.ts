@@ -36,7 +36,7 @@ export default {
     }
 
     const vetoMmrThreshold =
-      interaction.options.getNumber('veto-mmr-threshold', false) ?? null
+      interaction.options.getInteger('veto-mmr-threshold', false) ?? null
 
     const color = interaction.options.getString('color', false) ?? '#FFD700'
 

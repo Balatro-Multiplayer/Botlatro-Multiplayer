@@ -10,13 +10,11 @@ export default {
       const queueId = await getQueueIdFromName(queueName)
       const role = interaction.options.getRole('role', true)
       const mmrThreshold = interaction.options.getNumber('mmr-threshold', true)
-      const emote = interaction.options.getString('emote', false)
 
       const queueRoleCheck = await COMMAND_HANDLERS.MODERATION.ADD_QUEUE_ROLE(
         queueId,
         role.id,
         mmrThreshold,
-        emote,
       )
 
       if (queueRoleCheck) {

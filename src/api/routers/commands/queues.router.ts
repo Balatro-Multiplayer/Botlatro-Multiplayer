@@ -131,13 +131,6 @@ queuesRouter.openapi(
           },
           example: '1212121',
         }),
-        emote: z.string().openapi({
-          param: {
-            name: 'emote',
-            in: 'path',
-          },
-          example: '1212121',
-        }),
       }),
     },
     responses: {
@@ -154,13 +147,12 @@ queuesRouter.openapi(
     },
   }),
   async (c) => {
-    const { id, role_id, mmr_threshold, emote } = c.req.valid('param')
+    const { id, role_id, mmr_threshold } = c.req.valid('param')
     //todo: add error handling
     const success = await COMMAND_HANDLERS.MODERATION.ADD_QUEUE_ROLE(
       id,
       role_id,
       mmr_threshold,
-      emote,
     )
     if (success) {
       return c.json(
