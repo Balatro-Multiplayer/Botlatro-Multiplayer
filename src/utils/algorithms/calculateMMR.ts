@@ -6,6 +6,7 @@ import {
 } from '../queryDB'
 import type { teamResults } from 'psqlDB'
 import { setUserQueueRole } from 'utils/queueHelpers'
+import { clamp } from 'lodash-es'
 
 // Function is from Owen, named Elowen, blame him if anything goes wrong
 // - Jeff
@@ -172,7 +173,7 @@ export async function calculateNewMMR(
       await updatePlayerMmrAll(queueId, player.user_id, newMMR, newVolatility)
 
       // Update teamResults object
-      player.elo = newMMR
+      player.elo = clamp(newMMR, 0, 9999)
       player.elo_change = parseFloat(mmrChange.toFixed(1))
       player.volatility = newVolatility
 

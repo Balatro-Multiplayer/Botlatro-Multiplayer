@@ -18,7 +18,6 @@ export async function handleVoting(
       interaction: MessageComponentInteraction,
       extra: { embed: Embed; votes?: string[] },
     ) => {}, // callback when all participants vote
-    resendOnVote = false,
   },
 ) {
   if (!interaction.message)
@@ -75,17 +74,12 @@ export async function handleVoting(
 
   // Update embed with new votes
   interaction.message.embeds[0] = embed
+  await interaction.update({ embeds: interaction.message.embeds })
 
-  if (resendOnVote) {
-    await interaction.message.delete()
-    // @ts-ignore
-    await interaction.channel!.send({
-      embeds: interaction.message.embeds,
-      components: interaction.message.components,
-    })
-  } else {
-    await interaction.update({ embeds: interaction.message.embeds })
-  }
+  // Send a follow-up message confirming the vote
+  await interaction.followUp({
+    content: `<@${interaction.user.id}> has voted to end the match.`,
+  })
 }
 
 export async function handleTwoPlayerMatchVoting(
@@ -134,6 +128,7 @@ export async function handleTwoPlayerMatchVoting(
     }
   }
 
+  // Track votes and update the embed
   for (let i = 0; i < fields.length; i++) {
     if (
       fields[i].name.includes('Cancel Match') ||
@@ -168,6 +163,8 @@ export async function handleTwoPlayerMatchVoting(
     voteArray.push({ team_id: i, votes: voteLines })
   }
 
+  interaction.message.embeds[0] = embed
+
   // Check if all participants voted
   const totalVotes = voteArray.reduce((sum, team) => sum + team.votes.length, 0)
   const allVoted = participants.length > 0 && totalVotes === participants.length
@@ -188,18 +185,20 @@ export async function handleTwoPlayerMatchVoting(
     }
   }
 
-  interaction.message.embeds[0] = embed
-
-  await interaction.message.delete()
-  // @ts-ignore
-  const newVoteMsg = await interaction.channel!.send({
+  // Update message with the modified embed (including votes)
+  await interaction.update({
     embeds: interaction.message.embeds,
     components: interaction.message.components,
   })
 
-  setLastWinVoteMessage(interaction.channel!.id, newVoteMsg.id)
+  setLastWinVoteMessage(interaction.channel!.id, interaction.message.id)
 
-  // Update the message with new embed
+  // Send a follow-up message confirming the vote (only if vote was added, not removed)
+  if (!userAlreadyVotedForThisTeam) {
+    await interaction.followUp({
+      content: `<@${interaction.user.id}> has voted.`,
+    })
+  }
 }
 
 export function getBestOfMatchScores(

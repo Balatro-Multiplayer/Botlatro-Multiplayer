@@ -33,18 +33,18 @@ export default {
     //         .setRequired(true),
     //     ),
     // )
-    // .addSubcommand((sub) =>
-    //   sub
-    //     .setName('queue-roles')
-    //     .setDescription('[ADMIN] Lists queue roles in a queue.')
-    //     .addStringOption((option) =>
-    //       option
-    //         .setName('queue-name')
-    //         .setDescription('The queue to check for roles in.')
-    //         .setAutocomplete(true)
-    //         .setRequired(true),
-    //     ),
-    // )
+    .addSubcommand((sub) =>
+      sub
+        .setName('queue-roles')
+        .setDescription('[ADMIN] Lists queue roles in a queue.')
+        .addStringOption((option) =>
+          option
+            .setName('queue-name')
+            .setDescription('The queue to check for roles in.')
+            .setAutocomplete(true)
+            .setRequired(true),
+        ),
+    )
     .addSubcommand((sub) =>
       sub
         .setName('queue-users')

@@ -30,6 +30,7 @@ declare module 'psqlDB' {
     mmr_threshold: number | null
     leaderboard_min: number | null
     leaderboard_max: number | null
+    emote: string | null
   }
 
   export interface Parties {
@@ -82,7 +83,7 @@ declare module 'psqlDB' {
     games_played: number
     win_streak: number
     peak_win_streak: number
-    current_elo_range: string[]
+    current_elo_range: number
     queue_join_time?: Date | null
     is_decay: boolean
     next_decay_at: Date | null

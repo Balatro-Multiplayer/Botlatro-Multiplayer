@@ -166,6 +166,12 @@ export default {
               'The maximum leaderboard rank a user can have to have this role',
             )
             .setRequired(true),
+        )
+        .addStringOption((option) =>
+          option
+            .setName('emote')
+            .setDescription('The emote that should be attached to this role.')
+            .setRequired(false),
         ),
     )
     .addSubcommand((sub) =>
