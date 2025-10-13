@@ -14,23 +14,23 @@ import { pool } from '../db'
 import { shuffle } from 'lodash-es'
 import {
   closeMatch,
+  getDeckByName,
   getDeckList,
   getDecksInQueue,
   getMatchChannel,
+  getMatchData,
   getMatchResultsChannel,
   getQueueIdFromMatch,
   getQueueSettings,
+  getStakeByName,
   getStakeList,
+  getUserDefaultDeckBans,
+  getUserQueueRole,
   getWinningTeamFromMatch,
   setMatchStakeVoteTeam,
   setMatchVoiceChannel,
-  updatePlayerWinStreak,
-  getUserDefaultDeckBans,
   setPickedMatchDeck,
-  getMatchData,
-  getUserQueueRole,
-  getStakeByName,
-  getDeckByName,
+  updatePlayerWinStreak,
 } from './queryDB'
 import { Decks, MatchUsers, Stakes, teamResults } from 'psqlDB'
 import dotenv from 'dotenv'
@@ -471,7 +471,7 @@ export async function resendMatchWinVote(
       if (onePersonTeam) {
         teamString += `\`${user.elo} MMR (${changeStr})\`\n`
         if (queueRole && queueRole.emote) {
-          onePersonTeamName = `${queueRole.emote} ${userDiscordInfo.displayName}`
+          onePersonTeamName = `${userDiscordInfo.displayName}`
         } else {
           onePersonTeamName = userDiscordInfo.displayName
         }
