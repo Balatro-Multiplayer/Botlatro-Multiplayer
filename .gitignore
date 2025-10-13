@@ -16,6 +16,6 @@ package-lock.json
 logs/
 
 # Code Editors/ IDE's
-.idea
+.idea/
 .claude/settings.local.json
 /.claude
