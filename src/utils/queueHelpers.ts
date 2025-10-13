@@ -1,34 +1,34 @@
 import { pool } from '../db'
 import {
   ActionRowBuilder,
+  APIEmbedField,
   ButtonBuilder,
   ButtonStyle,
   ChannelType,
-  EmbedBuilder,
-  TextChannel,
-  PermissionFlagsBits,
-  Message,
-  StringSelectMenuBuilder,
-  StringSelectMenuOptionBuilder,
-  APIEmbedField,
-  OverwriteType,
-  MessageFlags,
-  StringSelectMenuInteraction,
   CommandInteraction,
+  EmbedBuilder,
+  Message,
+  MessageFlags,
+  OverwriteType,
+  PermissionFlagsBits,
+  StringSelectMenuBuilder,
+  StringSelectMenuInteraction,
+  StringSelectMenuOptionBuilder,
+  TextChannel,
 } from 'discord.js'
 import { sendMatchInitMessages } from './matchHelpers'
 import {
   createQueueUser,
   getAllQueueRoles,
   getLeaderboardQueueRole,
+  getQueueRoleLock,
+  getQueueSettings,
   getSettings,
   getUserQueueRole,
   getUsersInQueue,
   partyUtils,
   userInMatch,
   userInQueue,
-  getQueueRoleLock,
-  getQueueSettings,
 } from './queryDB'
 import { Queues } from 'psqlDB'
 import { QueryResult } from 'pg'
@@ -428,11 +428,18 @@ export async function createMatch(
   )
 
   const matchId = response.rows[0].id
+  const backupCat = '1427367817803464914'
+  const category = await guild.channels.fetch(categoryId)
+  if (!category || category.type !== ChannelType.GuildCategory) {
+    return console.log('Not a valid category.')
+  }
+  const channelCount = category.children.cache.size
+  console.log(channelCount)
 
   const channel = await guild.channels.create({
     name: `match-${matchId}`,
     type: ChannelType.GuildText,
-    parent: categoryId,
+    parent: channelCount > 45 ? backupCat : categoryId,
     permissionOverwrites: permissionOverwrites,
   })
 
