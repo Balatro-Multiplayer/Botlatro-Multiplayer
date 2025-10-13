@@ -14,8 +14,10 @@ package-lock.json
 
 # Logs
 logs/
+strikeData.json
 
 # Code Editors/ IDE's
 .idea/
 .claude/settings.local.json
 /.claude
+
