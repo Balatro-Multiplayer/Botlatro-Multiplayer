@@ -110,12 +110,16 @@ export abstract class Embed {
 
 export class CommandFactory extends Embed {
   // build child instances
-  static build(commandType: string, id?: number) {
+  static build(commandType: string, id?: number, description?: string) {
     switch (commandType) {
       case 'add_strike':
-        return new AddStrike()
+        const addStrike = new AddStrike()
+        addStrike.description = description ?? ' '
+        return addStrike
       case 'remove_strike':
-        return new RemoveStrike()
+        const removeStrike = new RemoveStrike()
+        removeStrike.description = description ?? ' '
+        return removeStrike
       case 'general':
         return new General()
       case 'room':
@@ -156,11 +160,15 @@ export class AddStrike extends CommandFactory {
 // distilled process to log an EmbedType object
 // @parameter
 // type - choose from a list of embed types ['add_strike', 'remove_strike', 'general', 'room']
-export async function logStrike(type: string, embed: EmbedType, id?: number) {
+export async function logStrike(
+  type: string,
+  embed: EmbedType,
+  id?: number,
+  desc?: string,
+) {
   // build strike child class using type as parameter in factory
-  const strike = CommandFactory.build(type, id)
+  const strike = CommandFactory.build(type, id, desc)
   if (!strike) return
-
   // build embed using info from an EmbedType object
   strike.setAll(embed)
   strike.createEmbed()

@@ -50,10 +50,11 @@ export default {
         reference: referenceChannel.name ?? 'unknown channel',
       })
 
+      const member = await interaction.guild!.members.fetch(user.id)
       // log usage
       const embed = createEmbedType(
         `#${strikeId} - STRIKE GIVEN`,
-        'desc.',
+        `<@${user.id}>`,
         null, // default
         [
           { name: `Amount`, value: `${amount}`, inline: true },
@@ -67,7 +68,7 @@ export default {
         null,
         `${blame}`,
       )
-      await logStrike('add_strike', embed)
+      await logStrike('add_strike', embed, undefined, `<@${user.id ?? 1234}>`)
 
       await interaction.editReply(
         `User ${username} given ${amount} strikes ${reason == 'No reason provided' ? `for ${reason}` : ``}`,

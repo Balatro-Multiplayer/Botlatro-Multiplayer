@@ -34,7 +34,12 @@ export default {
         null,
         `${blame}`,
       )
-      await logStrike('remove_strike', embed)
+      await logStrike(
+        'remove_strike',
+        embed,
+        undefined,
+        `<@${strikeInfo.user_id ?? 1234}>`,
+      )
     } catch (err: any) {
       console.error(err)
     }
