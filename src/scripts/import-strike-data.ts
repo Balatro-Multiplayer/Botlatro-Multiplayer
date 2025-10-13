@@ -45,6 +45,7 @@ async function insertData() {
       [item.userId, item.reason, item.amount, item.reference, item.time],
     )
   }
+  console.log('Data inserted')
 }
 
 insertData()
