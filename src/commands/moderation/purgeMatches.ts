@@ -25,19 +25,28 @@ export default {
 
       const openMatchChannels = res.rows.map((row) => row.channel_id)
       for (const openMatchChannel of openMatchChannels) {
-        await sleep(3000)
-        console.log('purge: CHECKING IF CHANNEL EXISTS')
+        await sleep(20000) // minute
+        console.log(`PURGE: checking ${openMatchChannel}...`)
         const channel = await interaction
           .guild!.channels.fetch(openMatchChannel)
           .catch(() => null)
         if (!channel || !channel.id) {
-          console.log('purge: CHANNEL NULL, SETTING TO CLOSED')
+          console.log('PURGE: null channel')
           await pool.query(
             `
-            UPDATE matches SET open = false WHERE open = true AND channel_id = $1
+            UPDATE matches SET open = false WHERE channel_id = $1
           `,
             [openMatchChannel],
           )
+          const res = await pool.query(
+            `
+            SELECT open from matches WHERE channel_id = $1
+          `,
+            [openMatchChannel],
+          )
+          console.log(`PURGE: channel status = ${res.rows[0].open}`)
+        } else {
+          console.log('PURGE: not null channel')
         }
       }
 
