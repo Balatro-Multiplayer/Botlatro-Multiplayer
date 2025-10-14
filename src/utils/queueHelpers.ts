@@ -18,6 +18,7 @@ import {
 } from 'discord.js'
 import { sendMatchInitMessages } from './matchHelpers'
 import {
+  createQueueUser,
   getAllQueueRoles,
   getLeaderboardQueueRole,
   getSettings,
@@ -251,12 +252,14 @@ export async function joinQueues(
       const queue = queueMap.get(queueId)
       if (!queue) continue
 
+      await createQueueUser(userId, queueId)
       await client.query(
-        `INSERT INTO queue_users (user_id, queue_id, queue_join_time, current_elo_range)
-         VALUES ($1, $2, NOW(), $3)
-         ON CONFLICT (user_id, queue_id)
-         DO UPDATE SET queue_join_time = NOW(), current_elo_range = $3`,
-        [userId, queueId, queue.elo_search_start],
+        `UPDATE queue_users
+         SET queue_join_time = NOW(),
+             elo = COALESCE(elo, $3),
+             peak_elo = COALESCE(peak_elo, $3)
+         WHERE user_id = $1 AND queue_id = $2`,
+        [userId, queueId, queue.default_elo],
       )
     }
 
