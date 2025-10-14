@@ -96,7 +96,7 @@ async function drawAvatar(
   playerData: StatsCanvasPlayerData,
 ) {
   const user = await client.users.fetch(playerData.user_id)
-  const avatar = await loadImage(user.avatarURL({ extension: 'png' }))
+  const avatar = await loadImage(user.displayAvatarURL({ extension: 'png' }))
 
   ctx.save()
   ctx.beginPath()
@@ -442,9 +442,29 @@ function drawGraph(
   const graphPadding = 4 // Padding for the line within the graph area
 
   const data = playerData.elo_graph_data
-  const dataMinRating =
-    data.length > 0 ? Math.min(...data.map((d) => d.rating)) : 0
-  const maxRating = playerData.peak_mmr
+
+  // Handle edge case: no data
+  if (data.length === 0) {
+    ctx.fillStyle = config.colors.textSecondary
+    ctx.font = config.fonts.label
+    ctx.textAlign = 'center'
+    ctx.fillText(
+      'No match history',
+      area.x + area.width / 2,
+      area.y + area.height / 2,
+    )
+    return
+  }
+
+  // Calculate actual data range from the graph data
+  const dataMinRating = Math.min(...data.map((d) => d.rating))
+  const dataMaxRating = Math.max(...data.map((d) => d.rating))
+
+  console.log(dataMinRating, dataMaxRating)
+
+  // Use the larger of peak_mmr or actual max data point
+  // This ensures all data points are visible even if they exceed peak
+  const maxRating = Math.max(playerData.peak_mmr, dataMaxRating)
 
   ctx.strokeStyle = config.colors.gridLines
   ctx.lineWidth = 1
@@ -457,11 +477,16 @@ function drawGraph(
   const targetGridLines = 6
   const tempRange = maxRating - dataMinRating
   const rawInterval = tempRange / targetGridLines
+
+  // Calculate nice interval based on range
   let niceInterval = 5
   if (rawInterval > 100) niceInterval = 100
   else if (rawInterval > 50) niceInterval = 50
   else if (rawInterval > 25) niceInterval = 25
   else if (rawInterval > 10) niceInterval = 10
+  else if (rawInterval > 5) niceInterval = 5
+  else if (rawInterval > 2) niceInterval = 2
+  else niceInterval = 1
 
   // Start from 0 only if the player actually has a rating at or near 0
   const startValue =
@@ -469,11 +494,20 @@ function drawGraph(
       ? 0
       : Math.floor(dataMinRating / niceInterval) * niceInterval
   const minRating = startValue
-  const ratingRange = maxRating - minRating
 
-  for (let value = startValue; value <= maxRating; value += niceInterval) {
+  // Calculate range - extend maxRating to next nice interval for padding
+  const extendedMax = Math.ceil(maxRating / niceInterval) * niceInterval
+  const ratingRange = extendedMax - minRating
+
+  // If range is 0 (all points same value), add small padding
+  const effectiveRange = ratingRange === 0 ? 10 : ratingRange
+  const effectiveMax = minRating + effectiveRange
+
+  for (let value = startValue; value <= effectiveMax; value += niceInterval) {
     const y =
-      area.y + area.height - ((value - minRating) / ratingRange) * area.height
+      area.y +
+      area.height -
+      ((value - minRating) / effectiveRange) * area.height
     ctx.beginPath()
     ctx.moveTo(area.x, y)
     ctx.lineTo(area.x + area.width, y)
@@ -505,7 +539,11 @@ function drawGraph(
     }
 
     if (shouldShowLabel) {
-      const x = area.x + (i / (data.length - 1)) * area.width
+      // Handle single data point case
+      const x =
+        data.length === 1
+          ? area.x + area.width / 2
+          : area.x + (i / (data.length - 1)) * area.width
 
       // Draw grid line only where label is shown
       ctx.beginPath()
@@ -529,30 +567,34 @@ function drawGraph(
   ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
   ctx.lineWidth = 2
 
-  // Shadow lines
-  for (let i = 0; i < data.length - 1; i++) {
-    const x1 =
+  // Helper to calculate X position (handles single data point case)
+  const getXPosition = (index: number) => {
+    if (data.length === 1) {
+      return area.x + graphPadding + (area.width - graphPadding * 2) / 2
+    }
+    return (
       area.x +
       graphPadding +
-      (i / (data.length - 1)) * (area.width - graphPadding * 2) +
-      shadowOffset
+      (index / (data.length - 1)) * (area.width - graphPadding * 2)
+    )
+  }
+
+  // Shadow lines
+  for (let i = 0; i < data.length - 1; i++) {
+    const x1 = getXPosition(i) + shadowOffset
     const y1 =
       area.y +
       graphPadding +
       (area.height - graphPadding * 2) -
-      ((data[i].rating - minRating) / ratingRange) *
+      ((data[i].rating - minRating) / effectiveRange) *
         (area.height - graphPadding * 2) +
       shadowOffset
-    const x2 =
-      area.x +
-      graphPadding +
-      ((i + 1) / (data.length - 1)) * (area.width - graphPadding * 2) +
-      shadowOffset
+    const x2 = getXPosition(i + 1) + shadowOffset
     const y2 =
       area.y +
       graphPadding +
       (area.height - graphPadding * 2) -
-      ((data[i + 1].rating - minRating) / ratingRange) *
+      ((data[i + 1].rating - minRating) / effectiveRange) *
         (area.height - graphPadding * 2) +
       shadowOffset
 
@@ -564,16 +606,12 @@ function drawGraph(
 
   // Shadow points
   data.forEach((point, i) => {
-    const x =
-      area.x +
-      graphPadding +
-      (i / (data.length - 1)) * (area.width - graphPadding * 2) +
-      shadowOffset
+    const x = getXPosition(i) + shadowOffset
     const y =
       area.y +
       graphPadding +
       (area.height - graphPadding * 2) -
-      ((point.rating - minRating) / ratingRange) *
+      ((point.rating - minRating) / effectiveRange) *
         (area.height - graphPadding * 2) +
       shadowOffset
 
@@ -589,25 +627,19 @@ function drawGraph(
 
   // Actual lines
   for (let i = 0; i < data.length - 1; i++) {
-    const x1 =
-      area.x +
-      graphPadding +
-      (i / (data.length - 1)) * (area.width - graphPadding * 2)
+    const x1 = getXPosition(i)
     const y1 =
       area.y +
       graphPadding +
       (area.height - graphPadding * 2) -
-      ((data[i].rating - minRating) / ratingRange) *
+      ((data[i].rating - minRating) / effectiveRange) *
         (area.height - graphPadding * 2)
-    const x2 =
-      area.x +
-      graphPadding +
-      ((i + 1) / (data.length - 1)) * (area.width - graphPadding * 2)
+    const x2 = getXPosition(i + 1)
     const y2 =
       area.y +
       graphPadding +
       (area.height - graphPadding * 2) -
-      ((data[i + 1].rating - minRating) / ratingRange) *
+      ((data[i + 1].rating - minRating) / effectiveRange) *
         (area.height - graphPadding * 2)
 
     ctx.beginPath()
@@ -618,16 +650,13 @@ function drawGraph(
 
   // Actual points
   data.forEach((point, i) => {
-    const x =
-      area.x +
-      graphPadding +
-      (i / (data.length - 1)) * (area.width - graphPadding * 2)
+    const x = getXPosition(i)
+    const normalizedPosition = (point.rating - minRating) / effectiveRange
     const y =
       area.y +
       graphPadding +
       (area.height - graphPadding * 2) -
-      ((point.rating - minRating) / ratingRange) *
-        (area.height - graphPadding * 2)
+      normalizedPosition * (area.height - graphPadding * 2)
 
     ctx.beginPath()
     ctx.arc(x, y, 3, 0, Math.PI * 2)

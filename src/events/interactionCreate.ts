@@ -44,7 +44,6 @@ import {
   setQueueDeckBans,
   setUserPriorityQueue,
   setMatchBestOf,
-  userInQueue,
   getSettings,
   partyUtils,
   setUserDefaultDeckBans,
@@ -139,6 +138,8 @@ export default {
             flags: MessageFlags.Ephemeral,
             fetchReply: true,
           })
+
+          await updateQueueMessage()
 
           // Delete the message after 10 seconds
           setTimeout(async () => {
@@ -407,16 +408,7 @@ export default {
         if (interaction.customId == 'leave-queue') {
           await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
-          const inQueue = await userInQueue(interaction.user.id)
-          if (interaction.customId === 'leave-queue' && !inQueue) {
-            await interaction.followUp({
-              content: `You're not in the queue.`,
-              flags: MessageFlags.Ephemeral,
-            })
-            return
-          }
-
-          // Update the user's queue status and join with the queues table based on channel id
+          // Update the user's queue status
           await pool.query(
             `
               UPDATE queue_users
@@ -426,12 +418,13 @@ export default {
             [interaction.user.id],
           )
 
-          await updateQueueMessage()
           const reply = await interaction.followUp({
             content: `You left the queue!`,
             flags: MessageFlags.Ephemeral,
             fetchReply: true,
           })
+
+          await updateQueueMessage()
 
           // Delete the message after 10 seconds
           setTimeout(async () => {

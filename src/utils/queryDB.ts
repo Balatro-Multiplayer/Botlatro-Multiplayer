@@ -60,7 +60,7 @@ export async function setQueueRoleLock(
 
 // Get the queue names of all queues that exist
 export async function getQueueNames(): Promise<string[]> {
-  const res = await pool.query('SELECT queue_name FROM queues')
+  const res = await pool.query('SELECT queue_name FROM queues ORDER BY id')
   return res.rows.map((row) => row.queue_name)
 }
 
@@ -77,7 +77,9 @@ export async function getQueueIdFromName(queueName: string): Promise<number> {
 
 // Get all queues that are not locked
 export async function getActiveQueues(): Promise<Queues[]> {
-  const res = await pool.query('SELECT * FROM queues WHERE locked = false')
+  const res = await pool.query(
+    'SELECT * FROM queues WHERE locked = false ORDER BY id DESC',
+  )
   return res.rows
 }
 
@@ -1094,19 +1096,19 @@ export async function updatePlayerWinStreak(
 
     const streak = currentStreak.rows[0].win_streak
 
-    if (streak === 0) {
-      // If win_streak is 0, decrement by 1 (loss streak)
+    if (streak > 0) {
+      // Had a win streak, reset to 0
       await pool.query(
         `UPDATE queue_users
-         SET win_streak = -1
+         SET win_streak = 0
          WHERE user_id = $1 AND queue_id = $2`,
         [userId, queueId],
       )
     } else {
-      // Reset to 0 if they had a positive win streak
+      // At 0 or already in a loss streak, decrement (continue/start loss streak)
       await pool.query(
         `UPDATE queue_users
-         SET win_streak = 0
+         SET win_streak = win_streak - 1
          WHERE user_id = $1 AND queue_id = $2`,
         [userId, queueId],
       )
@@ -1315,6 +1317,8 @@ export async function getStatsCanvasUserData(
     `,
     [userId, queueId],
   )
+
+  console.log(eloRes.rows)
 
   let eloChanges = eloRes.rows.map((r: any) => ({
     change: Number(r.elo_change) || 0,
