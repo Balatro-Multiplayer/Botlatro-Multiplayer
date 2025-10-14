@@ -19,8 +19,13 @@ export default {
       const res = await pool.query(`
         SELECT channel_id FROM matches WHERE open = true
       `)
+      const sleep = async (ms: number) => {
+        return new Promise((resolve) => setTimeout(resolve, ms))
+      }
+
       const openMatchChannels = res.rows.map((row) => row.channel_id)
       for (const openMatchChannel of openMatchChannels) {
+        await sleep(3000)
         const channel = await interaction
           .guild!.channels.fetch(openMatchChannel)
           .catch(() => null)
