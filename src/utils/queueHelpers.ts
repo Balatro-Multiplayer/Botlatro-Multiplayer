@@ -18,15 +18,11 @@ import {
 } from 'discord.js'
 import { sendMatchInitMessages } from './matchHelpers'
 import {
-  createQueueUser,
   getAllQueueRoles,
   getLeaderboardQueueRole,
-  getQueueRoleLock,
-  getQueueSettings,
   getSettings,
   getUserQueueRole,
   getUsersInQueue,
-  partyUtils,
   userInMatch,
   userInQueue,
 } from './queryDB'
@@ -152,65 +148,13 @@ export async function joinQueues(
   selectedQueueIds: string[],
   userId: string,
 ): Promise<string[] | null> {
-  const allQueues: QueryResult<Queues> =
-    await pool.query(`SELECT * FROM queues`)
-
   // Get guild member for role checks
   const guild =
     interaction.client.guilds.cache.get(process.env.GUILD_ID!) ??
     (await interaction.client.guilds.fetch(process.env.GUILD_ID!))
   const member = await guild.members.fetch(userId)
 
-  // Role lock checks
-  for (let qId of selectedQueueIds) {
-    const queueId = parseInt(qId)
-    const queue = allQueues.rows.find((q) => q.id === queueId)
-    if (!queue) continue
-
-    const roleLockId = await getQueueRoleLock(queueId)
-    if (roleLockId && !member.roles.cache.has(roleLockId)) {
-      const role = guild.roles.cache.get(roleLockId)
-      const roleName = role ? role.name : 'required role'
-      await interaction.followUp({
-        content: `You need the **${roleName}** role to join the ${queue.queue_name} queue.`,
-        flags: MessageFlags.Ephemeral,
-      })
-      return null
-    }
-  }
-
-  // party checks
-  const partyId = await partyUtils.getUserParty(userId)
-  if (partyId) {
-    const partyList = await partyUtils.getPartyUserList(partyId)
-    for (let qId of selectedQueueIds) {
-      const queueId = parseInt(qId)
-      const queue = allQueues.rows.find((q) => q.id === queueId)
-      if (queue && partyList && partyList.length > queue.members_per_team) {
-        await interaction.followUp({
-          content: `Your party has too many members for the ${queue.queue_name} queue.`,
-          flags: MessageFlags.Ephemeral,
-        })
-        return null
-      }
-    }
-
-    const isLeader = await pool.query(
-      `SELECT is_leader FROM party_users WHERE user_id = $1`,
-      [userId],
-    )
-    if (!(isLeader?.rows[0]?.is_leader ?? null)) {
-      await interaction.followUp({
-        content: `You're not the party leader.`,
-        flags: MessageFlags.Ephemeral,
-      })
-      return null
-    }
-
-    // TODO: check for bans
-  }
-
-  // in match check
+  // Check if user is in a match
   const inMatch = await userInMatch(userId)
   if (inMatch) {
     const matchId = await pool.query(
@@ -228,50 +172,101 @@ export async function joinQueues(
     return null
   }
 
-  // ensure user exists, if it doesn't, create
-  const matchUser = await pool.query('SELECT * FROM users WHERE user_id = $1', [
-    userId,
-  ])
+  const queueIds = selectedQueueIds.map((id) => parseInt(id))
 
-  if (matchUser.rows.length < 1) {
-    await pool.query('INSERT INTO users (user_id) VALUES ($1)', [userId])
-  }
-
-  await pool.query(
-    `
-      UPDATE queue_users
-      SET queue_join_time = NULL
-      WHERE user_id = $1`,
-    [userId],
+  const allQueues = await pool.query(
+    `SELECT * FROM queues WHERE id = ANY($1::int[])`,
+    [queueIds],
   )
 
+  // Create map for O(1) lookups
+  const queueMap = new Map(allQueues.rows.map((q) => [q.id, q]))
+
   const joinedQueues: string[] = []
-  for (const qId of selectedQueueIds) {
+
+  // Role lock checks
+  for (let qId of selectedQueueIds) {
     const queueId = parseInt(qId)
-    const queueSettings = await getQueueSettings(queueId)
-    const queue = allQueues.rows.find((q) => q.id === queueId)
+    const queue = queueMap.get(queueId)
     if (!queue) continue
 
-    const res = await pool.query(
-      `
-        UPDATE queue_users
-        SET queue_join_time = NOW(), current_elo_range = $1
-        WHERE user_id = $2 AND queue_id = $3
-        RETURNING *;`,
-      [queueSettings.elo_search_start, userId, queueId],
-    )
-
-    // if not already in that queue, insert
-    if (res.rows.length < 1) {
-      await createQueueUser(userId, queueId)
+    // Check role lock (stored in queue.role_lock_id)
+    if (queue.role_lock_id && !member.roles.cache.has(queue.role_lock_id)) {
+      const role = guild.roles.cache.get(queue.role_lock_id)
+      const roleName = role ? role.name : 'required role'
+      await interaction.followUp({
+        content: `You need the **${roleName}** role to join the ${queue.queue_name} queue.`,
+        flags: MessageFlags.Ephemeral,
+      })
+      return null
     }
 
-    await setUserQueueRole(queueId, userId)
+    // TODO: check for bans
+
+    // // party checks
+    // const partyId = await partyUtils.getUserParty(userId)
+    // if (partyId) {
+    //   const partyList = await partyUtils.getPartyUserList(partyId)
+    //   for (let qId of selectedQueueIds) {
+    //     const queueId = parseInt(qId)
+    //     const queue = allQueues.rows.find((q) => q.id === queueId)
+    //     if (queue && partyList && partyList.length > queue.members_per_team) {
+    //       await interaction.followUp({
+    //         content: `Your party has too many members for the ${queue.queue_name} queue.`,
+    //         flags: MessageFlags.Ephemeral,
+    //       })
+    //       return null
+    //     }
+    //   }
+
+    // const isLeader = await pool.query(
+    //   `SELECT is_leader FROM party_users WHERE user_id = $1`,
+    //   [userId],
+    // )
+    // if (!(isLeader?.rows[0]?.is_leader ?? null)) {
+    //   await interaction.followUp({
+    //     content: `You're not the party leader.`,
+    //     flags: MessageFlags.Ephemeral,
+    //   })
+    //   return null
+    // }
 
     joinedQueues.push(queue.queue_name)
   }
 
-  await updateQueueMessage()
+  // Batch all database operations in a transaction
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+
+    // Ensure user exists
+    await client.query(
+      'INSERT INTO users (user_id) VALUES ($1) ON CONFLICT DO NOTHING',
+      [userId],
+    )
+
+    // Batch upsert all queue joins
+    for (const qId of selectedQueueIds) {
+      const queueId = parseInt(qId)
+      const queue = queueMap.get(queueId)
+      if (!queue) continue
+
+      await client.query(
+        `INSERT INTO queue_users (user_id, queue_id, queue_join_time, current_elo_range)
+         VALUES ($1, $2, NOW(), $3)
+         ON CONFLICT (user_id, queue_id)
+         DO UPDATE SET queue_join_time = NOW(), current_elo_range = $3`,
+        [userId, queueId, queue.elo_search_start],
+      )
+    }
+
+    await client.query('COMMIT')
+  } catch (e) {
+    await client.query('ROLLBACK')
+    throw e
+  } finally {
+    client.release()
+  }
 
   return joinedQueues
 }

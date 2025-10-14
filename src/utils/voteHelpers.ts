@@ -145,7 +145,11 @@ export async function handleTwoPlayerMatchVoting(
 
     const mmrLine = lines.find((l) => l.includes('MMR')) || ''
     const voteLines = lines.filter(
-      (l) => l.trim() !== '' && !l.includes('MMR') && !l.includes('Win Votes'),
+      (l) =>
+        l.trim() !== '' &&
+        !l.includes('MMR') &&
+        !l.includes('Win Votes') &&
+        !l.includes('Cancel Match'),
     )
 
     const idx = voteLines.indexOf(userTag)

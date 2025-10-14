@@ -1,8 +1,8 @@
 import queueLock from 'commands/moderation/queueLock'
-import viewStats from '../queues/viewStats'
 import {
   AutocompleteInteraction,
   ChatInputCommandInteraction,
+  PermissionFlagsBits,
   SlashCommandBuilder,
 } from 'discord.js'
 import { getQueueNames } from 'utils/queryDB'
@@ -11,46 +11,29 @@ export default {
   data: new SlashCommandBuilder()
     .setName('queue')
     .setDescription('adjust things with queues')
-    // .addSubcommand((sub) =>
-    //   sub
-    //     .setName('lock')
-    //     .setDescription('Locks a queue from being accessed.')
-    //     .addStringOption((option) =>
-    //       option
-    //         .setName('queue-name')
-    //         .setDescription('The queue name to lock')
-    //         .setRequired(true)
-    //         .setAutocomplete(true),
-    //     ),
-    // )
-    // .addSubcommand((sub) =>
-    //   sub
-    //     .setName('unlock')
-    //     .setDescription('Unlocks a queue.')
-    //     .addStringOption((option) =>
-    //       option
-    //         .setName('queue-name')
-    //         .setDescription('The queue name to unlock')
-    //         .setRequired(true)
-    //         .setAutocomplete(true),
-    //     ),
-    // )
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addSubcommand((sub) =>
       sub
-        .setName('stats')
-        .setDescription('View your stats in a queue.')
+        .setName('lock')
+        .setDescription('Locks a queue from being accessed.')
         .addStringOption((option) =>
           option
             .setName('queue-name')
-            .setDescription('The queue name to view stats for')
+            .setDescription('The queue name to lock')
             .setRequired(true)
             .setAutocomplete(true),
-        )
-        .addUserOption((option) =>
+        ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('unlock')
+        .setDescription('Unlocks a queue.')
+        .addStringOption((option) =>
           option
-            .setName('user')
-            .setDescription('The user to view stats for (defaults to yourself)')
-            .setRequired(false),
+            .setName('queue-name')
+            .setDescription('The queue name to unlock')
+            .setRequired(true)
+            .setAutocomplete(true),
         ),
     ),
   async execute(interaction: ChatInputCommandInteraction) {
@@ -58,8 +41,6 @@ export default {
       await queueLock.execute(interaction, true)
     } else if (interaction.options.getSubcommand() === 'unlock') {
       await queueLock.execute(interaction, false)
-    } else if (interaction.options.getSubcommand() === 'stats') {
-      await viewStats.execute(interaction)
     }
   },
   async autocomplete(interaction: AutocompleteInteraction) {
@@ -74,4 +55,3 @@ export default {
   },
 }
 // this supercommand should only be usable by mod+
-// (move stats to its own supercommand)

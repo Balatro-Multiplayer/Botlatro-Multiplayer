@@ -14,6 +14,7 @@ import { pool } from '../db'
 import { shuffle } from 'lodash-es'
 import {
   closeMatch,
+  getActiveMatches,
   getDeckByName,
   getDeckList,
   getDecksInQueue,
@@ -663,6 +664,9 @@ export async function endMatch(
     }
   }
 
+  // Wait for database writes to fully commit before building results embed
+  await new Promise((resolve) => setTimeout(resolve, 500))
+
   // build results embed
   const resultsEmbed = new EmbedBuilder()
     .setTitle(`🏆 ${queueSettings.queue_name} Match #${matchId} 🏆`)
@@ -842,10 +846,8 @@ export async function setupMatchVoiceChannel(
 export async function updateMatchCountChannel(): Promise<void> {
   try {
     // Get count of active matches
-    const matchCountRes = await pool.query(
-      `SELECT COUNT(*) as count FROM matches WHERE open = true`,
-    )
-    const activeMatchCount = parseInt(matchCountRes.rows[0].count) || 0
+    const activeMatches = await getActiveMatches()
+    const activeMatchCount = activeMatches.length || 0
 
     // Get match count channel ID from settings
     const settingsRes = await pool.query(
