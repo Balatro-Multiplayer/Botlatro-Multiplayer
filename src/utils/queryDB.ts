@@ -1318,8 +1318,6 @@ export async function getStatsCanvasUserData(
     [userId, queueId],
   )
 
-  console.log(eloRes.rows)
-
   let eloChanges = eloRes.rows.map((r: any) => ({
     change: Number(r.elo_change) || 0,
     date: r.date as Date,

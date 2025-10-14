@@ -460,8 +460,6 @@ function drawGraph(
   const dataMinRating = Math.min(...data.map((d) => d.rating))
   const dataMaxRating = Math.max(...data.map((d) => d.rating))
 
-  console.log(dataMinRating, dataMaxRating)
-
   // Use the larger of peak_mmr or actual max data point
   // This ensures all data points are visible even if they exceed peak
   const maxRating = Math.max(playerData.peak_mmr, dataMaxRating)

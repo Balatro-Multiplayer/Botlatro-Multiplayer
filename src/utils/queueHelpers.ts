@@ -234,8 +234,6 @@ export async function joinQueues(
     joinedQueues.push(queue.queue_name)
   }
 
-  console.log('test')
-
   // Batch all database operations in a transaction
   const client = await pool.connect()
   try {
