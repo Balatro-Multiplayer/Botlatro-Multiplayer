@@ -132,7 +132,7 @@ export async function handleVoting(
   if (!interaction) return console.error('no interaction found for voting')
   if (!interaction.message)
     return console.error('No message found in interaction')
-  if (!interaction.deferred)
+  if (!interaction.deferred && !interaction.replied)
     await interaction.deferReply({ flags: MessageFlags.Ephemeral })
   const embed = interaction.message.embeds[0]
   if (!embed) return console.error('No embed found in message')
@@ -151,7 +151,7 @@ export async function handleVoting(
 
   // Check if user is allowed to vote
   if (participants.length && !participants.includes(interaction.user.id)) {
-    if (!interaction.deferred)
+    if (!interaction.deferred && !interaction.replied)
       await interaction.deferReply({ flags: MessageFlags.Ephemeral })
     if (interaction.deferred || interaction.replied) {
       return interaction.editReply({
@@ -254,7 +254,7 @@ export async function handleTwoPlayerMatchVoting(
     if (!fields) return console.error('No fields found in embed')
     if (!interaction)
       return console.error('no interaction found for two player voting')
-    if (!interaction.deferred)
+    if (!interaction.deferred && !interaction.replied)
       await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
     const winMatchData: string[] = interaction.values[0].split('_')
@@ -264,7 +264,7 @@ export async function handleTwoPlayerMatchVoting(
 
     // Restrict to allowed voters
     if (participants.length && !participants.includes(interaction.user.id)) {
-      if (!interaction.deferred)
+      if (!interaction.deferred && !interaction.replied)
         await interaction.deferReply({ flags: MessageFlags.Ephemeral })
       if (interaction.deferred || interaction.replied) {
         return interaction.editReply({
