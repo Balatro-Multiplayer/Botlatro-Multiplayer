@@ -194,76 +194,80 @@ export default {
           }
         }
 
-        await handleTwoPlayerMatchVoting(interaction, {
-          participants: matchUsersArray,
-          onComplete: async (interaction, winner) => {
-            const customSelId = interaction.values[0]
-            const matchDataParts: string[] = customSelId.split('_')
-            const matchId = parseInt(matchDataParts[1])
+        try {
+          await handleTwoPlayerMatchVoting(interaction, {
+            participants: matchUsersArray,
+            onComplete: async (interaction, winner) => {
+              const customSelId = interaction.values[0]
+              const matchDataParts: string[] = customSelId.split('_')
+              const matchId = parseInt(matchDataParts[1])
 
-            // Check if this match is Best of 3 or 5
-            const matchDataObj = await getMatchData(matchId)
-            const isBo3 = matchDataObj.best_of_3
-            const isBo5 = matchDataObj.best_of_5
+              // Check if this match is Best of 3 or 5
+              const matchDataObj = await getMatchData(matchId)
+              const isBo3 = matchDataObj.best_of_3
+              const isBo5 = matchDataObj.best_of_5
 
-            if (!isBo3 && !isBo5) {
-              await setWinningTeam(matchId, winner)
-              await endMatch(matchId)
-              return
-            } else {
-              const embed = interaction.message.embeds[0]
-              const fields = embed.data.fields || []
-
-              // Update Best of scores in the embed (for display only)
-              const winnerIndex = winner === 1 ? 0 : 1
-              for (let i = 0; i < Math.min(2, fields.length); i++) {
-                const val = fields[i].value || ''
-                const lines = val.split('\n')
-
-                const cleaned = lines.filter(
-                  (l) => !l.includes('Win Votes') && !l.includes('<@'),
-                )
-
-                const mmrIdx = cleaned.findIndex((l) => l.includes('MMR'))
-                if (mmrIdx !== -1) {
-                  const mmrLine = cleaned[mmrIdx]
-                  const m = mmrLine.match(/Score:\s*(\d+)/i)
-                  let score = m ? parseInt(m[1], 10) || 0 : 0
-
-                  if (i === winnerIndex) score += 1
-
-                  cleaned[mmrIdx] =
-                    mmrLine.replace(/\s*-?\s*Score:\s*\d+/i, '').trimEnd() +
-                    ` - Score: ${score}`
-                }
-
-                fields[i].value = cleaned.join('\n')
-              }
-
-              // Get updated scores from the embed (after incrementing)
-              let scores = getBestOfMatchScores(fields)
-              let requiredWins = isBo5 ? 3 : isBo3 ? 2 : 1
-              const [team1Wins, team2Wins] = scores
-
-              // Check if a team has won the Best of series
-              let winningTeam = 0
-              if (team1Wins >= requiredWins) {
-                winningTeam = 1
-              } else if (team2Wins >= requiredWins) {
-                winningTeam = 2
-              }
-
-              if (winningTeam) {
-                await setWinningTeam(matchId, winningTeam)
+              if (!isBo3 && !isBo5) {
+                await setWinningTeam(matchId, winner)
                 await endMatch(matchId)
                 return
-              }
+              } else {
+                const embed = interaction.message.embeds[0]
+                const fields = embed.data.fields || []
 
-              interaction.message.embeds[0] = embed
-              await interaction.update({ embeds: interaction.message.embeds })
-            }
-          },
-        })
+                // Update Best of scores in the embed (for display only)
+                const winnerIndex = winner === 1 ? 0 : 1
+                for (let i = 0; i < Math.min(2, fields.length); i++) {
+                  const val = fields[i].value || ''
+                  const lines = val.split('\n')
+
+                  const cleaned = lines.filter(
+                    (l) => !l.includes('Win Votes') && !l.includes('<@'),
+                  )
+
+                  const mmrIdx = cleaned.findIndex((l) => l.includes('MMR'))
+                  if (mmrIdx !== -1) {
+                    const mmrLine = cleaned[mmrIdx]
+                    const m = mmrLine.match(/Score:\s*(\d+)/i)
+                    let score = m ? parseInt(m[1], 10) || 0 : 0
+
+                    if (i === winnerIndex) score += 1
+
+                    cleaned[mmrIdx] =
+                      mmrLine.replace(/\s*-?\s*Score:\s*\d+/i, '').trimEnd() +
+                      ` - Score: ${score}`
+                  }
+
+                  fields[i].value = cleaned.join('\n')
+                }
+
+                // Get updated scores from the embed (after incrementing)
+                let scores = getBestOfMatchScores(fields)
+                let requiredWins = isBo5 ? 3 : isBo3 ? 2 : 1
+                const [team1Wins, team2Wins] = scores
+
+                // Check if a team has won the Best of series
+                let winningTeam = 0
+                if (team1Wins >= requiredWins) {
+                  winningTeam = 1
+                } else if (team2Wins >= requiredWins) {
+                  winningTeam = 2
+                }
+
+                if (winningTeam) {
+                  await setWinningTeam(matchId, winningTeam)
+                  await endMatch(matchId)
+                  return
+                }
+
+                interaction.message.embeds[0] = embed
+                await interaction.update({ embeds: interaction.message.embeds })
+              }
+            },
+          })
+        } catch (err) {
+          console.error(err)
+        }
       }
 
       if (interaction.customId.startsWith('deck-bans-')) {

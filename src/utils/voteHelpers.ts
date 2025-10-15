@@ -236,108 +236,124 @@ export async function handleTwoPlayerMatchVoting(
     ) => {},
   },
 ) {
-  const embed = interaction.message.embeds[0]
-  if (!embed) return console.error('No embed found in message')
-  const fields = embed.data.fields
-  if (!fields) return console.error('No fields found in embed')
+  try {
+    const embed = interaction.message.embeds[0]
+    if (!embed) return console.error('No embed found in message')
+    const fields = embed.data.fields
+    if (!fields) return console.error('No fields found in embed')
 
-  const winMatchData: string[] = interaction.values[0].split('_')
-  const winMatchTeamId = parseInt(winMatchData[2])
-  const matchId = await getMatchIdFromMessage(interaction)
-  if (!matchId) return console.error('No match found for this channel')
+    const winMatchData: string[] = interaction.values[0].split('_')
+    const winMatchTeamId = parseInt(winMatchData[2])
+    const matchId = await getMatchIdFromMessage(interaction)
+    if (!matchId) return console.error('No match found for this channel')
 
-  // Restrict to allowed voters
-  if (participants.length && !participants.includes(interaction.user.id)) {
-    return interaction.reply({
-      content: `You are not allowed to vote in this poll.`,
-      flags: MessageFlags.Ephemeral,
-    })
-  }
-
-  // Get current user vote from database
-  const currentVote = await getUserVote(matchId, interaction.user.id)
-
-  // Check if user already voted for this team
-  const userAlreadyVotedForThisTeam =
-    currentVote &&
-    currentVote.vote_type === 'win' &&
-    currentVote.vote_value === winMatchTeamId
-
-  // If user already voted for this team, remove the vote
-  if (userAlreadyVotedForThisTeam) {
-    await removeUserVote(matchId, interaction.user.id)
-  } else {
-    // Otherwise, update their vote (this will replace any existing vote)
-    await setUserVote(matchId, interaction.user.id, 'win', winMatchTeamId)
-  }
-
-  // Get updated votes from database grouped by team
-  const votesByTeam = await getVotesForMatchByTeam(matchId, 'win')
-
-  // Update the embed for display
-  const voteArray: { team_id: number; votes: string[] }[] = []
-  for (let i = 0; i < fields.length; i++) {
-    if (
-      fields[i].name.includes('Cancel Match') ||
-      fields[i].name.includes('Votes')
-    )
-      continue
-
-    const lines = fields[i].value?.split('\n') || []
-    const mmrLine = lines.find((l) => l.includes('MMR')) || ''
-
-    // Get votes for this team from database (teams start at 1, array index starts at 0)
-    const teamId = i + 1
-    const teamVotes = votesByTeam.get(teamId) || []
-    const voteLines = teamVotes.map((uid) => `<@${uid}>`)
-
-    let newValue = mmrLine
-    if (voteLines.length > 0) {
-      newValue += `\nWin Votes`
-      newValue += '\n' + voteLines.join('\n')
+    // Restrict to allowed voters
+    if (participants.length && !participants.includes(interaction.user.id)) {
+      return interaction.reply({
+        content: `You are not allowed to vote in this poll.`,
+        flags: MessageFlags.Ephemeral,
+      })
     }
 
-    fields[i].value = newValue || '\u200b'
-    voteArray.push({ team_id: i, votes: voteLines })
-  }
+    // Get current user vote from database
+    const currentVote = await getUserVote(matchId, interaction.user.id)
 
-  interaction.message.embeds[0] = embed
+    // Check if user already voted for this team
+    const userAlreadyVotedForThisTeam =
+      currentVote &&
+      currentVote.vote_type === 'win' &&
+      currentVote.vote_value === winMatchTeamId
 
-  // Check if all participants voted
-  const totalVotes = voteArray.reduce((sum, team) => sum + team.votes.length, 0)
-  const allVoted = participants.length > 0 && totalVotes === participants.length
+    // If user already voted for this team, remove the vote
+    if (userAlreadyVotedForThisTeam) {
+      await removeUserVote(matchId, interaction.user.id)
+    } else {
+      // Otherwise, update their vote (this will replace any existing vote)
+      await setUserVote(matchId, interaction.user.id, 'win', winMatchTeamId)
+    }
 
-  if (allVoted) {
-    // Check majority
-    const majority = Math.floor(participants.length / 2) + 1
-    let winner: number | undefined
-    for (let i = 0; i < voteArray.length; i++) {
-      if (voteArray[i].votes.length >= majority) {
-        winner = i + 1 // Teams start at 1
+    // Get updated votes from database grouped by team
+    const votesByTeam = await getVotesForMatchByTeam(matchId, 'win')
+
+    // Update the embed for display
+    const voteArray: { team_id: number; votes: string[] }[] = []
+    for (let i = 0; i < fields.length; i++) {
+      if (
+        fields[i].name.includes('Cancel Match') ||
+        fields[i].name.includes('Votes')
+      )
+        continue
+
+      const lines = fields[i].value?.split('\n') || []
+      const mmrLine = lines.find((l) => l.includes('MMR')) || ''
+
+      // Get votes for this team from database (teams start at 1, array index starts at 0)
+      const teamId = i + 1
+      const teamVotes = votesByTeam.get(teamId) || []
+      const voteLines = teamVotes.map((uid) => `<@${uid}>`)
+
+      let newValue = mmrLine
+      if (voteLines.length > 0) {
+        newValue += `\nWin Votes`
+        newValue += '\n' + voteLines.join('\n')
+      }
+
+      fields[i].value = newValue || '\u200b'
+      voteArray.push({ team_id: i, votes: voteLines })
+    }
+
+    interaction.message.embeds[0] = embed
+
+    // Check if all participants voted
+    const totalVotes = voteArray.reduce(
+      (sum, team) => sum + team.votes.length,
+      0,
+    )
+    const allVoted =
+      participants.length > 0 && totalVotes === participants.length
+
+    if (allVoted) {
+      // Check majority
+      const majority = Math.floor(participants.length / 2) + 1
+      let winner: number | undefined
+      for (let i = 0; i < voteArray.length; i++) {
+        if (voteArray[i].votes.length >= majority) {
+          winner = i + 1 // Teams start at 1
+        }
+      }
+
+      if (winner) {
+        await onComplete(interaction, winner)
+        return
       }
     }
 
-    if (winner) {
-      await onComplete(interaction, winner)
-      return
+    // Acknowledge the interaction first
+    await interaction.deferUpdate()
+
+    // Delete the old message and send a new one
+    const channel = interaction.channel as GuildChannel
+    const components = interaction.message.components
+    await interaction.message.delete()
+
+    if (channel && channel.isTextBased()) {
+      const newMessage = await channel.send({
+        embeds: [embed],
+        components: components,
+      })
+
+      setLastWinVoteMessage(channel.id, newMessage.id)
     }
-  }
-
-  // Acknowledge the interaction first
-  await interaction.deferUpdate()
-
-  // Delete the old message and send a new one
-  const channel = interaction.channel as GuildChannel
-  const components = interaction.message.components
-  await interaction.message.delete()
-
-  if (channel && channel.isTextBased()) {
-    const newMessage = await channel.send({
-      embeds: [embed],
-      components: components,
-    })
-
-    setLastWinVoteMessage(channel.id, newMessage.id)
+  } catch (err) {
+    const channel = interaction.channel as GuildChannel
+    if (channel && channel.isTextBased()) {
+      channel.send(
+        'Failed to handle voting. Please ping Jeff or Cas about this. Error: ' +
+          err,
+      )
+    } else {
+      console.error('Failed to handle voting. Error: ' + err)
+    }
   }
 }
 
