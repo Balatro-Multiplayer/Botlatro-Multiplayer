@@ -155,6 +155,12 @@ export async function joinQueues(
     (await interaction.client.guilds.fetch(process.env.GUILD_ID!))
   const member = await guild.members.fetch(userId)
 
+  // Ensure user exists
+  await pool.query(
+    'INSERT INTO users (user_id) VALUES ($1) ON CONFLICT DO NOTHING',
+    [userId],
+  )
+
   // Check if user is in a match
   const inMatch = await userInMatch(userId)
   if (inMatch) {
@@ -239,12 +245,6 @@ export async function joinQueues(
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
-
-    // Ensure user exists
-    await client.query(
-      'INSERT INTO users (user_id) VALUES ($1) ON CONFLICT DO NOTHING',
-      [userId],
-    )
 
     // Batch upsert all queue joins
     for (const qId of selectedQueueIds) {
