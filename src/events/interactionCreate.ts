@@ -108,224 +108,243 @@ export default {
 
     // Select Menu Interactions
     if (interaction.isStringSelectMenu()) {
-      if (interaction.customId === 'join-queue') {
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral })
-        const member = interaction.member as GuildMember
+      try {
+        if (interaction.customId === 'join-queue') {
+          await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+          const member = interaction.member as GuildMember
 
-        // TEMPORARY BAN CHECK
-        if (member) {
-          if (member.roles.cache.has('1354296037094854788')) {
-            return await interaction.followUp({
-              content: 'You are queue blacklisted, and cannot join the queue.',
+          // TEMPORARY BAN CHECK
+          if (member) {
+            if (member.roles.cache.has('1354296037094854788')) {
+              return await interaction.followUp({
+                content: 'You are queue blacklisted, and cannot join the queue.',
+                flags: MessageFlags.Ephemeral,
+              })
+            }
+          }
+
+          const joinedQueues = await joinQueues(
+            interaction,
+            interaction.values,
+            interaction.user.id,
+          )
+
+          if (joinedQueues) {
+            const reply = await interaction.followUp({
+              content:
+                joinedQueues.length > 0
+                  ? `You joined: ${joinedQueues.join(', ')}`
+                  : 'You left the queue.',
               flags: MessageFlags.Ephemeral,
+              fetchReply: true,
+            })
+
+            await updateQueueMessage()
+
+            // Delete the message after 10 seconds
+            setTimeout(async () => {
+              await interaction.deleteReply(reply.id).catch(() => {})
+            }, 10000)
+          } else {
+            await updateQueueMessage()
+          }
+        }
+
+        if (interaction.customId === 'priority-queue-sel') {
+          let queueSelId: number | null = parseInt(interaction.values[0])
+          if (queueSelId == -1) queueSelId = null
+          await setUserPriorityQueue(interaction.user.id, queueSelId)
+
+          if (queueSelId) {
+            const queueData = await getQueueSettings(queueSelId, ['queue_name'])
+            interaction.update({
+              content: `Successfully set priority queue to **${queueData.queue_name}**!`,
+              components: [],
+            })
+          } else {
+            interaction.update({
+              content: `Successfully removed your priority queue.`,
+              components: [],
             })
           }
         }
 
-        const joinedQueues = await joinQueues(
-          interaction,
-          interaction.values,
-          interaction.user.id,
-        )
+        if (interaction.values[0].includes('winmatch_')) {
+          const customSelId = interaction.values[0]
+          const matchId = parseInt(customSelId.split('_')[1])
+          const matchUsers = await getTeamsInMatch(matchId)
+          const matchUsersArray = matchUsers.teams.flatMap((t) =>
+            t.players.map((u) => u.user_id),
+          )
 
-        if (joinedQueues) {
-          const reply = await interaction.followUp({
-            content:
-              joinedQueues.length > 0
-                ? `You joined: ${joinedQueues.join(', ')}`
-                : 'You left the queue.',
-            flags: MessageFlags.Ephemeral,
-            fetchReply: true,
-          })
+          const botSettings = await getSettings()
+          const member = interaction.member as GuildMember
+          const winMatchData: string[] = interaction.values[0].split('_')
+          const winMatchTeamId = parseInt(winMatchData[2])
 
-          await updateQueueMessage()
+          // Check if helper clicked the button
+          if (member) {
+            if (
+              (member.roles.cache.has(botSettings.helper_role_id) ||
+                member.roles.cache.has(botSettings.queue_helper_role_id)) &&
+              !matchUsersArray.includes(interaction.user.id)
+            ) {
+              await setWinningTeam(matchId, winMatchTeamId)
+              await endMatch(matchId)
+            }
+          }
 
-          // Delete the message after 10 seconds
-          setTimeout(async () => {
-            await interaction.deleteReply(reply.id).catch(() => {})
-          }, 10000)
-        } else {
-          await updateQueueMessage()
-        }
-      }
+          try {
+            await handleTwoPlayerMatchVoting(interaction, {
+              participants: matchUsersArray,
+              onComplete: async (interaction, winner) => {
+                const customSelId = interaction.values[0]
+                const matchDataParts: string[] = customSelId.split('_')
+                const matchId = parseInt(matchDataParts[1])
 
-      if (interaction.customId === 'priority-queue-sel') {
-        let queueSelId: number | null = parseInt(interaction.values[0])
-        if (queueSelId == -1) queueSelId = null
-        await setUserPriorityQueue(interaction.user.id, queueSelId)
+                // Check if this match is Best of 3 or 5
+                const matchDataObj = await getMatchData(matchId)
+                const isBo3 = matchDataObj.best_of_3
+                const isBo5 = matchDataObj.best_of_5
 
-        if (queueSelId) {
-          const queueData = await getQueueSettings(queueSelId, ['queue_name'])
-          interaction.update({
-            content: `Successfully set priority queue to **${queueData.queue_name}**!`,
-            components: [],
-          })
-        } else {
-          interaction.update({
-            content: `Successfully removed your priority queue.`,
-            components: [],
-          })
-        }
-      }
+                if (!isBo3 && !isBo5) {
+                  await setWinningTeam(matchId, winner)
+                  await endMatch(matchId)
+                  return
+                } else {
+                  const embed = interaction.message.embeds[0]
+                  const fields = embed.data.fields || []
 
-      if (interaction.values[0].includes('winmatch_')) {
-        const customSelId = interaction.values[0]
-        const matchId = parseInt(customSelId.split('_')[1])
-        const matchUsers = await getTeamsInMatch(matchId)
-        const matchUsersArray = matchUsers.teams.flatMap((t) =>
-          t.players.map((u) => u.user_id),
-        )
+                  // Update Best of scores in the embed (for display only)
+                  const winnerIndex = winner === 1 ? 0 : 1
+                  for (let i = 0; i < Math.min(2, fields.length); i++) {
+                    const val = fields[i].value || ''
+                    const lines = val.split('\n')
 
-        const botSettings = await getSettings()
-        const member = interaction.member as GuildMember
-        const winMatchData: string[] = interaction.values[0].split('_')
-        const winMatchTeamId = parseInt(winMatchData[2])
+                    const cleaned = lines.filter(
+                      (l) => !l.includes('Win Votes') && !l.includes('<@'),
+                    )
 
-        // Check if helper clicked the button
-        if (member) {
-          if (
-            (member.roles.cache.has(botSettings.helper_role_id) ||
-              member.roles.cache.has(botSettings.queue_helper_role_id)) &&
-            !matchUsersArray.includes(interaction.user.id)
-          ) {
-            await setWinningTeam(matchId, winMatchTeamId)
-            await endMatch(matchId)
+                    const mmrIdx = cleaned.findIndex((l) => l.includes('MMR'))
+                    if (mmrIdx !== -1) {
+                      const mmrLine = cleaned[mmrIdx]
+                      const m = mmrLine.match(/Score:\s*(\d+)/i)
+                      let score = m ? parseInt(m[1], 10) || 0 : 0
+
+                      if (i === winnerIndex) score += 1
+
+                      cleaned[mmrIdx] =
+                        mmrLine.replace(/\s*-?\s*Score:\s*\d+/i, '').trimEnd() +
+                        ` - Score: ${score}`
+                    }
+
+                    fields[i].value = cleaned.join('\n')
+                  }
+
+                  // Get updated scores from the embed (after incrementing)
+                  let scores = getBestOfMatchScores(fields)
+                  let requiredWins = isBo5 ? 3 : isBo3 ? 2 : 1
+                  const [team1Wins, team2Wins] = scores
+
+                  // Check if a team has won the Best of series
+                  let winningTeam = 0
+                  if (team1Wins >= requiredWins) {
+                    winningTeam = 1
+                  } else if (team2Wins >= requiredWins) {
+                    winningTeam = 2
+                  }
+
+                  if (winningTeam) {
+                    await setWinningTeam(matchId, winningTeam)
+                    await endMatch(matchId)
+                    return
+                  }
+
+                  interaction.message.embeds[0] = embed
+                  await interaction.update({ embeds: interaction.message.embeds })
+                }
+              },
+            })
+          } catch (err) {
+            console.error(err)
           }
         }
 
+        if (interaction.customId.startsWith('deck-bans-')) {
+          const channel = interaction.channel as TextChannel
+          const parts = interaction.customId.split('-')
+          const step = parseInt(parts[2])
+          const matchId = parseInt(parts[3])
+          const startingTeamId = parseInt(parts[4])
+          const matchTeams = await getTeamsInMatch(matchId)
+
+          // Determine which team is active for this step
+          const activeTeamId = (startingTeamId + step) % 2
+
+          if (
+            interaction.user.id !==
+            matchTeams.teams[activeTeamId].players[0].user_id
+          ) {
+            return interaction.reply({
+              content: `It's not your turn to vote for the decks!`,
+              flags: MessageFlags.Ephemeral,
+            })
+          }
+
+          await interaction.message.delete()
+
+          const deckChoices = interaction.values.map((deckId) => parseInt(deckId))
+          await advanceDeckBanStep(
+            deckChoices,
+            step,
+            matchId,
+            startingTeamId,
+            channel,
+          )
+        }
+
+        if (interaction.customId.startsWith('queue-ban-decks-')) {
+          const queueId = parseInt(interaction.customId.split('-')[3])
+          await setQueueDeckBans(queueId, interaction.values)
+          await interaction.update({
+            content: 'Successfully changed queue decks that are banned.',
+            components: [],
+          })
+        }
+
+        if (interaction.customId.startsWith('user-default-deck-bans-')) {
+          const queueId = parseInt(interaction.customId.split('-')[4])
+          const deckIds = interaction.values.map((id) => parseInt(id))
+          await setUserDefaultDeckBans(interaction.user.id, queueId, deckIds)
+
+          // Get deck information to display names
+          const deckList = await getDeckList(true)
+          const selectedDecks = deckList
+            .filter((deck) => deckIds.includes(deck.id))
+            .map((deck) => `${deck.deck_emote} ${deck.deck_name}`)
+
+          await interaction.update({
+            content: `Successfully set default deck bans:\n${selectedDecks.join('\n')}`,
+            components: [],
+          })
+        }
+      } catch (err) {
+        console.error('Error in select menu interaction:', err)
         try {
-          await handleTwoPlayerMatchVoting(interaction, {
-            participants: matchUsersArray,
-            onComplete: async (interaction, winner) => {
-              const customSelId = interaction.values[0]
-              const matchDataParts: string[] = customSelId.split('_')
-              const matchId = parseInt(matchDataParts[1])
-
-              // Check if this match is Best of 3 or 5
-              const matchDataObj = await getMatchData(matchId)
-              const isBo3 = matchDataObj.best_of_3
-              const isBo5 = matchDataObj.best_of_5
-
-              if (!isBo3 && !isBo5) {
-                await setWinningTeam(matchId, winner)
-                await endMatch(matchId)
-                return
-              } else {
-                const embed = interaction.message.embeds[0]
-                const fields = embed.data.fields || []
-
-                // Update Best of scores in the embed (for display only)
-                const winnerIndex = winner === 1 ? 0 : 1
-                for (let i = 0; i < Math.min(2, fields.length); i++) {
-                  const val = fields[i].value || ''
-                  const lines = val.split('\n')
-
-                  const cleaned = lines.filter(
-                    (l) => !l.includes('Win Votes') && !l.includes('<@'),
-                  )
-
-                  const mmrIdx = cleaned.findIndex((l) => l.includes('MMR'))
-                  if (mmrIdx !== -1) {
-                    const mmrLine = cleaned[mmrIdx]
-                    const m = mmrLine.match(/Score:\s*(\d+)/i)
-                    let score = m ? parseInt(m[1], 10) || 0 : 0
-
-                    if (i === winnerIndex) score += 1
-
-                    cleaned[mmrIdx] =
-                      mmrLine.replace(/\s*-?\s*Score:\s*\d+/i, '').trimEnd() +
-                      ` - Score: ${score}`
-                  }
-
-                  fields[i].value = cleaned.join('\n')
-                }
-
-                // Get updated scores from the embed (after incrementing)
-                let scores = getBestOfMatchScores(fields)
-                let requiredWins = isBo5 ? 3 : isBo3 ? 2 : 1
-                const [team1Wins, team2Wins] = scores
-
-                // Check if a team has won the Best of series
-                let winningTeam = 0
-                if (team1Wins >= requiredWins) {
-                  winningTeam = 1
-                } else if (team2Wins >= requiredWins) {
-                  winningTeam = 2
-                }
-
-                if (winningTeam) {
-                  await setWinningTeam(matchId, winningTeam)
-                  await endMatch(matchId)
-                  return
-                }
-
-                interaction.message.embeds[0] = embed
-                await interaction.update({ embeds: interaction.message.embeds })
-              }
-            },
-          })
-        } catch (err) {
-          console.error(err)
+          if (interaction.replied || interaction.deferred) {
+            await interaction.followUp({
+              content: 'There was an error processing your selection.',
+              flags: MessageFlags.Ephemeral,
+            })
+          } else {
+            await interaction.reply({
+              content: 'There was an error processing your selection.',
+              flags: MessageFlags.Ephemeral,
+            })
+          }
+        } catch (replyErr) {
+          console.error('Failed to send error message:', replyErr)
         }
-      }
-
-      if (interaction.customId.startsWith('deck-bans-')) {
-        const channel = interaction.channel as TextChannel
-        const parts = interaction.customId.split('-')
-        const step = parseInt(parts[2])
-        const matchId = parseInt(parts[3])
-        const startingTeamId = parseInt(parts[4])
-        const matchTeams = await getTeamsInMatch(matchId)
-
-        // Determine which team is active for this step
-        const activeTeamId = (startingTeamId + step) % 2
-
-        if (
-          interaction.user.id !==
-          matchTeams.teams[activeTeamId].players[0].user_id
-        ) {
-          return interaction.reply({
-            content: `It's not your turn to vote for the decks!`,
-            flags: MessageFlags.Ephemeral,
-          })
-        }
-
-        await interaction.message.delete()
-
-        const deckChoices = interaction.values.map((deckId) => parseInt(deckId))
-        await advanceDeckBanStep(
-          deckChoices,
-          step,
-          matchId,
-          startingTeamId,
-          channel,
-        )
-      }
-
-      if (interaction.customId.startsWith('queue-ban-decks-')) {
-        const queueId = parseInt(interaction.customId.split('-')[3])
-        await setQueueDeckBans(queueId, interaction.values)
-        await interaction.update({
-          content: 'Successfully changed queue decks that are banned.',
-          components: [],
-        })
-      }
-
-      if (interaction.customId.startsWith('user-default-deck-bans-')) {
-        const queueId = parseInt(interaction.customId.split('-')[4])
-        const deckIds = interaction.values.map((id) => parseInt(id))
-        await setUserDefaultDeckBans(interaction.user.id, queueId, deckIds)
-
-        // Get deck information to display names
-        const deckList = await getDeckList(true)
-        const selectedDecks = deckList
-          .filter((deck) => deckIds.includes(deck.id))
-          .map((deck) => `${deck.deck_emote} ${deck.deck_name}`)
-
-        await interaction.update({
-          content: `Successfully set default deck bans:\n${selectedDecks.join('\n')}`,
-          components: [],
-        })
       }
     }
 

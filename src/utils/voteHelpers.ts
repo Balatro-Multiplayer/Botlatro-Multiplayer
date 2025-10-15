@@ -129,109 +129,130 @@ export async function handleVoting(
     ) => {}, // callback when all participants vote
   },
 ) {
-  if (!interaction) return console.error('no interaction found for voting')
-  if (!interaction.message)
-    return console.error('No message found in interaction')
-  const embed = interaction.message.embeds[0]
-  if (!embed) return console.error('No embed found in message')
-  const fields = embed.data.fields
-  if (!fields) return console.error('No fields found in embed')
+  try {
+    if (!interaction) return console.error('no interaction found for voting')
+    if (!interaction.message)
+      return console.error('No message found in interaction')
+    const embed = interaction.message.embeds[0]
+    if (!embed) return console.error('No embed found in message')
+    const fields = embed.data.fields
+    if (!fields) return console.error('No fields found in embed')
 
-  const settings = await getSettings()
+    const settings = await getSettings()
 
-  // Get match ID from parameter or look it up from channel
-  let resolvedMatchId = matchId
-  if (!resolvedMatchId) {
-    resolvedMatchId = await getMatchIdFromMessage(interaction)
-    if (!resolvedMatchId)
-      return console.error('No match found for this channel')
-  }
-
-  // Check if user is allowed to vote
-  if (participants.length && !participants.includes(interaction.user.id)) {
-    if (!interaction.deferred && !interaction.replied)
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral })
-    if (interaction.deferred || interaction.replied) {
-      return interaction.editReply({
-        content: `You are not allowed to vote in this poll.`,
-      })
-    } else {
-      return interaction.reply({
-        content: `You are not allowed to vote in this poll.`,
-      })
+    // Get match ID from parameter or look it up from channel
+    let resolvedMatchId = matchId
+    if (!resolvedMatchId) {
+      resolvedMatchId = await getMatchIdFromMessage(interaction)
+      if (!resolvedMatchId)
+        return console.error('No match found for this channel')
     }
-  }
 
-  // Get current user vote from database
-  const currentVote = await getUserVote(resolvedMatchId, interaction.user.id)
+    // Check if user is allowed to vote
+    if (participants.length && !participants.includes(interaction.user.id)) {
+      try {
+        if (!interaction.deferred && !interaction.replied)
+          await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+        if (interaction.deferred || interaction.replied) {
+          return interaction.editReply({
+            content: `You are not allowed to vote in this poll.`,
+          })
+        } else {
+          return interaction.reply({
+            content: `You are not allowed to vote in this poll.`,
+          })
+        }
+      } catch (err) {
+        console.error('Failed to respond to unauthorized voter:', err)
+        return
+      }
+    }
 
-  // Check if user already voted for this vote type
-  if (currentVote && currentVote.vote_type === voteType) {
-    // Remove vote
-    // todo: make this send a revoke notice
-    await removeUserVote(resolvedMatchId, interaction.user.id)
+    // Get current user vote from database
+    const currentVote = await getUserVote(resolvedMatchId, interaction.user.id)
 
-    // Update embed for display
-    const votesFromDb = await getVotesForMatch(resolvedMatchId, voteType) // get users who voted for chosen vote type
+    // Check if user already voted for this vote type
+    if (currentVote && currentVote.vote_type === voteType) {
+      // Remove vote
+      // todo: make this send a revoke notice
+      await removeUserVote(resolvedMatchId, interaction.user.id)
+
+      // Update embed for display
+      const votesFromDb = await getVotesForMatch(resolvedMatchId, voteType) // get users who voted for chosen vote type
+      const votesMentions = votesFromDb.map((uid) => `<@${uid}>`)
+
+      // Ensure vote field exists
+      if (!fields[embedFieldIndex]) {
+        fields[embedFieldIndex] = { name: `${voteType}:`, value: '-' }
+      }
+      fields[embedFieldIndex].value =
+        votesMentions.length > 0 ? votesMentions.join('\n') : '-'
+
+      interaction.message.embeds[0] = embed
+      try {
+        await interaction.update({ embeds: interaction.message.embeds })
+      } catch (err) {
+        console.error('Failed to update interaction after vote removal:', err)
+      }
+      return
+    }
+
+    // Add/update vote in database
+    await setUserVote(resolvedMatchId, interaction.user.id, voteType, null)
+
+    // Get updated votes from database
+    const votesFromDb = await getVotesForMatch(resolvedMatchId, voteType)
     const votesMentions = votesFromDb.map((uid) => `<@${uid}>`)
 
-    // Ensure vote field exists
+    // Update embed for display
     if (!fields[embedFieldIndex]) {
-      fields[embedFieldIndex] = { name: `${voteType}:`, value: '-' }
+      fields[embedFieldIndex] = { name: `${voteType}:`, value: '' }
     }
-    fields[embedFieldIndex].value =
-      votesMentions.length > 0 ? votesMentions.join('\n') : '-'
+    fields[embedFieldIndex].value = votesMentions.join('\n')
 
+    // Check if voting is complete
+    if (participants.length > 0 && votesFromDb.length === participants.length) {
+      if (interaction.message) {
+        fields.splice(embedFieldIndex, 1)
+        interaction.message.embeds[0] = embed
+
+        await onComplete(interaction, { votes: votesMentions, embed })
+      }
+      return
+    }
+
+    // Update embed with new votes
     interaction.message.embeds[0] = embed
-    await interaction.update({ embeds: interaction.message.embeds })
-    return
-  }
 
-  // Add/update vote in database
-  await setUserVote(resolvedMatchId, interaction.user.id, voteType, null)
+    if (resendMessage) {
+      try {
+        // Acknowledge the interaction first
+        await interaction.deferUpdate()
 
-  // Get updated votes from database
-  const votesFromDb = await getVotesForMatch(resolvedMatchId, voteType)
-  const votesMentions = votesFromDb.map((uid) => `<@${uid}>`)
+        // Delete the old message and send a new one
+        const channel = interaction.channel as GuildChannel
+        const components = interaction.message.components
+        await interaction.message.delete()
 
-  // Update embed for display
-  if (!fields[embedFieldIndex]) {
-    fields[embedFieldIndex] = { name: `${voteType}:`, value: '' }
-  }
-  fields[embedFieldIndex].value = votesMentions.join('\n')
-
-  // Check if voting is complete
-  if (participants.length > 0 && votesFromDb.length === participants.length) {
-    if (interaction.message) {
-      fields.splice(embedFieldIndex, 1)
-      interaction.message.embeds[0] = embed
-
-      await onComplete(interaction, { votes: votesMentions, embed })
+        if (channel && channel.isTextBased()) {
+          await channel.send({
+            embeds: [embed],
+            components: components,
+          })
+        }
+      } catch (err) {
+        console.error('Failed to resend voting message:', err)
+      }
+    } else {
+      try {
+        // Just update the message in place
+        await interaction.update({ embeds: interaction.message.embeds })
+      } catch (err) {
+        console.error('Failed to update voting message:', err)
+      }
     }
-    return
-  }
-
-  // Update embed with new votes
-  interaction.message.embeds[0] = embed
-
-  if (resendMessage) {
-    // Acknowledge the interaction first
-    await interaction.deferUpdate()
-
-    // Delete the old message and send a new one
-    const channel = interaction.channel as GuildChannel
-    const components = interaction.message.components
-    await interaction.message.delete()
-
-    if (channel && channel.isTextBased()) {
-      await channel.send({
-        embeds: [embed],
-        components: components,
-      })
-    }
-  } else {
-    // Just update the message in place
-    await interaction.update({ embeds: interaction.message.embeds })
+  } catch (err) {
+    console.error('Error in handleVoting:', err)
   }
 }
 
@@ -260,16 +281,21 @@ export async function handleTwoPlayerMatchVoting(
 
     // Restrict to allowed voters
     if (participants.length && !participants.includes(interaction.user.id)) {
-      if (!interaction.deferred && !interaction.replied)
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral })
-      if (interaction.deferred || interaction.replied) {
-        return interaction.editReply({
-          content: `You are not allowed to vote in this poll.`,
-        })
-      } else {
-        return interaction.reply({
-          content: `You are not allowed to vote in this poll.`,
-        })
+      try {
+        if (!interaction.deferred && !interaction.replied)
+          await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+        if (interaction.deferred || interaction.replied) {
+          return interaction.editReply({
+            content: `You are not allowed to vote in this poll.`,
+          })
+        } else {
+          return interaction.reply({
+            content: `You are not allowed to vote in this poll.`,
+          })
+        }
+      } catch (err) {
+        console.error('Failed to respond to unauthorized voter:', err)
+        return
       }
     }
 
@@ -346,21 +372,25 @@ export async function handleTwoPlayerMatchVoting(
       }
     }
 
-    // Acknowledge the interaction first
-    await interaction.deferUpdate()
+    try {
+      // Acknowledge the interaction first
+      await interaction.deferUpdate()
 
-    // Delete the old message and send a new one
-    const channel = interaction.channel as GuildChannel
-    const components = interaction.message.components
-    await interaction.message.delete()
+      // Delete the old message and send a new one
+      const channel = interaction.channel as GuildChannel
+      const components = interaction.message.components
+      await interaction.message.delete()
 
-    if (channel && channel.isTextBased()) {
-      const newMessage = await channel.send({
-        embeds: [embed],
-        components: components,
-      })
+      if (channel && channel.isTextBased()) {
+        const newMessage = await channel.send({
+          embeds: [embed],
+          components: components,
+        })
 
-      setLastWinVoteMessage(channel.id, newMessage.id)
+        setLastWinVoteMessage(channel.id, newMessage.id)
+      }
+    } catch (err) {
+      console.error('Failed to update voting message:', err)
     }
   } catch (err) {
     const channel = interaction.channel as GuildChannel

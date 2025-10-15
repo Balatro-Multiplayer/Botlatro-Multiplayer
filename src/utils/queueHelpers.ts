@@ -121,25 +121,39 @@ export async function updateQueueMessage(): Promise<Message | undefined> {
       .fetch(queueMessageId)
       .then(async (msg) => {
         if (msg.author.id == client.user?.id) {
-          queueMsg = await msg.edit({
-            embeds: [embed],
-            components: [selectRow, buttonRow],
-          })
+          try {
+            queueMsg = await msg.edit({
+              embeds: [embed],
+              components: [selectRow, buttonRow],
+            })
+          } catch (err) {
+            console.error('Failed to edit queue message:', err)
+          }
         } else {
-          await msg.delete()
+          try {
+            await msg.delete()
+          } catch (err) {
+            console.error('Failed to delete old queue message:', err)
+          }
         }
       })
       .catch((err) => {
-        console.error(err)
+        console.error('Failed to fetch queue message:', err)
       })
   }
 
   if (!queueMsg) {
-    queueMsg = await queueChannel.send({
-      embeds: [embed],
-      components: [selectRow, buttonRow],
-    })
-    await pool.query('UPDATE settings SET queue_message_id = $1', [queueMsg.id])
+    try {
+      queueMsg = await queueChannel.send({
+        embeds: [embed],
+        components: [selectRow, buttonRow],
+      })
+      await pool.query('UPDATE settings SET queue_message_id = $1', [
+        queueMsg.id,
+      ])
+    } catch (err) {
+      console.error('Failed to send queue message:', err)
+    }
   }
 
   return queueMsg
@@ -549,12 +563,20 @@ export async function setUserQueueRole(
   // Remove all MMR-based roles (where mmr_threshold is not null)
   const mmrRoles = allQueueRoles.filter((role) => role.mmr_threshold !== null)
   for (const role of mmrRoles) {
-    await member.roles.remove(role.role_id)
+    try {
+      await member.roles.remove(role.role_id)
+    } catch (err) {
+      console.error(`Failed to remove MMR role ${role.role_id}:`, err)
+    }
   }
 
   // Add the current MMR-based role if one exists
   if (currentRole) {
-    await member.roles.add(currentRole.role_id)
+    try {
+      await member.roles.add(currentRole.role_id)
+    } catch (err) {
+      console.error(`Failed to add MMR role ${currentRole.role_id}:`, err)
+    }
   }
 
   // Remove all leaderboard roles (where leaderboard_min is not null)
@@ -562,12 +584,23 @@ export async function setUserQueueRole(
     (role) => role.leaderboard_min !== null,
   )
   for (const role of leaderboardRoles) {
-    await member.roles.remove(role.role_id)
+    try {
+      await member.roles.remove(role.role_id)
+    } catch (err) {
+      console.error(`Failed to remove leaderboard role ${role.role_id}:`, err)
+    }
   }
 
   // Add the current leaderboard role if one exists
   if (leaderboardRole) {
-    await member.roles.add(leaderboardRole.role_id)
+    try {
+      await member.roles.add(leaderboardRole.role_id)
+    } catch (err) {
+      console.error(
+        `Failed to add leaderboard role ${leaderboardRole.role_id}:`,
+        err,
+      )
+    }
   }
 }
 
