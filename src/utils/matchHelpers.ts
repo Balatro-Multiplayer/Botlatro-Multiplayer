@@ -569,7 +569,6 @@ export async function endMatch(
 ): Promise<boolean> {
   try {
     // close match in DB
-    console.log(`Closing match: ${matchId}`)
     await closeMatch(matchId)
 
     // get log file using glob library
@@ -593,11 +592,10 @@ export async function endMatch(
     //   fs.unlinkSync(file)
     // }
 
-    // delete match channel (failure results in early return)
+    // delete match channel
     const wasSuccessfullyDeleted = await deleteMatchChannel(matchId)
     if (!wasSuccessfullyDeleted) {
       console.error(`Failed to delete match channel for match ${matchId}`)
-      return false
     }
 
     if (cancelled) return true
@@ -606,7 +604,6 @@ export async function endMatch(
       `Error in file formatting or channel deletion for match ${matchId}:`,
       err,
     )
-    return false
   }
 
   // build results button row
@@ -648,24 +645,22 @@ export async function endMatch(
   teamResults = await calculateNewMMR(queueId, matchId, teamResultsData)
 
   // Save elo_change and winstreak to database
-  for (const team of teamResults.teams) {
-    for (const player of team.players) {
-      if (team.score == 1) {
-        await updatePlayerWinStreak(player.user_id, queueId, true)
-      } else {
-        await updatePlayerWinStreak(player.user_id, queueId, false)
-      }
+  const updatePromises = teamResults.teams.flatMap((team) =>
+    team.players.map(async (player) => {
+      // Update win streak
+      await updatePlayerWinStreak(player.user_id, queueId, team.score == 1)
+
+      // Update elo change if it exists
       if (player.elo_change !== undefined && player.elo_change !== null) {
         await pool.query(
           `UPDATE match_users SET elo_change = $1 WHERE match_id = $2 AND user_id = $3`,
           [player.elo_change, matchId, player.user_id],
         )
       }
-    }
-  }
+    }),
+  )
 
-  // Wait for database writes to fully commit before building results embed
-  await new Promise((resolve) => setTimeout(resolve, 500))
+  await Promise.all(updatePromises)
 
   // build results embed
   const resultsEmbed = new EmbedBuilder()
