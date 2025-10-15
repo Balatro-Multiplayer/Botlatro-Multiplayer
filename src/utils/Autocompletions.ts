@@ -33,13 +33,14 @@ export async function strikeAutocomplete(interaction: AutocompleteInteraction) {
       const uniqueIds = [...new Set(userIds)]
       const users = await Promise.all(uniqueIds.map((id) => fetchUserSafe(id)))
 
+      // why in the world is this here - jeff
       // logging
-      console.group('ids')
-      console.log(uniqueIds)
-      console.groupEnd()
-      console.group('users')
-      for (const user of users) console.log(user?.username)
-      console.groupEnd()
+      // console.group('ids')
+      // console.log(uniqueIds)
+      // console.groupEnd()
+      // console.group('users')
+      // for (const user of users) console.log(user?.username)
+      // console.groupEnd()
       //
 
       const q = value.toLowerCase()
