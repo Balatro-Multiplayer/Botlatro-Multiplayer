@@ -750,6 +750,7 @@ export async function userInMatch(userId: string): Promise<boolean> {
   // checks for the requested userId (not optimised but im stupid) - casjb
   let response: any[] = []
   for (const match of openMatches.rows) {
+    if (!match.channel_id) continue
     if (match.channel_id.includes('neatqueue')) continue
     const result = await pool.query(
       `
