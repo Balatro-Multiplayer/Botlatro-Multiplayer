@@ -594,7 +594,7 @@ export async function endMatch(
     // delete match channel
     const wasSuccessfullyDeleted = await deleteMatchChannel(matchId)
     if (!wasSuccessfullyDeleted) {
-      console.error(`Failed to delete match channel for match ${matchId}`)
+      console.log(`Channel id not found / failed to delete match ${matchId}`)
     }
 
     if (cancelled) return true

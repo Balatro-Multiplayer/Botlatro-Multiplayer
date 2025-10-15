@@ -132,8 +132,6 @@ export async function handleVoting(
   if (!interaction) return console.error('no interaction found for voting')
   if (!interaction.message)
     return console.error('No message found in interaction')
-  if (!interaction.deferred && !interaction.replied)
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral })
   const embed = interaction.message.embeds[0]
   if (!embed) return console.error('No embed found in message')
   const fields = embed.data.fields
@@ -254,8 +252,6 @@ export async function handleTwoPlayerMatchVoting(
     if (!fields) return console.error('No fields found in embed')
     if (!interaction)
       return console.error('no interaction found for two player voting')
-    if (!interaction.deferred && !interaction.replied)
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
     const winMatchData: string[] = interaction.values[0].split('_')
     const winMatchTeamId = parseInt(winMatchData[2])
@@ -270,10 +266,11 @@ export async function handleTwoPlayerMatchVoting(
         return interaction.editReply({
           content: `You are not allowed to vote in this poll.`,
         })
+      } else {
+        return interaction.reply({
+          content: `You are not allowed to vote in this poll.`,
+        })
       }
-      return interaction.reply({
-        content: `You are not allowed to vote in this poll.`,
-      })
     }
 
     // Get current user vote from database
