@@ -161,12 +161,17 @@ export async function incrementEloCronJobAllQueues() {
           const matchupUsers = bestPair.map((u) => u.userId)
 
           // remove users from all queues they are in
-          for (const userId of matchupUsers) {
-            const userQueues = await getUserQueues(userId)
-            for (const queue of userQueues) {
-              await removeUserFromQueue(queue.id, userId)
-            }
-          }
+          // Wait for all removal operations to complete before creating match
+          await Promise.all(
+            matchupUsers.map(async (userId) => {
+              const userQueues = await getUserQueues(userId)
+              await Promise.all(
+                userQueues.map((queue) =>
+                  removeUserFromQueue(queue.id, userId),
+                ),
+              )
+            }),
+          )
 
           // queue them for the match
           await createMatch(matchupUsers, bestPair[0].queueId)
