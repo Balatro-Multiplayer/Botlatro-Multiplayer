@@ -49,12 +49,15 @@ services:
       CLIENT_ID: ${CLIENT_ID}
       GUILD_ID: ${GUILD_ID}
       LOG_DIR: /app/data/logs
+      API_TOKEN: ${API_TOKEN}
     depends_on:
       seed-settings:
         condition: service_completed_successfully
     command: bash -lc "exec node dist/index.js"
     volumes:
       - botlogs:/app/data/logs
+    ports:
+      - "4931:4931"
     restart: unless-stopped
 
 volumes:

@@ -29,4 +29,6 @@ ENV LOG_DIR=/app/data/logs
 
 ENV NODE_ENV=production
 
+EXPOSE 4931
+
 CMD ["bash","-lc","exec node dist/index.js"]
