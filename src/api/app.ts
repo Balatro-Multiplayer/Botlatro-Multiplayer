@@ -6,7 +6,7 @@ import { queuesRouter } from './routers/commands/queues.router'
 import { cronRouter } from './routers/commands/cron.router'
 
 const app = new OpenAPIHono({ strict: false })
-const token = process.env.TOKEN
+const token = process.env.API_TOKEN
 
 if (!token) {
   console.error('no token you dumb fuck')
