@@ -60,8 +60,16 @@ export async function partyDeleteCronJob() {
 // increment elo search globally across all queues
 export async function incrementEloCronJobAllQueues() {
   const speedDefault = 2
+  let isRunning = false
 
   setInterval(async () => {
+    // Skip this iteration if the previous one is still running
+    if (isRunning) {
+      console.log('Matchmaking already running, skipping this iteration')
+      return
+    }
+
+    isRunning = true
     try {
       // get all active queues
       const activeQueues = await getActiveQueues()
@@ -166,6 +174,9 @@ export async function incrementEloCronJobAllQueues() {
       }
     } catch (err) {
       console.error('Error in global matchmaking:', err)
+    } finally {
+      // Always release the lock, even if an error occurred
+      isRunning = false
     }
   }, speedDefault * 1000)
 }

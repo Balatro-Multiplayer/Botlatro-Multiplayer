@@ -5,11 +5,7 @@ import {
   PermissionFlagsBits,
   SlashCommandBuilder,
 } from 'discord.js'
-import {
-  getMatchIdFromChannel,
-  getUsersInMatch,
-  getUserTeam,
-} from '../../utils/queryDB'
+import { getUsersInMatch, getUserTeam } from '../../utils/queryDB'
 import { pool } from '../../db'
 import { endMatch } from '../../utils/matchHelpers'
 
@@ -38,11 +34,11 @@ export default {
     ),
   async execute(interaction: ChatInputCommandInteraction) {
     try {
-      const matchId = await getMatchIdFromChannel(interaction.channelId)
+      const matchId = interaction.options.getInteger('match-id')
       const userId = interaction.options.getString('user', true)
       if (!matchId) {
         await interaction.reply({
-          content: 'No active match found in this channel.',
+          content: 'No match found.',
           flags: MessageFlags.Ephemeral,
         })
         return
