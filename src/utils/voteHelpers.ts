@@ -153,9 +153,15 @@ export async function handleVoting(
   if (participants.length && !participants.includes(interaction.user.id)) {
     if (!interaction.deferred)
       await interaction.deferReply({ flags: MessageFlags.Ephemeral })
-    return interaction.editReply({
-      content: `You are not allowed to vote in this poll.`,
-    })
+    if (interaction.deferred || interaction.replied) {
+      return interaction.editReply({
+        content: `You are not allowed to vote in this poll.`,
+      })
+    } else {
+      return interaction.reply({
+        content: `You are not allowed to vote in this poll.`,
+      })
+    }
   }
 
   // Get current user vote from database
@@ -260,7 +266,12 @@ export async function handleTwoPlayerMatchVoting(
     if (participants.length && !participants.includes(interaction.user.id)) {
       if (!interaction.deferred)
         await interaction.deferReply({ flags: MessageFlags.Ephemeral })
-      return interaction.editReply({
+      if (interaction.deferred || interaction.replied) {
+        return interaction.editReply({
+          content: `You are not allowed to vote in this poll.`,
+        })
+      }
+      return interaction.reply({
         content: `You are not allowed to vote in this poll.`,
       })
     }
