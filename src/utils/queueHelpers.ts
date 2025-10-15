@@ -200,6 +200,14 @@ export async function joinQueues(
     [userId],
   )
   if (res.rows.length > 0) {
+    console.log(
+      '1:',
+      res.rows[0].count,
+      '2:',
+      res.rows.length,
+      '3:',
+      res.rows[0],
+    )
     await interaction
       ?.followUp({ content: "You're already in queue!" })
       .catch((e) => console.error(e))
