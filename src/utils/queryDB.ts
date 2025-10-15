@@ -1175,8 +1175,7 @@ export async function getWinningTeamFromMatch(
     `SELECT winning_team FROM matches WHERE id = $1`,
     [matchId],
   )
-  if (response.rowCount === 0)
-    throw new Error(`Match with id ${matchId} does not exist.`)
+  if (response.rowCount === 0) return null
   return response.rows[0].winning_team
 }
 
