@@ -92,7 +92,7 @@ export async function incrementEloCronJobAllQueues() {
           if (elo === null) continue
           const userTimeSpent = await timeSpentInQueue(userId, queue.id)
           if (userTimeSpent === null) continue
-          const userPriorityQueueId = await getUserPriorityQueueId(userId)
+          const userPriorityQueueId = null // Temporary
 
           const currentRange = await getCurrentEloRangeForUser(userId, queue.id)
           const newRange = (currentRange ?? start) + increment
@@ -118,28 +118,29 @@ export async function incrementEloCronJobAllQueues() {
             let inRange =
               diff < candidates[i].range && diff < candidates[j].range
 
-            // Time-in-queue check
-            const anyTooRecent = [candidates[i], candidates[j]].some(
-              (candidate) => {
-                if (
-                  candidate.queueId === candidate.priorityQueueId ||
-                  candidate.priorityQueueId === null
-                )
-                  return false
-
-                const match = candidate.timeInQueue?.match(
-                  /<t:(\d+)(?::[a-zA-Z])?>/,
-                )
-                if (!match) return false
-
-                const tsMs = parseInt(match[1], 10) * 1000
-                const diffMinutes = (Date.now() - tsMs) / 60000
-
-                return diffMinutes < 3
-              },
-            )
-
-            inRange = inRange && !anyTooRecent
+            // Temporarily removing this until its fixed
+            // // Time-in-queue check
+            // const anyTooRecent = [candidates[i], candidates[j]].some(
+            //   (candidate) => {
+            //     if (
+            //       candidate.queueId === candidate.priorityQueueId ||
+            //       candidate.priorityQueueId === null
+            //     )
+            //       return false
+            //
+            //     const match = candidate.timeInQueue?.match(
+            //       /<t:(\d+)(?::[a-zA-Z])?>/,
+            //     )
+            //     if (!match) return false
+            //
+            //     const tsMs = parseInt(match[1], 10) * 1000
+            //     const diffMinutes = (Date.now() - tsMs) / 60000
+            //
+            //     return diffMinutes < 3
+            //   },
+            // )
+            //
+            // inRange = inRange && !anyTooRecent
 
             if (inRange && diff < minDiff) {
               minDiff = diff

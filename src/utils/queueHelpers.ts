@@ -103,7 +103,8 @@ export async function updateQueueMessage(): Promise<Message | undefined> {
     .setCustomId(`set-priority-queue`)
     .setLabel('Set Priority Queue')
     .setStyle(ButtonStyle.Primary)
-    .setDisabled(options.length < 2)
+    .setDisabled(true)
+  // .setDisabled(options.length < 2)
 
   const buttonRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
     leaveQueue,

@@ -37,7 +37,7 @@ import {
   getQueueSettings,
   getStake,
   getStakeByName,
-  getUserPriorityQueueId,
+  // getUserPriorityQueueId,
   getUserQueues,
   setMatchStakeVoteTeam,
   setPickedMatchStake,
@@ -434,9 +434,9 @@ export default {
 
         if (interaction.customId === 'check-queued') {
           const userQueueList = await getUserQueues(interaction.user.id)
-          const priorityQueueId = await getUserPriorityQueueId(
-            interaction.user.id,
-          )
+          // const priorityQueueId = await getUserPriorityQueueId(
+          //   interaction.user.id,
+          // )
 
           if (userQueueList.length > 0) {
             const timeSpent = await timeSpentInQueue(
@@ -447,7 +447,7 @@ export default {
               content:
                 `
                         You are in queue for **${userQueueList.map((queue) => `${queue.queue_name}`).join(', ')}**!` +
-                `${priorityQueueId ? `\nYour priority queue is **${(await getQueueSettings(priorityQueueId, ['queue_name'])).queue_name}**!` : ``}` +
+                // `${priorityQueueId ? `\nYour priority queue is **${(await getQueueSettings(priorityQueueId, ['queue_name'])).queue_name}**!` : ``}` +
                 `\nJoined queue ${timeSpent}.`,
               flags: MessageFlags.Ephemeral,
             })
