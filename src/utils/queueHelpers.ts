@@ -193,9 +193,12 @@ export async function joinQueues(
   }
 
   // checks if user is already in that queue
-  const res = await pool.query(`
+  const res = await pool.query(
+    `
     SELECT count(*) FROM queue_users WHERE user_id = $1 AND queue_join_time IS NOT NULL
-  `)
+  `,
+    [userId],
+  )
   if (res.rows.length > 0) {
     await interaction
       ?.followUp({ content: "You're already in queue!" })
