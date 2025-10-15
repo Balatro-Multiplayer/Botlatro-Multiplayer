@@ -86,7 +86,7 @@ export async function updateQueueMessage(): Promise<Message | undefined> {
         .setPlaceholder('Join Queue')
         .addOptions(options)
         .setMinValues(1)
-        .setMaxValues(queueList.length),
+        .setMaxValues(1),
     )
 
   const leaveQueue = new ButtonBuilder()
