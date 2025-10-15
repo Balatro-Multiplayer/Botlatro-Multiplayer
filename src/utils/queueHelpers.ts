@@ -192,6 +192,17 @@ export async function joinQueues(
     return null
   }
 
+  // checks if user is already in that queue
+  const res = await pool.query(`
+    SELECT count(*) FROM queue_users WHERE user_id = $1 AND queue_join_time IS NOT NULL
+  `)
+  if (res.rows.length > 0) {
+    await interaction
+      ?.followUp({ content: "You're already in queue!" })
+      .catch((e) => console.error(e))
+    return null
+  }
+
   const queueIds = selectedQueueIds.map((id) => parseInt(id))
 
   const allQueues = await pool.query(

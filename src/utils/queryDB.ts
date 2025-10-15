@@ -740,6 +740,7 @@ export async function removeUserFromQueue(
 
 // Checks if a user is in a match
 export async function userInMatch(userId: string): Promise<boolean> {
+  const guild = await getGuild()
   // gets all open matches
   const openMatches: QueryResult<Matches> = await pool.query(`
     SELECT * FROM matches
@@ -757,6 +758,23 @@ export async function userInMatch(userId: string): Promise<boolean> {
       `,
       [userId, match.id],
     )
+    let channel: any = null
+    try {
+      channel =
+        guild.channels.cache.get(match.channel_id) ??
+        (await guild.channels.fetch(match.channel_id))
+    } catch (error) {
+      channel = null
+    }
+    if (!channel || !channel.id) {
+      await pool.query(
+        `
+        UPDATE matches SET open = false where channel_id = $1 
+      `,
+        [match.channel_id],
+      )
+    }
+
     response = response.concat(result.rows)
   }
 

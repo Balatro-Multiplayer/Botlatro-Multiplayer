@@ -2,6 +2,8 @@ import { OpenAPIHono } from '@hono/zod-openapi'
 import { Scalar } from '@scalar/hono-api-reference'
 import { matchesRouter } from './routers/commands/matches.router'
 import { queuesRouter } from './routers/commands/queues.router'
+import { cronRouter } from './routers/commands/cron.router'
+
 const app = new OpenAPIHono({ strict: false })
 
 app.get('/', (c) => c.text('Hello Bun!'))
@@ -15,4 +17,5 @@ app.doc('/swagger', {
 app.get('/docs', Scalar({ url: '/swagger' }))
 app.route('/api/matches', matchesRouter)
 app.route('/api/queues', queuesRouter)
+app.route('/api/cron', cronRouter)
 export { app }
