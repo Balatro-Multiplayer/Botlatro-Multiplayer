@@ -3,6 +3,7 @@ import { getMatchIdFromChannel, getSettings } from '../utils/queryDB'
 import { resendMatchWinVote } from '../utils/matchHelpers'
 import * as fs from 'fs'
 import * as path from 'path'
+import { getGuild } from '../client'
 
 // Track message count per channel
 const channelMessageCounts = new Map<string, number>()
@@ -26,7 +27,7 @@ export default {
     try {
       if (message.author.bot) return
 
-      const guild = message.guild
+      const guild = await getGuild()
       const channel = message.channel
       const category = channel?.parent
       const content = message.content

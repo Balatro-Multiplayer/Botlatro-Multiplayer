@@ -1,7 +1,11 @@
-import { Canvas, CanvasRenderingContext2D, loadImage } from 'skia-canvas'
+import {
+  Canvas,
+  CanvasRenderingContext2D,
+  FontLibrary,
+  loadImage,
+} from 'skia-canvas'
 import { StatsCanvasPlayerData } from 'psqlDB'
-import { client } from 'client'
-import { FontLibrary } from 'skia-canvas'
+import { client, getGuild } from 'client'
 import path from 'path'
 
 const font = 'Capitana'
@@ -113,9 +117,7 @@ async function drawHeader(
   queueName: string,
 ) {
   const { padding } = config
-  const guild =
-    client.guilds.cache.get(process.env.GUILD_ID!) ??
-    (await client.guilds.fetch(process.env.GUILD_ID!))
+  const guild = await getGuild()
   const member = await guild.members.fetch(playerData.user_id).catch(() => null)
   const user = await client.users.fetch(playerData.user_id)
   const avatarY = (150 - 110) / 2

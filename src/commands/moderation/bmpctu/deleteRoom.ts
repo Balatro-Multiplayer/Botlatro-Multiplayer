@@ -9,13 +9,14 @@ import {
   getLogAndChannelId,
   removeRoomFromDb,
 } from '../../../utils/queryDB'
+import { getGuild } from '../../../client'
 
 export default {
   execute: async function (interaction: ChatInputCommandInteraction) {
     try {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral })
       const channelId = interaction.options.getString('room', true)
-      const guild = interaction.guild!
+      const guild = await getGuild()
       const channel = await guild.channels.fetch(channelId).catch(() => null)
       if (!channel || !channel.id || channel.type !== ChannelType.GuildText) {
         return await interaction.editReply({

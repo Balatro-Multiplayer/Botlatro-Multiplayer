@@ -4,7 +4,7 @@ import {
   MessageFlags,
 } from 'discord.js'
 import { strikeUtils } from '../../../utils/queryDB'
-import { client } from '../../../client'
+import { getGuild } from '../../../client'
 
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
@@ -12,10 +12,9 @@ export default {
       await interaction.deferReply({})
       const userId = interaction.options.getString('user', true)
       const strikeInfo = await strikeUtils.getUserStrikes(userId)
-      const guild =
-        client.guilds.cache.get(process.env.GUILD_ID!) ??
-        (await client.guilds.fetch(process.env.GUILD_ID!))
-      const member = await guild.members.fetch(userId)
+      const guild = await getGuild()
+      const member =
+        guild.members.cache.get(userId) ?? (await guild.members.fetch(userId))
       const username = member.displayName
       const usernameFormatted =
         username.toLowerCase().slice(-1) === 's'

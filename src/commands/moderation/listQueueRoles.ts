@@ -1,6 +1,6 @@
 import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
 import { getAllQueueRoles, getQueueIdFromName } from 'utils/queryDB'
-import { client } from 'client'
+import { getGuild } from 'client'
 
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
@@ -15,9 +15,7 @@ export default {
         return
       }
 
-      const guild =
-        client.guilds.cache.get(process.env.GUILD_ID!) ??
-        (await client.guilds.fetch(process.env.GUILD_ID!))
+      const guild = await getGuild()
 
       const queueRoles = await getAllQueueRoles(queueId)
 

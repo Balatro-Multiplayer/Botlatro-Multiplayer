@@ -124,13 +124,16 @@ export async function handleVoting(
     matchId = null as number | null, // optional match ID (for rematches that don't have a channel)
     resendMessage = true, // whether to resend the message (false for rematches)
     onComplete = async (
-      interaction: MessageComponentInteraction,
+      interaction: MessageComponentInteraction | null | undefined,
       extra: { embed: Embed; votes?: string[] },
     ) => {}, // callback when all participants vote
   },
 ) {
+  if (!interaction) return console.error('no interaction found for voting')
   if (!interaction.message)
     return console.error('No message found in interaction')
+  if (!interaction.deferred)
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral })
   const embed = interaction.message.embeds[0]
   if (!embed) return console.error('No embed found in message')
   const fields = embed.data.fields
@@ -148,9 +151,10 @@ export async function handleVoting(
 
   // Check if user is allowed to vote
   if (participants.length && !participants.includes(interaction.user.id)) {
-    return interaction.reply({
+    if (!interaction.deferred)
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+    return interaction.editReply({
       content: `You are not allowed to vote in this poll.`,
-      flags: MessageFlags.Ephemeral,
     })
   }
 
@@ -160,10 +164,11 @@ export async function handleVoting(
   // Check if user already voted for this vote type
   if (currentVote && currentVote.vote_type === voteType) {
     // Remove vote
+    // todo: make this send a revoke notice
     await removeUserVote(resolvedMatchId, interaction.user.id)
 
     // Update embed for display
-    const votesFromDb = await getVotesForMatch(resolvedMatchId, voteType)
+    const votesFromDb = await getVotesForMatch(resolvedMatchId, voteType) // get users who voted for chosen vote type
     const votesMentions = votesFromDb.map((uid) => `<@${uid}>`)
 
     // Ensure vote field exists
@@ -241,6 +246,10 @@ export async function handleTwoPlayerMatchVoting(
     if (!embed) return console.error('No embed found in message')
     const fields = embed.data.fields
     if (!fields) return console.error('No fields found in embed')
+    if (!interaction)
+      return console.error('no interaction found for two player voting')
+    if (!interaction.deferred)
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
     const winMatchData: string[] = interaction.values[0].split('_')
     const winMatchTeamId = parseInt(winMatchData[2])
@@ -249,9 +258,10 @@ export async function handleTwoPlayerMatchVoting(
 
     // Restrict to allowed voters
     if (participants.length && !participants.includes(interaction.user.id)) {
-      return interaction.reply({
+      if (!interaction.deferred)
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+      return interaction.editReply({
         content: `You are not allowed to vote in this poll.`,
-        flags: MessageFlags.Ephemeral,
       })
     }
 

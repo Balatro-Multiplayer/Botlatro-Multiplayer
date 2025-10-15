@@ -29,7 +29,7 @@ import {
 } from './queryDB'
 import { Queues } from 'psqlDB'
 import { QueryResult } from 'pg'
-import { client } from '../client'
+import { client, getGuild } from '../client'
 
 // Updates or sends a new queue message for the specified text channel
 export async function updateQueueMessage(): Promise<Message | undefined> {
@@ -151,9 +151,7 @@ export async function joinQueues(
   userId: string,
 ): Promise<string[] | null> {
   // Get guild member for role checks
-  const guild =
-    interaction.client.guilds.cache.get(process.env.GUILD_ID!) ??
-    (await interaction.client.guilds.fetch(process.env.GUILD_ID!))
+  const guild = await getGuild()
   const member = await guild.members.fetch(userId)
 
   // Ensure user exists
@@ -267,7 +265,7 @@ export async function joinQueues(
     await client.query('COMMIT')
   } catch (e) {
     await client.query('ROLLBACK')
-    throw e
+    console.error(e)
   } finally {
     client.release()
   }
@@ -415,7 +413,7 @@ export async function createMatch(
   queueId: number,
 ): Promise<any> {
   if (userIds.length === 0 || !queueId) {
-    throw new Error('Wrong parameters provided for creating a match')
+    console.error('Wrong parameters provided for creating a match')
   }
 
   // get global settings
@@ -545,9 +543,7 @@ export async function setUserQueueRole(
   const leaderboardRole = await getLeaderboardQueueRole(queueId, userId)
   const allQueueRoles = await getAllQueueRoles(queueId, false)
 
-  const guild =
-    client.guilds.cache.get(process.env.GUILD_ID!) ??
-    (await client.guilds.fetch(process.env.GUILD_ID!))
+  const guild = await getGuild()
   const member = await guild.members.fetch(userId)
 
   // Remove all MMR-based roles (where mmr_threshold is not null)

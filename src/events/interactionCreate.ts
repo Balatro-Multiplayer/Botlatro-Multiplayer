@@ -15,17 +15,17 @@ import {
 } from 'discord.js'
 import { pool } from '../db'
 import {
-  updateQueueMessage,
-  timeSpentInQueue,
   createMatch,
   joinQueues,
   setupViewStatsButtons,
+  timeSpentInQueue,
+  updateQueueMessage,
 } from '../utils/queueHelpers'
 import {
+  advanceDeckBanStep,
+  applyDefaultDeckBansAndAdvance,
   endMatch,
   getTeamsInMatch,
-  applyDefaultDeckBansAndAdvance,
-  advanceDeckBanStep,
 } from '../utils/matchHelpers'
 import {
   getActiveQueues,
@@ -33,31 +33,30 @@ import {
   getHelperRoleId,
   getMatchChannel,
   getMatchData,
+  getMatchIdFromChannel,
   getMatchStakeVoteTeam,
+  getPlayerElo,
+  getQueueIdFromMatch,
+  getQueueIdFromName,
   getQueueSettings,
+  getSettings,
   getStake,
   getStakeByName,
-  // getUserPriorityQueueId,
+  getStatsCanvasUserData,
   getUserQueues,
+  partyUtils,
+  setMatchBestOf,
   setMatchStakeVoteTeam,
   setPickedMatchStake,
   setQueueDeckBans,
-  setUserPriorityQueue,
-  setMatchBestOf,
-  getSettings,
-  partyUtils,
   setUserDefaultDeckBans,
-  getQueueIdFromName,
-  getStatsCanvasUserData,
+  setUserPriorityQueue,
   setWinningTeam,
-  getPlayerElo,
-  getQueueIdFromMatch,
-  getMatchIdFromChannel,
 } from '../utils/queryDB'
 import {
+  getBestOfMatchScores,
   handleTwoPlayerMatchVoting,
   handleVoting,
-  getBestOfMatchScores,
 } from '../utils/voteHelpers'
 import { drawPlayerStatsCanvas } from '../utils/canvasHelpers'
 
@@ -735,6 +734,7 @@ export default {
             matchId: matchId,
             resendMessage: false,
             onComplete: async (interaction, { embed }) => {
+              if (!interaction) return
               await interaction.update({
                 content: 'A Rematch for this matchup has begun!',
                 embeds: [embed],
@@ -808,6 +808,7 @@ export default {
             participants: matchUsersArray,
             matchId: matchId,
             onComplete: async (interaction, { embed }) => {
+              if (!interaction) return
               const rows = interaction.message.components.map((row) =>
                 ActionRowBuilder.from(row as any),
               ) as ActionRowBuilder<ButtonBuilder>[]

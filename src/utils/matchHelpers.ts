@@ -40,7 +40,7 @@ import { QueryResult } from 'pg'
 // import * as path from 'path'
 // import { glob } from 'glob'
 // import { parseLogLines } from './transcriptHelpers'
-import { client } from '../client'
+import { client, getGuild } from '../client'
 import {
   calculateNewMMR,
   calculatePredictedMMR,
@@ -217,8 +217,7 @@ export async function setupStakeButtons(
       stake.stake_name !== 'Orange Stake',
   )
 
-  if (stakeList.length < 5)
-    throw new Error('Not enough stakes to do stake bans.')
+  if (stakeList.length < 5) console.error('Not enough stakes to do stake bans.')
 
   const whiteStake =
     stakeList.find((stake) => stake.stake_name == 'White Stake') ?? stakeList[0]
@@ -853,9 +852,7 @@ export async function updateMatchCountChannel(): Promise<void> {
     if (!channelId) return
 
     // Fetch and update the channel
-    const guild =
-      client.guilds.cache.get(process.env.GUILD_ID!) ??
-      (await client.guilds.fetch(process.env.GUILD_ID!))
+    const guild = await getGuild()
 
     const channel = await guild.channels.fetch(channelId)
 

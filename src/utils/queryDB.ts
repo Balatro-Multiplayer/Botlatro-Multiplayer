@@ -11,7 +11,7 @@ import {
   StatsCanvasPlayerData,
   teamResults,
 } from 'psqlDB'
-import { client } from '../client'
+import { client, getGuild } from '../client'
 import { QueryResult } from 'pg'
 import { setUserQueueRole } from './queueHelpers'
 import { endMatch } from './matchHelpers'
@@ -639,7 +639,7 @@ export async function getMatchChannel(
     [matchId],
   )
 
-  if (rowCount == 0) throw Error('No matches found under this ID.')
+  if (rowCount == 0) console.error('No matches found under this ID.')
 
   const channel = await client.channels.fetch(rows[0].channel_id)
 
@@ -1122,7 +1122,7 @@ export async function resetPlayerElo(userId: string): Promise<void> {
     `SELECT default_elo FROM queues WHERE id = (SELECT queue_id FROM queue_users WHERE user_id = $1)`,
     [userId],
   )
-  if (defaultEloRes.rowCount === 0) throw new Error('No default elo founf.')
+  if (defaultEloRes.rowCount === 0) throw new Error('No default elo found.')
   const defaultElo = defaultEloRes.rows[0].default_elo
   await pool.query(`UPDATE queue_users SET elo = $1 WHERE user_id = $2`, [
     defaultElo,
@@ -1464,9 +1464,7 @@ export async function getStatsCanvasUserData(
 
     if (leaderboardRole) {
       // User has a leaderboard role - display it with position-based bar
-      const guild =
-        client.guilds.cache.get(process.env.GUILD_ID!) ??
-        (await client.guilds.fetch(process.env.GUILD_ID!))
+      const guild = await getGuild()
       const role =
         guild.roles.cache.get(leaderboardRole.role_id) ||
         (await guild.roles.fetch(leaderboardRole.role_id))

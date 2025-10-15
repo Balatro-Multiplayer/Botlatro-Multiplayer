@@ -1,4 +1,4 @@
-import { Client, Collection, GatewayIntentBits } from 'discord.js'
+import { Client, Collection, GatewayIntentBits, Guild } from 'discord.js'
 
 export const client = new Client({
   intents: [
@@ -8,3 +8,10 @@ export const client = new Client({
   ],
 })
 client.commands = new Collection()
+
+export const getGuild = async (): Promise<Guild> => {
+  return (
+    client.guilds.cache.get(process.env.GUILD_ID!) ??
+    (await client.guilds.fetch(process.env.GUILD_ID!))
+  )
+}

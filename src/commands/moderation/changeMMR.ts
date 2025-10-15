@@ -1,11 +1,12 @@
 import {
+  AutocompleteInteraction,
   ChatInputCommandInteraction,
   MessageFlags,
-  AutocompleteInteraction,
 } from 'discord.js'
 import { getQueueNames, updatePlayerElo } from '../../utils/queryDB'
 import { pool } from '../../db'
 import { setUserQueueRole } from 'utils/queueHelpers'
+import { getGuild } from '../../client'
 
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
@@ -19,9 +20,7 @@ export default {
       )
 
       const client = interaction.client
-      const guild =
-        client.guilds.cache.get(process.env.GUILD_ID!) ??
-        (await client.guilds.fetch(process.env.GUILD_ID!))
+      const guild = await getGuild()
 
       const member = await guild.members.fetch(user.id)
 
