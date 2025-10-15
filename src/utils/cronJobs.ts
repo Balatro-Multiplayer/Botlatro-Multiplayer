@@ -65,7 +65,6 @@ export async function incrementEloCronJobAllQueues() {
   setInterval(async () => {
     // Skip this iteration if the previous one is still running
     if (isRunning) {
-      console.log('Matchmaking already running, skipping this iteration')
       return
     }
 
