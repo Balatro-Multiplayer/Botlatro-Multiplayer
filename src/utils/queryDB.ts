@@ -1295,7 +1295,7 @@ export async function getStatsCanvasUserData(
       m.created_at   AS time
     FROM match_users mu
     JOIN matches m ON m.id = mu.match_id
-    WHERE mu.user_id = $1 AND m.queue_id = $2 AND m.winning_team IS NOT NULL AND mu.elo_change != 0.0
+    WHERE mu.user_id = $1 AND m.queue_id = $2 AND m.winning_team IS NOT NULL
     ORDER BY m.created_at DESC
     LIMIT 4
     `,
@@ -1311,7 +1311,7 @@ export async function getStatsCanvasUserData(
       m.created_at AS date
     FROM match_users mu
     JOIN matches m ON m.id = mu.match_id
-    WHERE mu.user_id = $1 AND m.queue_id = $2 AND m.winning_team IS NOT NULL AND mu.elo_change != 0.0
+    WHERE mu.user_id = $1 AND m.queue_id = $2 AND m.winning_team IS NOT NULL
     ORDER BY m.id
     `,
     [userId, queueId],
