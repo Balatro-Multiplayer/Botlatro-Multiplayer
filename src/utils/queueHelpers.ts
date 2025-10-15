@@ -343,13 +343,48 @@ export async function matchUpGames(): Promise<void> {
       if (users.some((u: Record<string, any>) => usedUsers.has(u.user_id)))
         continue
 
-      // Mark users as used
+      // Mark users as used in local set
       users.forEach((u: Record<string, any>) => usedUsers.add(u.user_id))
 
-      await createMatch(
-        users.map((u: Record<string, any>) => u.user_id),
-        queueId,
-      )
+      // Atomically check and remove users from queue to prevent race conditions
+      const userIds = users.map((u: Record<string, any>) => u.user_id)
+      const dbClient = await pool.connect()
+      try {
+        await dbClient.query('BEGIN')
+
+        // Lock the rows and check if all users are still in queue
+        const checkResult = await dbClient.query(
+          `SELECT user_id FROM queue_users
+           WHERE user_id = ANY($1::varchar[])
+           AND queue_join_time IS NOT NULL
+           FOR UPDATE`,
+          [userIds],
+        )
+
+        // If not all users are still available, skip this match
+        if (checkResult.rowCount !== userIds.length) {
+          await dbClient.query('ROLLBACK')
+          dbClient.release()
+          continue
+        }
+
+        // Remove users from queue (set queue_join_time to NULL)
+        await dbClient.query(
+          `UPDATE queue_users SET queue_join_time = NULL
+           WHERE user_id = ANY($1::varchar[])`,
+          [userIds],
+        )
+
+        await dbClient.query('COMMIT')
+        dbClient.release()
+
+        // Now create the match (users are already removed from queue)
+        await createMatch(userIds, queueId)
+      } catch (err) {
+        await dbClient.query('ROLLBACK')
+        dbClient.release()
+        console.error('Error creating match:', err)
+      }
     }
   } catch (err) {
     console.error('Error checking for queues:', err)
@@ -433,7 +468,6 @@ export async function createMatch(
     return console.log('Not a valid category.')
   }
   const channelCount = category.children.cache.size
-  console.log(channelCount)
 
   const channel = await guild.channels.create({
     name: `match-${matchId}`,
@@ -451,16 +485,11 @@ export async function createMatch(
     [channel.id, matchId],
   )
 
+  // Insert match_users (queue_join_time is already NULL from matchUpGames)
   for (const userId of userIds) {
     await pool.query(
-      'UPDATE queue_users SET queue_join_time = NULL WHERE user_id = $1',
-      [userId],
-    )
-    await pool.query(
-      `
-            INSERT INTO match_users (user_id, match_id, team)
-            VALUES ($1, $2, $3)
-        `,
+      `INSERT INTO match_users (user_id, match_id, team)
+       VALUES ($1, $2, $3)`,
       [userId, matchId, userIds.indexOf(userId) + 1],
     )
 
@@ -567,3 +596,9 @@ export function setupViewStatsButtons(
     leaderboardBtn,
   )
 }
+
+// TODO: ADD
+export async function sendQueueLog(
+  queueId: number,
+  matchId: number,
+): Promise<void> {}
