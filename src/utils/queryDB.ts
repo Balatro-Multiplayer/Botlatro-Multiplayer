@@ -741,7 +741,7 @@ export async function removeUserFromQueue(
 // Checks if a user is in a match
 export async function userInMatch(userId: string): Promise<boolean> {
   // gets all open matches
-  const openMatches = await pool.query(`
+  const openMatches: QueryResult<Matches> = await pool.query(`
     SELECT * FROM matches
     WHERE open = true
   `)
@@ -749,6 +749,7 @@ export async function userInMatch(userId: string): Promise<boolean> {
   // checks for the requested userId (not optimised but im stupid) - casjb
   let response: any[] = []
   for (const match of openMatches.rows) {
+    if (match.channel_id.includes('neatqueue')) continue
     const result = await pool.query(
       `
       SELECT * FROM match_users
