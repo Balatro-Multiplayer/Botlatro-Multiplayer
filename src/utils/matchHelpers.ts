@@ -605,6 +605,8 @@ export async function endMatch(
     )
   }
 
+  if (!cancelled) console.log(`Match ${matchId} ended`)
+
   // build results button row
   const resultsButtonRow: ActionRowBuilder<ButtonBuilder> =
     new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -643,6 +645,8 @@ export async function endMatch(
 
   teamResults = await calculateNewMMR(queueId, matchId, teamResultsData)
 
+  console.log(`${matchId} results: ${teamResults}`)
+
   // Save elo_change and winstreak to database
   const updatePromises = teamResults.teams.flatMap((team) =>
     team.players.map(async (player) => {
@@ -660,6 +664,8 @@ export async function endMatch(
   )
 
   await Promise.all(updatePromises)
+
+  console.log(`Updated elo_change and win_streak for match ${matchId}`)
 
   // build results embed
   const resultsEmbed = new EmbedBuilder()
@@ -770,6 +776,8 @@ export async function endMatch(
     console.error(`No results channel found for match ${matchId}`)
     return false
   }
+
+  console.log(`Sending results to ${resultsChannel.id}`)
 
   await resultsChannel.send({
     embeds: [resultsEmbed],
