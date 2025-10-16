@@ -4,6 +4,7 @@ import { bearerAuth } from 'hono/bearer-auth'
 import { matchesRouter } from './routers/commands/matches.router'
 import { queuesRouter } from './routers/commands/queues.router'
 import { cronRouter } from './routers/commands/cron.router'
+import { statsRouter } from './routers/commands/stats.router'
 
 const app = new OpenAPIHono({ strict: false })
 const token = process.env.API_TOKEN
@@ -28,4 +29,5 @@ app.get('/docs', Scalar({ url: '/swagger' }))
 app.route('/api/matches', matchesRouter)
 app.route('/api/queues', queuesRouter)
 app.route('/api/cron', cronRouter)
+app.route('/api/stats', statsRouter)
 export { app }

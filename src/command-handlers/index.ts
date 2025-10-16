@@ -1,5 +1,7 @@
 import { MODERATION_COMMAND_HANDLERS } from './moderation'
+import { STATS_COMMAND_HANDLERS } from './stats'
 
 export const COMMAND_HANDLERS = {
   MODERATION: MODERATION_COMMAND_HANDLERS,
+  STATS: STATS_COMMAND_HANDLERS,
 } as const
