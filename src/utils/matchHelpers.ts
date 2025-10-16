@@ -644,18 +644,18 @@ export async function endMatch(
   teamResults = await calculateNewMMR(queueId, matchId, teamResultsData)
 
   // Save elo_change and winstreak to database
+  // IMPORTANT: Always update elo_change to prevent race conditions
   const updatePromises = teamResults.teams.flatMap((team) =>
     team.players.map(async (player) => {
       // Update win streak
       await updatePlayerWinStreak(player.user_id, queueId, team.score == 1)
 
-      // Update elo change if it exists
-      if (player.elo_change !== undefined && player.elo_change !== null) {
-        await pool.query(
-          `UPDATE match_users SET elo_change = $1 WHERE match_id = $2 AND user_id = $3`,
-          [player.elo_change, matchId, player.user_id],
-        )
-      }
+      // Always update elo_change - use 0 as fallback if calculation failed
+      const eloChange = player.elo_change ?? 0
+      await pool.query(
+        `UPDATE match_users SET elo_change = $1 WHERE match_id = $2 AND user_id = $3`,
+        [eloChange, matchId, player.user_id],
+      )
     }),
   )
 

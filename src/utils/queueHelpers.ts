@@ -523,6 +523,7 @@ export async function createMatch(
   )
 
   // Insert match_users (queue_join_time is already NULL from matchUpGames)
+  // First, insert all users to create the match_users records
   for (const userId of userIds) {
     await pool.query(
       `INSERT INTO match_users (user_id, match_id, team)
@@ -541,6 +542,31 @@ export async function createMatch(
         ],
       })
     } catch (err) {}
+  }
+
+  // Calculate and store initial ELO changes for all players
+  // This prevents the race condition where elo_change is 0
+  try {
+    const { getTeamsInMatch } = await import('./matchHelpers')
+    const { calculatePredictedMMR } = await import('./algorithms/calculateMMR')
+
+    const teamData = await getTeamsInMatch(matchId)
+    if (teamData.teams.length > 0) {
+      // Calculate ELO changes assuming team 1 wins (as a baseline)
+      const winningTeamId = teamData.teams[0]?.id ?? 1
+      const eloChanges = await calculatePredictedMMR(queueId, teamData, winningTeamId)
+
+      // Store the calculated ELO changes in match_users table
+      for (const [userId, eloChange] of eloChanges.entries()) {
+        await pool.query(
+          `UPDATE match_users SET elo_change = $1 WHERE match_id = $2 AND user_id = $3`,
+          [eloChange, matchId, userId],
+        )
+      }
+    }
+  } catch (err) {
+    console.error('Error calculating initial ELO changes:', err)
+    // Continue even if ELO calculation fails - it will be recalculated at match end
   }
 
   await updateQueueMessage()

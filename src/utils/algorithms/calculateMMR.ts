@@ -129,6 +129,7 @@ export async function calculatePredictedMMR(
   }
 }
 
+
 export async function calculateNewMMR(
   queueId: number,
   matchId: number,
