@@ -86,7 +86,7 @@ export async function updateQueueMessage(): Promise<Message | undefined> {
         .setPlaceholder('Join Queue')
         .addOptions(options)
         .setMinValues(1)
-        .setMaxValues(1),
+        .setMaxValues(queueList.length),
     )
 
   const leaveQueue = new ButtonBuilder()
@@ -192,21 +192,35 @@ export async function joinQueues(
     return null
   }
 
-  // checks if user is already in that queue
-  const res = await pool.query(
+  const queueIds = selectedQueueIds.map((id) => parseInt(id))
+
+  // Check if user is already in any of the selected queues
+  const alreadyInQueueCheck = await pool.query(
     `
-    SELECT count(*) FROM queue_users WHERE user_id = $1 AND queue_join_time IS NOT NULL
+    SELECT queue_id FROM queue_users
+    WHERE user_id = $1
+      AND queue_id = ANY($2::int[])
+      AND queue_join_time IS NOT NULL
   `,
-    [userId],
+    [userId, queueIds],
   )
-  if (res.rows[0].count > 0) {
+
+  if (alreadyInQueueCheck.rows.length > 0) {
+    const queueIdsAlreadyIn = alreadyInQueueCheck.rows.map((r) => r.queue_id)
+    const queueNames = await pool.query(
+      `SELECT queue_name FROM queues WHERE id = ANY($1::int[])`,
+      [queueIdsAlreadyIn],
+    )
+    const names = queueNames.rows.map((r) => r.queue_name).join(', ')
+
     await interaction
-      ?.followUp({ content: "You're already in queue!" })
+      ?.followUp({
+        content: `You're already in queue: ${names}`,
+        flags: MessageFlags.Ephemeral,
+      })
       .catch((e) => console.error(e))
     return null
   }
-
-  const queueIds = selectedQueueIds.map((id) => parseInt(id))
 
   const allQueues = await pool.query(
     `SELECT * FROM queues WHERE id = ANY($1::int[])`,
