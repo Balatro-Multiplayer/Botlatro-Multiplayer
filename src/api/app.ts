@@ -14,8 +14,6 @@ if (!token) {
   process.exit(1)
 }
 
-app.use('*', bearerAuth({ token }))
-
 app.get('/', (c) => c.text('Hello Bun!'))
 app.doc('/swagger', {
   openapi: '3.0.0',
@@ -26,8 +24,15 @@ app.doc('/swagger', {
 })
 app.get('/docs', Scalar({ url: '/swagger' }))
 
+// Public routes (no auth required)
+app.route('/api/stats', statsRouter)
+
+// Protected routes (auth required)
+app.use('/api/matches/*', bearerAuth({ token }))
+app.use('/api/queues/*', bearerAuth({ token }))
+app.use('/api/cron/*', bearerAuth({ token }))
+
 app.route('/api/matches', matchesRouter)
 app.route('/api/queues', queuesRouter)
 app.route('/api/cron', cronRouter)
-app.route('/api/stats', statsRouter)
 export { app }
