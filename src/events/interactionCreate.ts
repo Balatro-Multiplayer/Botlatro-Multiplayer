@@ -52,6 +52,7 @@ import {
   setUserDefaultDeckBans,
   setUserPriorityQueue,
   setWinningTeam,
+  userInMatch,
 } from '../utils/queryDB'
 import {
   getBestOfMatchScores,
@@ -462,11 +463,7 @@ export default {
         }
 
         if (interaction.customId == 'leave-queue') {
-          const reply = await interaction.reply({
-            content: `You left the queue!`,
-            flags: MessageFlags.Ephemeral,
-          })
-
+          await interaction.deferReply({ flags: MessageFlags.Ephemeral })
           // Update the user's queue status
           await pool.query(
             `
@@ -476,6 +473,23 @@ export default {
             `,
             [interaction.user.id],
           )
+
+          let message = 'You left the queue!'
+
+          try {
+            // Check if user was added to a match during the race condition
+            const inMatch = await userInMatch(interaction.user.id)
+
+            if (inMatch) {
+              message = `You're in a match, so you aren't in queue.`
+            }
+          } catch (err) {
+            message = `You're in a match, so you aren't in queue.`
+          }
+
+          const reply = await interaction.editReply({
+            content: message,
+          })
 
           await updateQueueMessage()
 
