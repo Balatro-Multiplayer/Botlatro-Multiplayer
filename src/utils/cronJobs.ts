@@ -286,7 +286,7 @@ export async function deleteExpiredStrikesCronJob() {
   ) // every 2 hours
 }
 
-// update queue message every 3 seconds
+// update queue message every 2 seconds
 export async function updateQueueMessageCronJob() {
   setInterval(async () => {
     try {
@@ -294,5 +294,5 @@ export async function updateQueueMessageCronJob() {
     } catch (err) {
       console.error('Error updating queue message:', err)
     }
-  }, 3 * 1000) // every 3 seconds
+  }, 2 * 1000) // every 2 seconds
 }
