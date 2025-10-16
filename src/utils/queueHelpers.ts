@@ -185,9 +185,8 @@ export async function joinQueues(
       matchId.rows[0].match_id,
     ])
 
-    await interaction.followUp({
+    await interaction.editReply({
       content: `You're already in a match! <#${matchData.rows[0].channel_id}>`,
-      flags: MessageFlags.Ephemeral,
     })
     return null
   }
@@ -214,9 +213,8 @@ export async function joinQueues(
     const names = queueNames.rows.map((r) => r.queue_name).join(', ')
 
     await interaction
-      ?.followUp({
+      ?.editReply({
         content: `You're already in queue: ${names}`,
-        flags: MessageFlags.Ephemeral,
       })
       .catch((e) => console.error(e))
     return null
@@ -242,9 +240,8 @@ export async function joinQueues(
     if (queue.role_lock_id && !member.roles.cache.has(queue.role_lock_id)) {
       const role = guild.roles.cache.get(queue.role_lock_id)
       const roleName = role ? role.name : 'required role'
-      await interaction.followUp({
+      await interaction.editReply({
         content: `You need the **${roleName}** role to join the ${queue.queue_name} queue.`,
-        flags: MessageFlags.Ephemeral,
       })
       return null
     }

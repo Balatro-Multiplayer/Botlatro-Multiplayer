@@ -60,6 +60,9 @@ import {
 } from '../utils/voteHelpers'
 import { drawPlayerStatsCanvas } from '../utils/canvasHelpers'
 
+// Track users currently processing queue joins to prevent duplicates
+const processingQueueJoins = new Set<string>()
+
 export default {
   name: Events.InteractionCreate,
   async execute(interaction: Interaction) {
@@ -111,44 +114,61 @@ export default {
     if (interaction.isStringSelectMenu()) {
       try {
         if (interaction.customId === 'join-queue') {
-          await interaction.deferReply({ flags: MessageFlags.Ephemeral })
-          const member = interaction.member as GuildMember
-
-          // TEMPORARY BAN CHECK
-          if (member) {
-            if (member.roles.cache.has('1354296037094854788')) {
-              return await interaction.followUp({
-                content:
-                  'You are queue blacklisted, and cannot join the queue.',
-                flags: MessageFlags.Ephemeral,
-              })
-            }
+          // Check if user is already processing a queue join
+          if (processingQueueJoins.has(interaction.user.id)) {
+            return await interaction.reply({
+              content: 'You are already in queue.',
+              flags: MessageFlags.Ephemeral,
+            })
           }
 
-          const joinedQueues = await joinQueues(
-            interaction,
-            interaction.values,
-            interaction.user.id,
-          )
+          // Mark user as processing
+          processingQueueJoins.add(interaction.user.id)
 
-          if (joinedQueues) {
-            const reply = await interaction.followUp({
-              content:
-                joinedQueues.length > 0
-                  ? `You joined: ${joinedQueues.join(', ')}`
-                  : 'You left the queue.',
+          try {
+            await interaction.reply({
+              content: 'Joining queue...',
               flags: MessageFlags.Ephemeral,
-              fetchReply: true,
             })
+            const member = interaction.member as GuildMember
 
-            await updateQueueMessage()
+            // TEMPORARY BAN CHECK
+            if (member) {
+              if (member.roles.cache.has('1354296037094854788')) {
+                return await interaction.followUp({
+                  content:
+                    'You are queue blacklisted, and cannot join the queue.',
+                  flags: MessageFlags.Ephemeral,
+                })
+              }
+            }
 
-            // Delete the message after 10 seconds
-            setTimeout(async () => {
-              await interaction.deleteReply(reply.id).catch(() => {})
-            }, 10000)
-          } else {
-            await updateQueueMessage()
+            const joinedQueues = await joinQueues(
+              interaction,
+              interaction.values,
+              interaction.user.id,
+            )
+
+            if (joinedQueues) {
+              const reply = await interaction.editReply({
+                content:
+                  joinedQueues.length > 0
+                    ? `You joined: ${joinedQueues.join(', ')}`
+                    : 'You left the queue.',
+              })
+
+              await updateQueueMessage()
+
+              // Delete the message after 10 seconds
+              setTimeout(async () => {
+                await interaction.deleteReply(reply.id).catch(() => {})
+              }, 10000)
+            } else {
+              await updateQueueMessage()
+            }
+          } finally {
+            // Always remove user from processing set
+            processingQueueJoins.delete(interaction.user.id)
           }
         }
 
@@ -442,7 +462,10 @@ export default {
         }
 
         if (interaction.customId == 'leave-queue') {
-          await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+          const reply = await interaction.reply({
+            content: `You left the queue!`,
+            flags: MessageFlags.Ephemeral,
+          })
 
           // Update the user's queue status
           await pool.query(
@@ -453,12 +476,6 @@ export default {
             `,
             [interaction.user.id],
           )
-
-          const reply = await interaction.followUp({
-            content: `You left the queue!`,
-            flags: MessageFlags.Ephemeral,
-            fetchReply: true,
-          })
 
           await updateQueueMessage()
 
