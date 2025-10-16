@@ -228,7 +228,9 @@ export default {
                   const customSelId = interaction.values[0]
                   const matchDataParts: string[] = customSelId.split('_')
                   const matchId = parseInt(matchDataParts[1])
-                  console.log(`Finishing vote for ${matchId}, winner ${winner}`)
+                  console.log(
+                    `Finishing vote for match ${matchId}, winner ${winner}`,
+                  )
 
                   // Check if this match is Best of 3 or 5
                   const matchDataObj = await getMatchData(matchId)
@@ -284,7 +286,7 @@ export default {
                     }
 
                     console.log(
-                      `Winning team variable for ${matchId}: ${winningTeam}`,
+                      `Winning team variable for match ${matchId}: ${winningTeam}`,
                     )
 
                     if (winningTeam) {

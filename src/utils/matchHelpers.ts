@@ -618,12 +618,12 @@ export async function endMatch(
 
   teamResults = await calculateNewMMR(queueId, matchId, teamResultsData)
 
-  console.log(`${matchId} results: ${teamResults}`)
+  console.log(`match ${matchId} results: ${teamResults}`)
 
   // Save elo_change and winstreak to database
   const updatePromises = teamResults.teams.flatMap((team) =>
     team.players.map(async (player) => {
-      console.log(`Team ${team} player ${player} in ${matchId}`)
+      console.log(`Team ${team} player ${player} in match ${matchId}`)
       // Update win streak
       await updatePlayerWinStreak(player.user_id, queueId, team.score == 1)
 
