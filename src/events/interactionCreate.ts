@@ -158,10 +158,14 @@ export default {
                     : 'You left the queue.',
               })
 
+              await updateQueueMessage()
+
               // Delete the message after 10 seconds
               setTimeout(async () => {
                 await interaction.deleteReply(reply.id).catch(() => {})
               }, 10000)
+            } else {
+              await updateQueueMessage()
             }
           } finally {
             // Always remove user from processing set
@@ -486,6 +490,8 @@ export default {
           const reply = await interaction.editReply({
             content: message,
           })
+
+          await updateQueueMessage()
 
           // Delete the message after 10 seconds
           setTimeout(async () => {

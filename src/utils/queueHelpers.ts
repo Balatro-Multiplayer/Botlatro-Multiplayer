@@ -287,7 +287,7 @@ export async function joinQueues(
     // Batch upsert all queue joins
     for (const qId of selectedQueueIds) {
       const queueId = parseInt(qId)
-      const queue: Queues = queueMap.get(queueId)
+      const queue = queueMap.get(queueId)
       if (!queue) continue
 
       await createQueueUser(userId, queueId)
@@ -295,10 +295,9 @@ export async function joinQueues(
         `UPDATE queue_users
          SET queue_join_time = NOW(),
              elo = COALESCE(elo, $3),
-             peak_elo = COALESCE(peak_elo, $3),
-             current_elo_range = $4
+             peak_elo = COALESCE(peak_elo, $3)
          WHERE user_id = $1 AND queue_id = $2`,
-        [userId, queueId, queue.default_elo, queue.elo_search_start],
+        [userId, queueId, queue.default_elo],
       )
     }
 
@@ -543,6 +542,8 @@ export async function createMatch(
       })
     } catch (err) {}
   }
+
+  await updateQueueMessage()
 
   // Wait 2 seconds for channel to fully propagate in Discord's API
   await new Promise((resolve) => setTimeout(resolve, 2000))

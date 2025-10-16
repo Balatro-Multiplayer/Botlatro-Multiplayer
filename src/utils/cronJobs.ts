@@ -14,11 +14,7 @@ import {
   removeUserFromQueue,
   updateCurrentEloRangeForUser,
 } from './queryDB'
-import {
-  createMatch,
-  timeSpentInQueue,
-  updateQueueMessage,
-} from './queueHelpers'
+import { createMatch, timeSpentInQueue } from './queueHelpers'
 import { updateMatchCountChannel } from './matchHelpers'
 import { pool } from '../db'
 import * as fs from 'fs'
@@ -163,44 +159,21 @@ export async function incrementEloCronJobAllQueues() {
         if (bestPair.length === 2) {
           const matchupUsers = bestPair.map((u) => u.userId)
 
-          // Check with a lock to ensure that only one match is created at a time
-          const dbClient = await pool.connect()
-          try {
-            await dbClient.query('BEGIN')
+          // remove users from all queues they are in
+          // Wait for all removal operations to complete before creating match
+          await Promise.all(
+            matchupUsers.map(async (userId) => {
+              const userQueues = await getUserQueues(userId)
+              await Promise.all(
+                userQueues.map((queue) =>
+                  removeUserFromQueue(queue.id, userId),
+                ),
+              )
+            }),
+          )
 
-            // Lock the rows and check if all users are still in queue
-            const checkResult = await dbClient.query(
-              `SELECT user_id FROM queue_users
-               WHERE user_id = ANY($1::varchar[])
-               AND queue_join_time IS NOT NULL
-               FOR UPDATE`,
-              [matchupUsers],
-            )
-
-            // If not all users are still available, skip this match
-            if (checkResult.rowCount !== matchupUsers.length) {
-              await dbClient.query('ROLLBACK')
-              dbClient.release()
-              continue
-            }
-
-            // Remove users from queue (set queue_join_time to NULL)
-            await dbClient.query(
-              `UPDATE queue_users SET queue_join_time = NULL
-               WHERE user_id = ANY($1::varchar[])`,
-              [matchupUsers],
-            )
-
-            await dbClient.query('COMMIT')
-            dbClient.release()
-
-            // Now create the match (users are already removed from queue)
-            await createMatch(matchupUsers, bestPair[0].queueId)
-          } catch (err) {
-            await dbClient.query('ROLLBACK')
-            dbClient.release()
-            console.error('Error creating match in incrementEloCronJob:', err)
-          }
+          // queue them for the match
+          await createMatch(matchupUsers, bestPair[0].queueId)
         }
       }
     } catch (err) {
@@ -284,15 +257,4 @@ export async function deleteExpiredStrikesCronJob() {
     },
     2 * 60 * 60 * 1000,
   ) // every 2 hours
-}
-
-// update queue message every 2 seconds
-export async function updateQueueMessageCronJob() {
-  setInterval(async () => {
-    try {
-      await updateQueueMessage()
-    } catch (err) {
-      console.error('Error updating queue message:', err)
-    }
-  }, 2 * 1000) // every 2 seconds
 }

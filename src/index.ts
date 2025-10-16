@@ -6,7 +6,6 @@ import {
   runDecayTick,
   updateMatchCountCronJob,
   deleteExpiredStrikesCronJob,
-  updateQueueMessageCronJob,
 } from './utils/cronJobs'
 import { app } from './api/app'
 import { client } from './client'
@@ -70,9 +69,6 @@ void updateMatchCountCronJob().catch((error) =>
 )
 void deleteExpiredStrikesCronJob().catch((error) =>
   console.error('[STRIKES CRON ERROR]', error),
-)
-void updateQueueMessageCronJob().catch((error) =>
-  console.error('[QUEUE MESSAGE CRON ERROR]', error),
 )
 
 // Start API server
