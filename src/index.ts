@@ -14,6 +14,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import * as dotenv from 'dotenv'
 import { setupClientCommands } from 'setupCommands'
+import { serve } from '@hono/node-server'
 
 dotenv.config()
 
@@ -69,5 +70,16 @@ void updateMatchCountCronJob().catch((error) =>
 void deleteExpiredStrikesCronJob().catch((error) =>
   console.error('[STRIKES CRON ERROR]', error),
 )
+
+// Start API server
+const port = Number(process.env.PORT) || 4931
+console.log(`Starting API server on port ${port}`)
+
+serve({
+  fetch: app.fetch,
+  port,
+})
+
+console.log(`API server running on port ${port}`)
 
 export default app
