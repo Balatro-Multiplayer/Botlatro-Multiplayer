@@ -221,6 +221,9 @@ export default {
             await handleTwoPlayerMatchVoting(interaction, {
               participants: matchUsersArray,
               onComplete: async (interaction, winner) => {
+                console.log(
+                  `Starting finish vote from vote from ${interaction.user.id}`,
+                )
                 try {
                   const customSelId = interaction.values[0]
                   const matchDataParts: string[] = customSelId.split('_')
