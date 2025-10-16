@@ -222,7 +222,7 @@ export default {
               participants: matchUsersArray,
               onComplete: async (interaction, winner) => {
                 console.log(
-                  `Starting finish vote from vote from ${interaction.user.id}`,
+                  `Starting finish vote from vote from ${interaction.user.id} with winner ${winner}`,
                 )
                 try {
                   const customSelId = interaction.values[0]

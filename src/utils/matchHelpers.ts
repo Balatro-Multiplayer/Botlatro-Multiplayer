@@ -791,7 +791,7 @@ export async function endMatch(
     return false
   }
 
-  console.log(`Sending results to ${resultsChannel.id}`)
+  console.log(`Sending results to ${resultsChannel.id} on match ${matchId}`)
 
   await resultsChannel.send({
     embeds: [resultsEmbed],
