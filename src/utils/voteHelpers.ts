@@ -356,27 +356,21 @@ export async function handleTwoPlayerMatchVoting(
     const allVoted =
       participants.length > 0 && totalVotes === participants.length
 
+    // Check for winner
+    let winner: number | undefined
     if (allVoted) {
-      // Check majority
       const majority = Math.floor(participants.length / 2) + 1
-      let winner: number | undefined
       for (let i = 0; i < voteArray.length; i++) {
         if (voteArray[i].votes.length >= majority) {
           winner = i + 1 // Teams start at 1
         }
       }
-
-      if (winner) {
-        await onComplete(interaction, winner)
-        return
-      }
     }
 
     try {
-      // Acknowledge the interaction first
+      // Always update the message to show the vote immediately
       await interaction.deferUpdate()
 
-      // Delete the old message and send a new one
       const channel = interaction.channel as GuildChannel
       const components = interaction.message.components
       await interaction.message.delete()
@@ -388,6 +382,12 @@ export async function handleTwoPlayerMatchVoting(
         })
 
         setLastWinVoteMessage(channel.id, newMessage.id)
+      }
+
+      // AFTER showing the vote, process the winner (this does the heavy work)
+      if (winner) {
+        await onComplete(interaction, winner)
+        return
       }
     } catch (err) {
       console.error('Failed to update voting message:', err)
