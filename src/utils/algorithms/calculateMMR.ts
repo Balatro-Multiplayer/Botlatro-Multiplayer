@@ -4,7 +4,7 @@ import {
   getWinningTeamFromMatch,
   updatePlayerMmrAll,
 } from '../queryDB'
-import type { teamResults } from 'psqlDB'
+import type { Matches, Settings, teamResults } from 'psqlDB'
 import { setUserQueueRole } from 'utils/queueHelpers'
 import { clamp } from 'lodash-es'
 
@@ -131,48 +131,54 @@ export async function calculatePredictedMMR(
 
 export async function calculateNewMMR(
   queueId: number,
-  matchId: number,
+  matchData: Matches,
+  queueSettings: Settings,
   teamResults: teamResults,
+  winningTeamId: number,
 ): Promise<teamResults> {
-  const matchData = await getMatchData(matchId)
-  const settings = await getQueueSettings(matchData.queue_id)
-  const winningTeamId = await getWinningTeamFromMatch(matchId)
 
   try {
     const { teamStats, ratingChange, loserCount } =
       await calculateTeamStatsAndChanges(
         teamResults,
-        winningTeamId ?? 0,
-        settings.default_elo,
+        winningTeamId,
+        queueSettings.default_elo,
       )
 
     // Apply changes to all teams and players
+    const updatePromises: Promise<void>[] = []
+
     for (const ts of teamStats) {
       const isWinner = ts.isWinner
       const mmrChange = isWinner ? ratingChange : -ratingChange / loserCount
 
       for (const player of ts.team.players) {
-        const oldMMR = player.elo ?? settings.default_elo
+        const oldMMR = player.elo ?? queueSettings.default_elo
         const oldVolatility = player.volatility ?? 0
 
         const newMMR = parseFloat((oldMMR + mmrChange).toFixed(1))
         const newVolatility = Math.min(oldVolatility + 1, 10)
 
-        // Update database
-        await updatePlayerMmrAll(queueId, player.user_id, newMMR, newVolatility)
-
-        // Update teamResults object
+        // Update teamResults object immediately
         player.elo = clamp(newMMR, 0, 9999)
         player.elo_change = parseFloat(mmrChange.toFixed(1))
         player.volatility = newVolatility
 
-        // Set user queue role
-        await setUserQueueRole(queueId, player.user_id)
+        // Collect database update promises to run in parallel
+        updatePromises.push(
+          updatePlayerMmrAll(queueId, player.user_id, newMMR, newVolatility)
+        )
+        updatePromises.push(
+          setUserQueueRole(queueId, player.user_id)
+        )
       }
 
       // Set team score
       ts.team.score = isWinner ? 1 : 0
     }
+
+    // Run all database updates in parallel
+    await Promise.all(updatePromises)
 
     return teamResults
   } catch (err) {

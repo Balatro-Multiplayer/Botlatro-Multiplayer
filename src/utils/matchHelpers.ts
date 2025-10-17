@@ -611,7 +611,7 @@ export async function endMatch(
 
   const queueId = await getQueueIdFromMatch(matchId)
   console.log(`Queue ID for match ${matchId}: ${queueId}`)
-  const queueSettings = await getQueueSettings(queueId, ['queue_name', 'color'])
+  const queueSettings = await getQueueSettings(queueId)
   console.log(`Queue settings for match ${matchId}:`, queueSettings)
   const matchData = await getMatchData(matchId)
   console.log(`Match data for match ${matchId}:`, matchData)
@@ -626,7 +626,9 @@ export async function endMatch(
     })),
   }
 
-  teamResults = await calculateNewMMR(queueId, matchId, teamResultsData)
+  console.log(`match ${matchId} team results made`)
+
+  teamResults = await calculateNewMMR(queueId, matchData, queueSettings, teamResultsData, winningTeamId)
 
   console.log(`match ${matchId} results: ${teamResults.teams}`)
 
