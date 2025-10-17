@@ -21,6 +21,7 @@ import {
   getMatchChannel,
   getMatchData,
   getMatchResultsChannel,
+  getMatchStatus,
   getQueueIdFromMatch,
   getQueueSettings,
   getStakeByName,
@@ -566,6 +567,15 @@ export async function endMatch(
   matchId: number,
   cancelled = false,
 ): Promise<boolean> {
+  console.log(`Attempting to close match ${matchId}`)
+
+  const matchCheck = await getMatchStatus(matchId)
+  if (!matchCheck) {
+    console.log(`match ${matchId} already closed, aborting`)
+    return true
+  }
+
+  await closeMatch(matchId)
   console.log(`Ending match ${matchId}, cancelled: ${cancelled}`)
 
   if (cancelled) {
@@ -623,7 +633,9 @@ export async function endMatch(
   // Save elo_change and winstreak to database
   const updatePromises = teamResults.teams.flatMap((team) =>
     team.players.map(async (player) => {
-      console.log(`Team ${team} player ${player} in match ${matchId}`)
+      console.log(
+        `Team ${team.id} player ${player.user_id} in match ${matchId}`,
+      )
       // Update win streak
       await updatePlayerWinStreak(player.user_id, queueId, team.score == 1)
 
@@ -644,7 +656,6 @@ export async function endMatch(
   try {
     // close match in DB
     console.log(`Ending match ${matchId}, cancelled: ${cancelled}`)
-    await closeMatch(matchId)
 
     // get log file using glob library
     // const pattern = path

@@ -790,6 +790,14 @@ export async function getActiveMatches(): Promise<Matches[]> {
   return res.rows
 }
 
+export async function getMatchStatus(matchId: number): Promise<boolean> {
+  const res = await pool.query(`SELECT open FROM matches WHERE id = $1`, [
+    matchId,
+  ])
+
+  return res.rows[0].open ?? false
+}
+
 export async function closeMatch(matchId: number): Promise<boolean> {
   const res = await pool.query(
     `UPDATE matches SET open = false WHERE id = $1`,
