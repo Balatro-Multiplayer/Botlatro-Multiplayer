@@ -41,13 +41,17 @@ export default {
         await COMMAND_HANDLERS.MODERATION.CANCEL_MATCH(matchId)
 
       if (matchCancelCheck) {
-        await interaction.reply({
-          content: `Successfully cancelled match ${matchId}`,
-        })
+        await interaction
+          .reply({
+            content: `Successfully cancelled match ${matchId}`,
+          })
+          .catch(() => console.log('Failed to reply'))
       } else {
-        await interaction.reply({
-          content: `Failed to cancel match ${matchId}.`,
-        })
+        await interaction
+          .reply({
+            content: `Failed to cancel match ${matchId}.`,
+          })
+          .catch(() => console.log('Failed to reply'))
       }
     } catch (err: any) {
       console.error(err)
