@@ -566,8 +566,84 @@ export async function endMatch(
   matchId: number,
   cancelled = false,
 ): Promise<boolean> {
+  console.log(`Ending match ${matchId}, cancelled: ${cancelled}`)
+
+  if (cancelled) {
+    console.log(`Match ${matchId} cancelled.`)
+    const wasSuccessfullyDeleted = await deleteMatchChannel(matchId)
+    if (!wasSuccessfullyDeleted) {
+      console.log(`Channel id not found / failed to delete match ${matchId}`)
+    }
+    return true
+  }
+
+  // build results button row
+  const resultsButtonRow: ActionRowBuilder<ButtonBuilder> =
+    new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`rematch-${matchId}`)
+        .setLabel('Rematch')
+        .setEmoji('⚔️')
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId(`match-contest-${matchId}`)
+        .setLabel('Contest Match')
+        .setEmoji('📩')
+        .setStyle(ButtonStyle.Secondary),
+    )
+
+  const matchTeams = await getTeamsInMatch(matchId)
+  const winningTeamId = await getWinningTeamFromMatch(matchId)
+  if (!winningTeamId) {
+    console.error(`No winning team found for match ${matchId}`)
+    return false
+  }
+
+  const queueId = await getQueueIdFromMatch(matchId)
+  console.log(`Queue ID for match ${matchId}: ${queueId}`)
+  const queueSettings = await getQueueSettings(queueId, ['queue_name', 'color'])
+  console.log(`Queue settings for match ${matchId}:`, queueSettings)
+  const matchData = await getMatchData(matchId)
+  console.log(`Match data for match ${matchId}:`, matchData)
+
+  let teamResults: teamResults | null
+  // create our teamResults object here
+  const teamResultsData: teamResults = {
+    teams: matchTeams.teams.map((teamResult) => ({
+      id: teamResult.id,
+      score: teamResult.score as 0 | 0.5 | 1,
+      players: teamResult.players as MatchUsers[],
+    })),
+  }
+
+  teamResults = await calculateNewMMR(queueId, matchId, teamResultsData)
+
+  console.log(`match ${matchId} results: ${teamResults.teams}`)
+
+  // Save elo_change and winstreak to database
+  const updatePromises = teamResults.teams.flatMap((team) =>
+    team.players.map(async (player) => {
+      console.log(`Team ${team} player ${player} in match ${matchId}`)
+      // Update win streak
+      await updatePlayerWinStreak(player.user_id, queueId, team.score == 1)
+
+      // Update elo change if it exists
+      if (player.elo_change !== undefined && player.elo_change !== null) {
+        await pool.query(
+          `UPDATE match_users SET elo_change = $1 WHERE match_id = $2 AND user_id = $3`,
+          [player.elo_change, matchId, player.user_id],
+        )
+      }
+    }),
+  )
+
+  await Promise.all(updatePromises)
+
+  console.log(`Updated elo_change and win_streak for match ${matchId}`)
+
   try {
     // close match in DB
+    console.log(`Ending match ${matchId}, cancelled: ${cancelled}`)
     await closeMatch(matchId)
 
     // get log file using glob library
@@ -604,62 +680,6 @@ export async function endMatch(
       err,
     )
   }
-
-  // build results button row
-  const resultsButtonRow: ActionRowBuilder<ButtonBuilder> =
-    new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`rematch-${matchId}`)
-        .setLabel('Rematch')
-        .setEmoji('⚔️')
-        .setStyle(ButtonStyle.Primary),
-      new ButtonBuilder()
-        .setCustomId(`match-contest-${matchId}`)
-        .setLabel('Contest Match')
-        .setEmoji('📩')
-        .setStyle(ButtonStyle.Secondary),
-    )
-
-  const matchTeams = await getTeamsInMatch(matchId)
-  const winningTeamId = await getWinningTeamFromMatch(matchId)
-  if (!winningTeamId) {
-    console.error(`No winning team found for match ${matchId}`)
-    return false
-  }
-
-  const queueId = await getQueueIdFromMatch(matchId)
-  const queueSettings = await getQueueSettings(queueId, ['queue_name', 'color'])
-  const matchData = await getMatchData(matchId)
-
-  let teamResults: teamResults | null
-  // create our teamResults object here
-  const teamResultsData: teamResults = {
-    teams: matchTeams.teams.map((teamResult) => ({
-      id: teamResult.id,
-      score: teamResult.score as 0 | 0.5 | 1,
-      players: teamResult.players as MatchUsers[],
-    })),
-  }
-
-  teamResults = await calculateNewMMR(queueId, matchId, teamResultsData)
-
-  // Save elo_change and winstreak to database
-  const updatePromises = teamResults.teams.flatMap((team) =>
-    team.players.map(async (player) => {
-      // Update win streak
-      await updatePlayerWinStreak(player.user_id, queueId, team.score == 1)
-
-      // Update elo change if it exists
-      if (player.elo_change !== undefined && player.elo_change !== null) {
-        await pool.query(
-          `UPDATE match_users SET elo_change = $1 WHERE match_id = $2 AND user_id = $3`,
-          [player.elo_change, matchId, player.user_id],
-        )
-      }
-    }),
-  )
-
-  await Promise.all(updatePromises)
 
   // build results embed
   const resultsEmbed = new EmbedBuilder()
@@ -770,6 +790,8 @@ export async function endMatch(
     console.error(`No results channel found for match ${matchId}`)
     return false
   }
+
+  console.log(`Sending results to ${resultsChannel.id} on match ${matchId}`)
 
   await resultsChannel.send({
     embeds: [resultsEmbed],
