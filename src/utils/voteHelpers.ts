@@ -377,8 +377,11 @@ export async function handleTwoPlayerMatchVoting(
 
       if (channel && channel.isTextBased()) {
         const newMessage = await channel.send({
-          embeds: [embed],
-          components: components,
+          content: winner
+            ? `Ending match, please be patient and give it a moment to wrap up.`
+            : '',
+          embeds: winner ? [] : [embed],
+          components: winner ? [] : components,
         })
 
         setLastWinVoteMessage(channel.id, newMessage.id)
