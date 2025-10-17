@@ -1,10 +1,5 @@
-import {
-  getQueueSettings,
-  getMatchData,
-  getWinningTeamFromMatch,
-  updatePlayerMmrAll,
-} from '../queryDB'
-import type { Matches, Settings, teamResults } from 'psqlDB'
+import { getQueueSettings, updatePlayerMmrAll } from '../queryDB'
+import type { Matches, Queues, teamResults } from 'psqlDB'
 import { setUserQueueRole } from 'utils/queueHelpers'
 import { clamp } from 'lodash-es'
 
@@ -132,11 +127,10 @@ export async function calculatePredictedMMR(
 export async function calculateNewMMR(
   queueId: number,
   matchData: Matches,
-  queueSettings: Settings,
+  queueSettings: Queues,
   teamResults: teamResults,
   winningTeamId: number,
 ): Promise<teamResults> {
-
   try {
     const { teamStats, ratingChange, loserCount } =
       await calculateTeamStatsAndChanges(
@@ -166,11 +160,9 @@ export async function calculateNewMMR(
 
         // Collect database update promises to run in parallel
         updatePromises.push(
-          updatePlayerMmrAll(queueId, player.user_id, newMMR, newVolatility)
+          updatePlayerMmrAll(queueId, player.user_id, newMMR, newVolatility),
         )
-        updatePromises.push(
-          setUserQueueRole(queueId, player.user_id)
-        )
+        updatePromises.push(setUserQueueRole(queueId, player.user_id))
       }
 
       // Set team score
