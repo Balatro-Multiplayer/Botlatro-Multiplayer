@@ -491,10 +491,10 @@ export default {
             const inMatch = await userInMatch(interaction.user.id)
 
             if (inMatch) {
-              message = `You're in a match, so you aren't in queue.`
+              message = `You're in a match, so you aren't in queue.\n(If you don't see your match, please wait a moment, it is being created.)`
             }
           } catch (err) {
-            message = `You're in a match, so you aren't in queue.`
+            message = `You're in a match, so you aren't in queue.\n(If you don't see your match, please wait a moment, it is being created.)`
           }
 
           const reply = await interaction.editReply({
