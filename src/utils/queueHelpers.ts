@@ -578,6 +578,7 @@ export async function setUserQueueRole(
   queueId: number,
   userId: string,
 ): Promise<void> {
+  console.log(`setting queue role for user ${userId} in queue ${queueId}`)
   const currentRole = await getUserQueueRole(queueId, userId)
   const leaderboardRole = await getLeaderboardQueueRole(queueId, userId)
   const allQueueRoles = await getAllQueueRoles(queueId, false)

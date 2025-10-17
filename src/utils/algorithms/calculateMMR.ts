@@ -1,4 +1,8 @@
-import { getQueueSettings, updatePlayerMmrAll } from '../queryDB'
+import {
+  getQueueSettings,
+  getUsersNeedingRoleUpdates,
+  updatePlayerMmrAll,
+} from '../queryDB'
 import type { Matches, Queues, teamResults } from 'psqlDB'
 import { setUserQueueRole } from 'utils/queueHelpers'
 import { clamp } from 'lodash-es'
@@ -139,7 +143,7 @@ export async function calculateNewMMR(
         queueSettings.default_elo,
       )
 
-    // Apply changes to all teams and players
+    const playerMMRChanges: Array<{ user_id: string; oldMMR: number; newMMR: number }> = []
     const updatePromises: Promise<void>[] = []
 
     for (const ts of teamStats) {
@@ -153,24 +157,38 @@ export async function calculateNewMMR(
         const newMMR = parseFloat((oldMMR + mmrChange).toFixed(1))
         const newVolatility = Math.min(oldVolatility + 1, 10)
 
-        // Update teamResults object immediately
+        playerMMRChanges.push({
+          user_id: player.user_id,
+          oldMMR,
+          newMMR,
+        })
+
         player.elo = clamp(newMMR, 0, 9999)
         player.elo_change = parseFloat(mmrChange.toFixed(1))
         player.volatility = newVolatility
 
-        // Collect database update promises to run in parallel
         updatePromises.push(
           updatePlayerMmrAll(queueId, player.user_id, newMMR, newVolatility),
         )
-        updatePromises.push(setUserQueueRole(queueId, player.user_id))
       }
 
-      // Set team score
       ts.team.score = isWinner ? 1 : 0
     }
 
-    // Run all database updates in parallel
     await Promise.all(updatePromises)
+
+    const usersNeedingRoleUpdate = await getUsersNeedingRoleUpdates(
+      queueId,
+      playerMMRChanges,
+    )
+
+    if (usersNeedingRoleUpdate.length > 0) {
+      await Promise.all(
+        usersNeedingRoleUpdate.map((userId) =>
+          setUserQueueRole(queueId, userId),
+        ),
+      )
+    }
 
     return teamResults
   } catch (err) {

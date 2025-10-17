@@ -117,7 +117,8 @@ export async function createQueueUser(
     ON CONFLICT (user_id, queue_id) DO NOTHING`,
     [userId, queueSettings.default_elo, queueId],
   )
-  await setUserQueueRole(queueId, userId)
+  // Removing since we add queue roles after match ends
+  // await setUserQueueRole(queueId, userId)
 }
 
 // Set a priority queue for a user
@@ -301,6 +302,34 @@ export async function getUserQueueRole(
   if (res.rowCount === 0) return null
 
   return res.rows[0]
+}
+
+export async function getUsersNeedingRoleUpdates(
+  queueId: number,
+  players: Array<{ user_id: string; oldMMR: number; newMMR: number }>,
+): Promise<string[]> {
+  if (players.length === 0) return []
+
+  const roles = await pool.query(
+    `SELECT mmr_threshold FROM queue_roles
+     WHERE queue_id = $1 AND mmr_threshold IS NOT NULL
+     ORDER BY mmr_threshold DESC`,
+    [queueId],
+  )
+
+  const thresholds = roles.rows.map(r => r.mmr_threshold)
+  const usersToUpdate: string[] = []
+
+  for (const player of players) {
+    const oldRole = thresholds.find(t => t <= player.oldMMR)
+    const newRole = thresholds.find(t => t <= player.newMMR)
+
+    if (oldRole !== newRole) {
+      usersToUpdate.push(player.user_id)
+    }
+  }
+
+  return usersToUpdate
 }
 
 export async function getLeaderboardPosition(
