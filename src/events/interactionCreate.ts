@@ -64,6 +64,9 @@ import { drawPlayerStatsCanvas } from '../utils/canvasHelpers'
 // Track users currently processing queue joins to prevent duplicates
 const processingQueueJoins = new Set<string>()
 
+// Track matches currently being ended to prevent duplicate processing
+const processingMatchEnds = new Set<number>()
+
 export default {
   name: Events.InteractionCreate,
   async execute(interaction: Interaction) {
@@ -195,6 +198,15 @@ export default {
         if (interaction.values[0].includes('winmatch_')) {
           const customSelId = interaction.values[0]
           const matchId = parseInt(customSelId.split('_')[1])
+
+          // Check if this match is already being processed
+          if (processingMatchEnds.has(matchId)) {
+            return await interaction.reply({
+              content: 'This match is already being processed.',
+              flags: MessageFlags.Ephemeral,
+            })
+          }
+
           const matchUsers = await getTeamsInMatch(matchId)
           const matchUsersArray = matchUsers.teams.flatMap((t) =>
             t.players.map((u) => u.user_id),
@@ -212,8 +224,14 @@ export default {
                 member.roles.cache.has(botSettings.queue_helper_role_id)) &&
               !matchUsersArray.includes(interaction.user.id)
             ) {
-              await setWinningTeam(matchId, winMatchTeamId)
-              await endMatch(matchId)
+              // Mark match as being processed
+              processingMatchEnds.add(matchId)
+              try {
+                await setWinningTeam(matchId, winMatchTeamId)
+                await endMatch(matchId)
+              } finally {
+                processingMatchEnds.delete(matchId)
+              }
             }
           }
 
@@ -232,14 +250,27 @@ export default {
                     `Finishing vote for match ${matchId}, winner ${winner}`,
                   )
 
+                  // Check if match is already being processed
+                  if (processingMatchEnds.has(matchId)) {
+                    console.log(`Match ${matchId} already being processed, skipping`)
+                    return
+                  }
+
+                  // Mark match as being processed
+                  processingMatchEnds.add(matchId)
+
                   // Check if this match is Best of 3 or 5
                   const matchDataObj = await getMatchData(matchId)
                   const isBo3 = matchDataObj.best_of_3
                   const isBo5 = matchDataObj.best_of_5
 
                   if (!isBo3 && !isBo5) {
-                    await setWinningTeam(matchId, winner)
-                    await endMatch(matchId)
+                    try {
+                      await setWinningTeam(matchId, winner)
+                      await endMatch(matchId)
+                    } finally {
+                      processingMatchEnds.delete(matchId)
+                    }
                     return
                   } else {
                     const embed = interaction.message.embeds[0]
@@ -290,10 +321,17 @@ export default {
                     )
 
                     if (winningTeam) {
-                      await setWinningTeam(matchId, winningTeam)
-                      await endMatch(matchId)
+                      try {
+                        await setWinningTeam(matchId, winningTeam)
+                        await endMatch(matchId)
+                      } finally {
+                        processingMatchEnds.delete(matchId)
+                      }
                       return
                     }
+
+                    // Match continues - remove from processing set
+                    processingMatchEnds.delete(matchId)
 
                     interaction.message.embeds[0] = embed
                     await interaction.update({
@@ -302,6 +340,8 @@ export default {
                   }
                 } catch (error) {
                   console.error(error)
+                  // Clean up on error
+                  processingMatchEnds.delete(matchId)
                 }
               },
             })
