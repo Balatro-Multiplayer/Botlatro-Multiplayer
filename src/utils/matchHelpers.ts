@@ -654,9 +654,7 @@ export async function updateQueueLogMessage(
         const eloChange = player.elo_change ?? 0
         const changeStr = eloChange > 0 ? `+${eloChange}` : `${eloChange}`
         const winnerEmoji = team.id === winningTeamId ? '🏆 ' : ''
-        playerLines.push(
-          `${winnerEmoji}<@${player.user_id}>: ${changeStr} MMR (${player.elo} total)`,
-        )
+        playerLines.push(`${winnerEmoji}<@${player.user_id}>: ${changeStr} MMR`)
       }
     }
 
@@ -672,7 +670,6 @@ export async function updateQueueLogMessage(
 
     await queueLogMsg.edit({
       embeds: [updatedEmbed],
-      components: [],
     })
 
     console.log(`Updated queue log message for match ${matchId}`)

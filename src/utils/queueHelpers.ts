@@ -739,13 +739,23 @@ export async function sendQueueLog(
   const selectRow =
     new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu)
 
+  // Add cancel match button
+  const cancelButton = new ButtonBuilder()
+    .setCustomId(`cancel-${matchId}`)
+    .setLabel('Cancel Match')
+    .setStyle(ButtonStyle.Danger)
+
+  const buttonRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    cancelButton,
+  )
+
   // Send to logging channel
   try {
     await matchLog.setLogChannel()
     if (matchLog.channel) {
       const matchLogMsg = await matchLog.channel.send({
         embeds: [matchLog.embed],
-        components: [selectRow],
+        components: [selectRow, buttonRow],
       })
       await setMatchQueueLogMessageId(matchId, matchLogMsg.id)
     }

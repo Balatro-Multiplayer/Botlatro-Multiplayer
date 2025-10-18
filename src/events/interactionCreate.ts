@@ -652,9 +652,13 @@ export default {
             t.players.map((u) => u.user_id),
           )
 
-          async function cancel(interaction: any, matchId: number) {
+          async function cancel(
+            interaction: any,
+            matchId: number,
+            log: boolean = false,
+          ) {
             try {
-              if (interaction.message) {
+              if (interaction.message && !log) {
                 await interaction
                   .update({
                     content: 'The match has been cancelled.',
@@ -679,6 +683,11 @@ export default {
               !matchUsersArray.includes(interaction.user.id)
             )
               await cancel(interaction, matchId)
+          }
+
+          // Check if log channel is the channel
+          if (interaction.channel!.id == botSettings.queue_logs_channel_id) {
+            await cancel(interaction, matchId, true)
           }
 
           // Otherwise do normal vote
