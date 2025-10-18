@@ -6,8 +6,9 @@ import {
   SlashCommandBuilder,
 } from 'discord.js'
 import { getUsersInMatch, getUserTeam } from '../../utils/queryDB'
-import { pool } from '../../db'
 import { endMatch } from '../../utils/matchHelpers'
+import { getMatchesForAutocomplete } from '../../utils/Autocompletions'
+import { pool } from '../../db'
 
 export default {
   data: new SlashCommandBuilder()
@@ -92,22 +93,20 @@ export default {
       )
       await interaction.respond(filtered.slice(0, 25))
     } else if (currentValue.name === 'match-id') {
-      const input = currentValue.value
-      const matches = await pool.query(
-        'SELECT id FROM matches ORDER BY id DESC',
-      )
-      if (!matches.rows || matches.rows.length === 0) {
+      const input = currentValue.value ?? ''
+      const matches = await getMatchesForAutocomplete(input)
+
+      if (!matches || matches.length === 0) {
         await interaction.respond([])
         return
       }
-      const matchIds = matches.rows.map((match: any) => ({
-        name: (interaction.channelId = match.id.toString())
-          ? `${match.id.toString()}`
-          : match.id.toString(),
+
+      const matchIds = matches.map((match) => ({
+        name: match.id.toString(),
         value: match.id.toString(),
       }))
-      const filtered = matchIds.filter((match) => match.name.includes(input))
-      await interaction.respond(filtered.slice(0, 25))
+
+      await interaction.respond(matchIds)
     }
   },
 }
