@@ -20,15 +20,18 @@ import {
   getDecksInQueue,
   getMatchChannel,
   getMatchData,
+  getMatchQueueLogMessageId,
   getMatchResultsChannel,
-  getMatchStatus,
+  getMatchResultsMessageId,
   getQueueIdFromMatch,
   getQueueSettings,
+  getSettings,
   getStakeByName,
   getStakeList,
   getUserDefaultDeckBans,
   getUserQueueRole,
   getWinningTeamFromMatch,
+  setMatchResultsMessageId,
   setMatchStakeVoteTeam,
   setMatchVoiceChannel,
   setPickedMatchDeck,
@@ -563,6 +566,121 @@ export async function resendMatchWinVote(
   return sentMessage.id
 }
 
+// Updates the queue log message when a match is complete with match info
+export async function updateQueueLogMessage(
+  matchId: number,
+  queueId: number,
+  teamResults: teamResults,
+  cancelled: boolean = false,
+): Promise<void> {
+  try {
+    // Get the queue log message ID
+    const queueLogMsgId = await getMatchQueueLogMessageId(matchId)
+    if (!queueLogMsgId) {
+      console.log(`No queue log message found for match ${matchId}`)
+      return
+    }
+
+    const settings = await getSettings()
+    const queueLogsChannelId = settings.queue_logs_channel_id
+    if (!queueLogsChannelId) {
+      console.log('No queue logs channel configured')
+      return
+    }
+
+    const queueLogsChannel = await client.channels.fetch(queueLogsChannelId)
+    if (!queueLogsChannel || !queueLogsChannel.isTextBased()) {
+      console.log('Queue logs channel not found or not text-based')
+      return
+    }
+
+    const queueLogMsg = await queueLogsChannel.messages.fetch(queueLogMsgId)
+    if (!queueLogMsg) {
+      console.log(`Queue log message ${queueLogMsgId} not found`)
+      return
+    }
+
+    // Get queue settings
+    const queueSettings = await getQueueSettings(queueId)
+    const winningTeamId = await getWinningTeamFromMatch(matchId)
+
+    const logFields = []
+
+    // Match ID field
+    logFields.push({
+      name: 'Match ID',
+      value: `#${matchId}`,
+      inline: true,
+    })
+
+    // Queue field
+    logFields.push({
+      name: 'Queue',
+      value: queueSettings.queue_name,
+      inline: true,
+    })
+
+    // Status field
+    logFields.push({
+      name: 'Status',
+      value: cancelled ? 'Cancelled' : 'Finished',
+      inline: true,
+    })
+
+    // Winner field
+    if (!cancelled) {
+      const winningTeam = teamResults.teams.find((t) => t.id === winningTeamId)
+      if (winningTeam) {
+        let winnerLabel = `Team ${winningTeam.id}`
+        if (winningTeam.players.length === 1) {
+          try {
+            winnerLabel = `<@${winningTeam.players[0].user_id}>`
+          } catch (err) {
+            // Do nothing
+          }
+        }
+        logFields.push({
+          name: 'Winner',
+          value: winnerLabel,
+          inline: true,
+        })
+      }
+    }
+
+    // Players and MMR changes field
+    const playerLines: string[] = []
+    for (const team of teamResults.teams) {
+      for (const player of team.players) {
+        const eloChange = player.elo_change ?? 0
+        const changeStr = eloChange > 0 ? `+${eloChange}` : `${eloChange}`
+        const winnerEmoji = team.id === winningTeamId ? '🏆 ' : ''
+        playerLines.push(`${winnerEmoji}<@${player.user_id}>: ${changeStr} MMR`)
+      }
+    }
+
+    logFields.push({
+      name: 'Results',
+      value: playerLines.join('\n'),
+      inline: false,
+    })
+
+    const updatedEmbed = EmbedBuilder.from(queueLogMsg.embeds[0])
+      .setFields(logFields)
+      .setColor(cancelled ? '#ff0000' : '#2ECD71')
+
+    await queueLogMsg.edit({
+      embeds: [updatedEmbed],
+    })
+
+    console.log(`Updated queue log message for match ${matchId}`)
+  } catch (err) {
+    console.error(
+      `Failed to update queue log message for match ${matchId}:`,
+      err,
+    )
+  }
+}
+
 export async function endMatch(
   matchId: number,
   cancelled = false,
@@ -578,12 +696,27 @@ export async function endMatch(
   await closeMatch(matchId)
   console.log(`Ending match ${matchId}, cancelled: ${cancelled}`)
 
+  // Get teams early so we can use for both cancelled and completed matches
+  const matchTeams = await getTeamsInMatch(matchId)
+  const queueId = await getQueueIdFromMatch(matchId)
+
   if (cancelled) {
     console.log(`Match ${matchId} cancelled.`)
     const wasSuccessfullyDeleted = await deleteMatchChannel(matchId)
     if (!wasSuccessfullyDeleted) {
       console.log(`Channel id not found / failed to delete match ${matchId}`)
     }
+
+    // Update queue log message for cancelled match
+    try {
+      await updateQueueLogMessage(matchId, queueId, matchTeams, true)
+    } catch (err) {
+      console.error(
+        `Failed to update queue log message for match ${matchId}:`,
+        err,
+      )
+    }
+
     return true
   }
 
@@ -601,15 +734,12 @@ export async function endMatch(
         .setEmoji('📩')
         .setStyle(ButtonStyle.Secondary),
     )
-
-  const matchTeams = await getTeamsInMatch(matchId)
   const winningTeamId = await getWinningTeamFromMatch(matchId)
   if (!winningTeamId) {
     console.error(`No winning team found for match ${matchId}`)
     return false
   }
 
-  const queueId = await getQueueIdFromMatch(matchId)
   console.log(`Queue ID for match ${matchId}: ${queueId}`)
   const queueSettings = await getQueueSettings(queueId)
   console.log(`Queue settings for match ${matchId}:`, queueSettings)
@@ -628,7 +758,13 @@ export async function endMatch(
 
   console.log(`match ${matchId} team results made`)
 
-  teamResults = await calculateNewMMR(queueId, matchData, queueSettings, teamResultsData, winningTeamId)
+  teamResults = await calculateNewMMR(
+    queueId,
+    matchData,
+    queueSettings,
+    teamResultsData,
+    winningTeamId,
+  )
 
   console.log(`match ${matchId} results: ${teamResults.teams}`)
 
@@ -681,12 +817,15 @@ export async function endMatch(
     // }
 
     // delete match channel
-    const wasSuccessfullyDeleted = await deleteMatchChannel(matchId)
-    if (!wasSuccessfullyDeleted) {
-      console.log(`Channel id not found / failed to delete match ${matchId}`)
+    try {
+      const wasSuccessfullyDeleted = await deleteMatchChannel(matchId)
+      if (!wasSuccessfullyDeleted) {
+        console.log(`Channel id not found / failed to delete match ${matchId}`)
+      }
+    } catch (err) {
+      console.error(`Failed to delete match channel for match ${matchId}:`, err)
+      // Continue execution even if channel deletion fails
     }
-
-    if (cancelled) return true
   } catch (err) {
     console.error(
       `Error in file formatting or channel deletion for match ${matchId}:`,
@@ -694,122 +833,140 @@ export async function endMatch(
     )
   }
 
-  // build results embed
-  const resultsEmbed = new EmbedBuilder()
-    .setTitle(`🏆 ${queueSettings.queue_name} Match #${matchId} 🏆`)
-    .setColor(queueSettings.color as any)
+  try {
+    // build results embed
+    const resultsEmbed = new EmbedBuilder()
+      .setTitle(`🏆 ${queueSettings.queue_name} Match #${matchId} 🏆`)
+      .setColor(queueSettings.color as any)
 
-  const guild =
-    client.guilds.cache.get(process.env.GUILD_ID!) ??
-    (await client.guilds.fetch(process.env.GUILD_ID!))
+    const guild =
+      client.guilds.cache.get(process.env.GUILD_ID!) ??
+      (await client.guilds.fetch(process.env.GUILD_ID!))
 
-  // running for every team then combining at the end
-  const embedFields = await Promise.all(
-    (teamResults?.teams ?? []).map(async (team) => {
-      const playerList = await Promise.all(
-        team.players.map((player) => guild.members.fetch(player.user_id)),
-      )
-      const playerNameList = playerList.map((user) => user.displayName)
+    // running for every team then combining at the end
+    const embedFields = await Promise.all(
+      (teamResults?.teams ?? []).map(async (team) => {
+        const playerList = await Promise.all(
+          team.players.map((player) => guild.members.fetch(player.user_id)),
+        )
+        const playerNameList = playerList.map((user) => user.displayName)
 
-      // show name for every player in team
-      let label =
-        team.score === 1
-          ? `__${playerNameList.join('\n')}__`
-          : `${playerNameList.join('\n')}`
+        // show name for every player in team
+        let label =
+          team.score === 1
+            ? `__${playerNameList.join('\n')}__`
+            : `${playerNameList.join('\n')}`
 
-      // show id, elo change, new elo, and queue role for every player in team
-      const description = await Promise.all(
-        team.players.map(async (player) => {
-          // Get the player's queue role
-          const queueRole = await getUserQueueRole(queueId, player.user_id)
-          let emoteText = ''
+        // show id, elo change, new elo, and queue role for every player in team
+        const description = await Promise.all(
+          team.players.map(async (player) => {
+            // Get the player's queue role
+            const queueRole = await getUserQueueRole(queueId, player.user_id)
+            let emoteText = ''
 
-          if (queueRole) {
-            // Fetch the role from Discord to get the name
-            const guild =
-              client.guilds.cache.get(process.env.GUILD_ID!) ??
-              (await client.guilds.fetch(process.env.GUILD_ID!))
-            const role = await guild.roles.fetch(queueRole.role_id)
-            if (role) {
-              // Include emote if it exists
-              emoteText = queueRole.emote ? `${queueRole.emote} ` : ''
-              if (playerNameList.length == 1) {
-                label = `${label} ${emoteText}`
+            if (queueRole) {
+              // Fetch the role from Discord to get the name
+              const guild =
+                client.guilds.cache.get(process.env.GUILD_ID!) ??
+                (await client.guilds.fetch(process.env.GUILD_ID!))
+              const role = await guild.roles.fetch(queueRole.role_id)
+              if (role) {
+                // Include emote if it exists
+                emoteText = queueRole.emote ? `${queueRole.emote} ` : ''
+                if (playerNameList.length == 1) {
+                  label = `${label} ${emoteText}`
+                }
               }
             }
-          }
 
-          return `<@${player.user_id}> *${player.elo_change && player.elo_change > 0 ? `+` : ``}${player.elo_change}* **(${player.elo})**`
-        }),
-      )
+            return `<@${player.user_id}> *${player.elo_change && player.elo_change > 0 ? `+` : ``}${player.elo_change}* **(${player.elo})**`
+          }),
+        )
 
-      // return array of objects to embedFields
-      return {
-        isWinningTeam: team.score === 1,
-        label,
-        description: description.join('\n'),
-      }
-    }),
-  )
-
-  // initialize arrays to hold fields
-  const winUserLabels: string[] = []
-  const winUserDescs: string[] = []
-  const lossUserLabels: string[] = []
-  const lossUserDescs: string[] = []
-
-  // separate winning and losing teams
-  for (const field of embedFields) {
-    if (field.isWinningTeam) {
-      winUserLabels.push(field.label)
-      winUserDescs.push(field.description)
-    } else {
-      lossUserLabels.push(field.label)
-      lossUserDescs.push(field.description)
-    }
-  }
-
-  resultsEmbed.addFields(
-    {
-      name: winUserLabels.join(' / '),
-      value: winUserDescs.join('\n'),
-      inline: true,
-    },
-    {
-      name: lossUserLabels.join(' / '),
-      value: lossUserDescs.join('\n'),
-      inline: true,
-    },
-  )
-
-  // Add deck and stake information if available
-  if (matchData.deck || matchData.stake) {
-    const matchInfoParts: string[] = []
-    if (matchData.deck) {
-      const deckData = await getDeckByName(matchData.deck)
-      if (deckData) matchInfoParts.push(`${deckData.deck_emote}`)
-    }
-    if (matchData.stake) {
-      const stakeData = await getStakeByName(matchData.stake)
-      if (stakeData) matchInfoParts.push(`${stakeData.stake_emote}`)
-    }
-    resultsEmbed.setTitle(
-      `${queueSettings.queue_name} Match #${matchId} ${matchInfoParts.join('')}`,
+        // return array of objects to embedFields
+        return {
+          isWinningTeam: team.score === 1,
+          label,
+          description: description.join('\n'),
+        }
+      }),
     )
+
+    // initialize arrays to hold fields
+    const winUserLabels: string[] = []
+    const winUserDescs: string[] = []
+    const lossUserLabels: string[] = []
+    const lossUserDescs: string[] = []
+
+    // separate winning and losing teams
+    for (const field of embedFields) {
+      if (field.isWinningTeam) {
+        winUserLabels.push(field.label)
+        winUserDescs.push(field.description)
+      } else {
+        lossUserLabels.push(field.label)
+        lossUserDescs.push(field.description)
+      }
+    }
+
+    resultsEmbed.addFields(
+      {
+        name: winUserLabels.join(' / '),
+        value: winUserDescs.join('\n'),
+        inline: true,
+      },
+      {
+        name: lossUserLabels.join(' / '),
+        value: lossUserDescs.join('\n'),
+        inline: true,
+      },
+    )
+
+    // Add deck and stake information if available
+    if (matchData.deck || matchData.stake) {
+      const matchInfoParts: string[] = []
+      if (matchData.deck) {
+        const deckData = await getDeckByName(matchData.deck)
+        if (deckData) matchInfoParts.push(`${deckData.deck_emote}`)
+      }
+      if (matchData.stake) {
+        const stakeData = await getStakeByName(matchData.stake)
+        if (stakeData) matchInfoParts.push(`${stakeData.stake_emote}`)
+      }
+      resultsEmbed.setTitle(
+        `${queueSettings.queue_name} Match #${matchId} ${matchInfoParts.join('')}`,
+      )
+    }
+
+    const resultsChannel = await getMatchResultsChannel()
+    if (!resultsChannel) {
+      console.error(`No results channel found for match ${matchId}`)
+      return false
+    }
+
+    console.log(`Sending results to ${resultsChannel.id} on match ${matchId}`)
+    const existingResultsMsgId = await getMatchResultsMessageId(matchId)
+    if (existingResultsMsgId) {
+      const existingResultsMsg =
+        await resultsChannel.messages.fetch(existingResultsMsgId)
+      if (existingResultsMsg) {
+        await existingResultsMsg.edit({ embeds: [resultsEmbed] })
+      }
+    } else {
+      const resultsMsg = await resultsChannel.send({
+        embeds: [resultsEmbed],
+        components: [resultsButtonRow],
+      })
+      await setMatchResultsMessageId(matchId, resultsMsg.id)
+    }
+  } catch (err) {
+    console.error(`Failed to send match results for match ${matchId}:`, err)
+    // Continue execution even if sending results fails
   }
 
-  const resultsChannel = await getMatchResultsChannel()
-  if (!resultsChannel) {
-    console.error(`No results channel found for match ${matchId}`)
-    return false
-  }
+  // Update queue log message after everything else is done
+  await updateQueueLogMessage(matchId, queueId, teamResults, false)
 
-  console.log(`Sending results to ${resultsChannel.id} on match ${matchId}`)
-
-  await resultsChannel.send({
-    embeds: [resultsEmbed],
-    components: [resultsButtonRow],
-  })
   return true
 }
 

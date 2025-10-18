@@ -1,7 +1,7 @@
 // Types for the database stuff
 
 declare module 'psqlDB' {
-  import { EmbedField } from 'discord.js'
+  import { ColorResolvable, EmbedField } from 'discord.js'
 
   export interface Queues {
     id: number
@@ -188,7 +188,7 @@ declare module 'psqlDB' {
   export type EmbedType = {
     title: string | null
     description: string | null
-    color: number | null
+    color: ColorResolvable | null
     fields: EmbedField[] | null
     footer: { text: string } | null
     blame: string | null

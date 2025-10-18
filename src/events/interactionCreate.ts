@@ -252,7 +252,9 @@ export default {
 
                   // Check if match is already being processed
                   if (processingMatchEnds.has(matchId)) {
-                    console.log(`Match ${matchId} already being processed, skipping`)
+                    console.log(
+                      `Match ${matchId} already being processed, skipping`,
+                    )
                     return
                   }
 
@@ -409,6 +411,32 @@ export default {
             content: `Successfully set default deck bans:\n${selectedDecks.join('\n')}`,
             components: [],
           })
+        }
+
+        if (interaction.customId.startsWith('change-match-winner-')) {
+          const matchId = parseInt(interaction.customId.split('-')[3])
+          const newWinningTeam = parseInt(interaction.values[0])
+          await interaction.deferUpdate()
+
+          try {
+            // Set the new winning team
+            await setWinningTeam(matchId, newWinningTeam)
+
+            // Re-run endMatch logic to recalculate MMR and update message
+            await endMatch(matchId, false)
+
+            await interaction.editReply({})
+            await interaction.followUp({
+              content: `Successfully changed winner to Team ${newWinningTeam} for Match #${matchId}. MMR has been recalculated.`,
+            })
+          } catch (err) {
+            console.error('Error changing match winner:', err)
+            const errorMessage =
+              err instanceof Error ? err.message : String(err)
+            await interaction.editReply({
+              content: `Failed to change match winner.\nError: ${errorMessage}`,
+            })
+          }
         }
       } catch (err) {
         console.error('Error in select menu interaction:', err)
@@ -624,9 +652,13 @@ export default {
             t.players.map((u) => u.user_id),
           )
 
-          async function cancel(interaction: any, matchId: number) {
+          async function cancel(
+            interaction: any,
+            matchId: number,
+            log: boolean = false,
+          ) {
             try {
-              if (interaction.message) {
+              if (interaction.message && !log) {
                 await interaction
                   .update({
                     content: 'The match has been cancelled.',
@@ -651,6 +683,11 @@ export default {
               !matchUsersArray.includes(interaction.user.id)
             )
               await cancel(interaction, matchId)
+          }
+
+          // Check if log channel is the channel
+          if (interaction.channel!.id == botSettings.queue_logs_channel_id) {
+            await cancel(interaction, matchId, true)
           }
 
           // Otherwise do normal vote
