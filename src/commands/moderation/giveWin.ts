@@ -6,9 +6,8 @@ import {
   SlashCommandBuilder,
 } from 'discord.js'
 import { getUsersInMatch, getUserTeam } from '../../utils/queryDB'
-import { endMatch } from '../../utils/matchHelpers'
-import { getMatchesForAutocomplete } from '../../utils/Autocompletions'
 import { pool } from '../../db'
+import { endMatch } from '../../utils/matchHelpers'
 
 export default {
   data: new SlashCommandBuilder()
@@ -34,14 +33,13 @@ export default {
         .setAutocomplete(true),
     ),
   async execute(interaction: ChatInputCommandInteraction) {
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral })
-
     try {
       const matchId = interaction.options.getInteger('match-id')
       const userId = interaction.options.getString('user', true)
       if (!matchId) {
-        await interaction.editReply({
+        await interaction.reply({
           content: 'No match found.',
+          flags: MessageFlags.Ephemeral,
         })
         return
       }
@@ -52,18 +50,23 @@ export default {
         matchId,
       ])
 
-      // End match
-      await endMatch(matchId, false)
+      await endMatch(matchId)
 
-      await interaction.editReply({
-        content: `Successfully assigned win to <@${userId}> (Team ${winningTeam}) for Match #${matchId}.`,
-      })
+      await interaction.reply(
+        `Assigned win to <@${interaction.options.getString('user', true)}>.`,
+      )
     } catch (err: any) {
-      console.error('Error assigning win:', err)
-      const errorMessage = err instanceof Error ? err.message : String(err)
-      await interaction.editReply({
-        content: `Failed to assign win.\nError: ${errorMessage}`,
-      })
+      if (interaction.deferred || interaction.replied) {
+        await interaction.editReply({
+          content: `Failed to assign win. Reason: ${err}`,
+        })
+      } else {
+        await interaction.reply({
+          content: `Failed to assign win. Reason: ${err}`,
+          flags: MessageFlags.Ephemeral,
+        })
+      }
+      console.error(err)
     }
   },
 
@@ -93,20 +96,22 @@ export default {
       )
       await interaction.respond(filtered.slice(0, 25))
     } else if (currentValue.name === 'match-id') {
-      const input = currentValue.value ?? ''
-      const matches = await getMatchesForAutocomplete(input)
-
-      if (!matches || matches.length === 0) {
+      const input = currentValue.value
+      const matches = await pool.query(
+        'SELECT id FROM matches WHERE open = true',
+      )
+      if (!matches.rows || matches.rows.length === 0) {
         await interaction.respond([])
         return
       }
-
-      const matchIds = matches.map((match) => ({
-        name: match.id.toString(),
+      const matchIds = matches.rows.map((match: any) => ({
+        name: (interaction.channelId = match.id.toString())
+          ? `${match.id.toString()} (current channel)`
+          : match.id.toString(),
         value: match.id.toString(),
       }))
-
-      await interaction.respond(matchIds)
+      const filtered = matchIds.filter((match) => match.name.includes(input))
+      await interaction.respond(filtered.slice(0, 25))
     }
   },
 }

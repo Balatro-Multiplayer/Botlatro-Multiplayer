@@ -6,8 +6,11 @@ import {
   PermissionFlagsBits,
 } from 'discord.js'
 import { COMMAND_HANDLERS } from '../../command-handlers'
-import { getQueueIdFromMatch, getQueueSettings } from '../../utils/queryDB'
-import { getMatchesForAutocomplete } from '../../utils/Autocompletions'
+import {
+  getActiveMatches,
+  getQueueIdFromMatch,
+  getQueueSettings,
+} from '../../utils/queryDB'
 
 export default {
   data: new SlashCommandBuilder()
@@ -68,11 +71,11 @@ export default {
 
   async autocomplete(interaction: AutocompleteInteraction) {
     try {
-      const focusedValue = interaction.options.getFocused()
-      const matches = await getMatchesForAutocomplete(focusedValue)
+      const focusedValue = interaction.options.getFocused().toLowerCase()
+      const activeMatches = await getActiveMatches()
 
       const choices = await Promise.all(
-        matches.map(async (match) => {
+        activeMatches.map(async (match) => {
           const queueId = await getQueueIdFromMatch(match.id)
           const queueSettings = await getQueueSettings(queueId, ['queue_name'])
           return {
@@ -82,7 +85,11 @@ export default {
         }),
       )
 
-      await interaction.respond(choices)
+      const filtered = choices.filter((choice) =>
+        choice.name.toLowerCase().includes(focusedValue),
+      )
+
+      await interaction.respond(filtered.slice(0, 25))
     } catch (err) {
       console.error('Error in cancel-match autocomplete:', err)
       await interaction.respond([])
