@@ -2,7 +2,6 @@ import {
   getQueueSettings,
   getUsersNeedingRoleUpdates,
   updatePlayerMmrAll,
-  updatePlayerMmrBulk,
 } from '../queryDB'
 import type { Matches, Queues, teamResults } from 'psqlDB'
 import { setUserQueueRole } from 'utils/queueHelpers'
@@ -144,53 +143,39 @@ export async function calculateNewMMR(
         queueSettings.default_elo,
       )
 
-    const playerMMRChanges: Array<{
-      user_id: string
-      oldMMR: number
-      newMMR: number
-    }> = []
-
-    const playerUpdates: Array<{
-      user_id: string
-      elo: number
-      volatility: number
-    }> = []
+    const playerMMRChanges: Array<{ user_id: string; oldMMR: number; newMMR: number }> = []
+    const updatePromises: Promise<void>[] = []
 
     for (const ts of teamStats) {
-      const mmrChange = ts.isWinner ? ratingChange : -ratingChange / loserCount
-      const mmrChangeRounded = Math.round(mmrChange * 10) / 10
+      const isWinner = ts.isWinner
+      const mmrChange = isWinner ? ratingChange : -ratingChange / loserCount
 
       for (const player of ts.team.players) {
         const oldMMR = player.elo ?? queueSettings.default_elo
         const oldVolatility = player.volatility ?? 0
 
-        const newMMR = Math.round((oldMMR + mmrChange) * 10) / 10
-        const clampedMMR = Math.max(0, Math.min(9999, newMMR))
+        const newMMR = parseFloat((oldMMR + mmrChange).toFixed(1))
         const newVolatility = Math.min(oldVolatility + 1, 10)
 
         playerMMRChanges.push({
           user_id: player.user_id,
           oldMMR,
-          newMMR: clampedMMR,
+          newMMR,
         })
 
-        player.elo = clampedMMR
-        player.elo_change = mmrChangeRounded
+        player.elo = clamp(newMMR, 0, 9999)
+        player.elo_change = parseFloat(mmrChange.toFixed(1))
         player.volatility = newVolatility
 
-        playerUpdates.push({
-          user_id: player.user_id,
-          elo: clampedMMR,
-          volatility: newVolatility,
-        })
+        updatePromises.push(
+          updatePlayerMmrAll(queueId, player.user_id, newMMR, newVolatility),
+        )
       }
 
-      ts.team.score = ts.isWinner ? 1 : 0
+      ts.team.score = isWinner ? 1 : 0
     }
 
-    if (playerUpdates.length > 0) {
-      await updatePlayerMmrBulk(queueId, playerUpdates)
-    }
+    await Promise.all(updatePromises)
 
     const usersNeedingRoleUpdate = await getUsersNeedingRoleUpdates(
       queueId,
