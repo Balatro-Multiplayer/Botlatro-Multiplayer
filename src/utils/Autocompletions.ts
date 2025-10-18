@@ -1,6 +1,7 @@
 import { AutocompleteInteraction, User } from 'discord.js'
 import { getAllOpenRooms, strikeUtils } from './queryDB'
 import { client } from '../client'
+import { pool } from '../db'
 
 const userCache = new Map<string, User>()
 
@@ -185,4 +186,35 @@ export async function roomDeleteAutoCompletion(
 
   await interaction.respond(choices)
   return
+}
+
+// Show all active matches for autocomplete using prefix
+export async function getMatchesForAutocomplete(
+  input: string,
+): Promise<{ id: number }[]> {
+  let query: string
+  let params: any[]
+
+  if (input.length > 0) {
+    query = `
+      SELECT id FROM matches
+      WHERE open = true
+        AND id::text ILIKE $1
+      ORDER BY id DESC
+      LIMIT 25
+    `
+    params = [`${input}%`]
+  } else {
+    // Show 25 matches with no input
+    query = `
+      SELECT id FROM matches
+      WHERE open = true
+      ORDER BY id DESC
+      LIMIT 25
+    `
+    params = []
+  }
+
+  const result = await pool.query(query, params)
+  return result.rows
 }

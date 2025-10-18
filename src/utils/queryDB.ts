@@ -317,12 +317,12 @@ export async function getUsersNeedingRoleUpdates(
     [queueId],
   )
 
-  const thresholds = roles.rows.map(r => r.mmr_threshold)
+  const thresholds = roles.rows.map((r) => r.mmr_threshold)
   const usersToUpdate: string[] = []
 
   for (const player of players) {
-    const oldRole = thresholds.find(t => t <= player.oldMMR)
-    const newRole = thresholds.find(t => t <= player.newMMR)
+    const oldRole = thresholds.find((t) => t <= player.oldMMR)
+    const newRole = thresholds.find((t) => t <= player.newMMR)
 
     if (oldRole !== newRole) {
       usersToUpdate.push(player.user_id)
@@ -590,6 +590,56 @@ export async function setWinningTeam(matchId: number, winningTeam: number) {
   await pool.query('UPDATE matches SET winning_team = $1 WHERE id = $2', [
     winningTeam,
     matchId,
+  ])
+}
+
+// Get match results message id
+export async function getMatchResultsMessageId(
+  matchId: number,
+): Promise<string | null> {
+  const res = await pool.query(
+    `
+    SELECT results_msg_id FROM matches WHERE id = $1
+  `,
+    [matchId],
+  )
+
+  return res.rowCount === 0 ? null : res.rows[0].results_msg_id
+}
+
+// Set match results message id
+export async function setMatchResultsMessageId(
+  matchId: number,
+  messageId: string,
+): Promise<void> {
+  await pool.query(`UPDATE matches SET results_msg_id = $2 WHERE id = $1`, [
+    matchId,
+    messageId,
+  ])
+}
+
+// Get match queue log message id
+export async function getMatchQueueLogMessageId(
+  matchId: number,
+): Promise<string | null> {
+  const res = await pool.query(
+    `
+    SELECT queue_log_msg_id FROM matches WHERE id = $1
+  `,
+    [matchId],
+  )
+
+  return res.rowCount === 0 ? null : res.rows[0].queue_log_msg_id
+}
+
+// Set match queue log message id
+export async function setMatchQueueLogMessageId(
+  matchId: number,
+  messageId: string,
+): Promise<void> {
+  await pool.query(`UPDATE matches SET queue_log_msg_id = $2 WHERE id = $1`, [
+    matchId,
+    messageId,
   ])
 }
 
@@ -1146,36 +1196,47 @@ export async function updatePlayerWinStreak(
   queueId: number,
   won: boolean,
 ): Promise<void> {
+  // Get current streak to determine if we need to reset
+  const currentStreak = await pool.query(
+    `SELECT win_streak FROM queue_users WHERE user_id = $1 AND queue_id = $2`,
+    [userId, queueId],
+  )
+
+  if (currentStreak.rowCount === 0) return
+
+  const streak = currentStreak.rows[0].win_streak
+
   if (won) {
-    // Increment win streak and update peak if necessary
-    await pool.query(
-      `UPDATE queue_users
-       SET win_streak = win_streak + 1,
-           peak_win_streak = GREATEST(peak_win_streak, win_streak + 1)
-       WHERE user_id = $1 AND queue_id = $2`,
-      [userId, queueId],
-    )
-  } else {
-    // If they lost, check current win_streak
-    const currentStreak = await pool.query(
-      `SELECT win_streak FROM queue_users WHERE user_id = $1 AND queue_id = $2`,
-      [userId, queueId],
-    )
-
-    if (currentStreak.rowCount === 0) return
-
-    const streak = currentStreak.rows[0].win_streak
-
-    if (streak > 0) {
-      // Had a win streak, reset to 0
+    if (streak < 0) {
+      // Had a loss streak, reset to 1 (first win)
       await pool.query(
         `UPDATE queue_users
-         SET win_streak = 0
+         SET win_streak = 1,
+             peak_win_streak = GREATEST(peak_win_streak, 1)
          WHERE user_id = $1 AND queue_id = $2`,
         [userId, queueId],
       )
     } else {
-      // At 0 or already in a loss streak, decrement (continue/start loss streak)
+      // At 0 or already in a win streak, increment
+      await pool.query(
+        `UPDATE queue_users
+         SET win_streak = win_streak + 1,
+             peak_win_streak = GREATEST(peak_win_streak, win_streak + 1)
+         WHERE user_id = $1 AND queue_id = $2`,
+        [userId, queueId],
+      )
+    }
+  } else {
+    if (streak > 0) {
+      // Had a win streak, reset to -1 (first loss)
+      await pool.query(
+        `UPDATE queue_users
+         SET win_streak = -1
+         WHERE user_id = $1 AND queue_id = $2`,
+        [userId, queueId],
+      )
+    } else {
+      // At 0 or already in a loss streak, decrement
       await pool.query(
         `UPDATE queue_users
          SET win_streak = win_streak - 1
@@ -1951,4 +2012,43 @@ export async function getAllOpenRooms(): Promise<UserRoom[]> {
     SELECT * FROM user_room WHERE active = true
   `)
   return res.rows
+}
+
+// Get leaderboard data for a queue
+export async function getQueueLeaderboard(
+  queueId: number,
+  limit: number = 100,
+): Promise<
+  Array<{
+    rank: number
+    user_id: string
+    mmr: number
+    wins: number
+    losses: number
+  }>
+> {
+  const res = await pool.query(
+    `
+      SELECT
+        qu.user_id,
+        qu.elo,
+        COUNT(CASE WHEN m.winning_team = mu.team THEN 1 END)::integer as wins,
+        COUNT(CASE WHEN m.winning_team IS NOT NULL AND m.winning_team != mu.team THEN 1 END)::integer as losses
+      FROM queue_users qu
+      LEFT JOIN match_users mu ON mu.user_id = qu.user_id
+      LEFT JOIN matches m ON m.id = mu.match_id AND m.queue_id = $1
+      WHERE qu.queue_id = $1
+      GROUP BY qu.user_id, qu.elo
+      ORDER BY qu.elo DESC
+      LIMIT $2`,
+    [queueId, limit],
+  )
+
+  return res.rows.map((row, index) => ({
+    rank: index + 1,
+    user_id: row.user_id,
+    mmr: row.elo,
+    wins: row.wins || 0,
+    losses: row.losses || 0,
+  }))
 }
