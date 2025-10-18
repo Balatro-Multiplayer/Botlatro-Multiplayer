@@ -149,7 +149,6 @@ export async function calculateNewMMR(
       oldMMR: number
       newMMR: number
     }> = []
-    const updatePromises: Promise<void>[] = []
 
     const playerUpdates: Array<{
       user_id: string
@@ -192,8 +191,6 @@ export async function calculateNewMMR(
     if (playerUpdates.length > 0) {
       await updatePlayerMmrBulk(queueId, playerUpdates)
     }
-
-    await Promise.all(updatePromises)
 
     const usersNeedingRoleUpdate = await getUsersNeedingRoleUpdates(
       queueId,
