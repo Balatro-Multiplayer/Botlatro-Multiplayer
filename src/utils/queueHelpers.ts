@@ -31,7 +31,6 @@ import {
 import { Queues } from 'psqlDB'
 import { QueryResult } from 'pg'
 import { client, getGuild } from '../client'
-import { getAvailableChannel } from './channelPool'
 
 // Updates or sends a new queue message for the specified text channel
 export async function updateQueueMessage(): Promise<Message | undefined> {
@@ -501,77 +500,23 @@ export async function createMatch(
   )
 
   const matchId = response.rows[0].id
-
-  // Get a channel from the pool instead of creating a new one
-  const channel = await getAvailableChannel(matchId, userIds, `match-${matchId}`)
-
-  if (!channel) {
-    console.error(`No available channels in pool for match ${matchId}`)
-    // Fallback to creating a new channel if pool is empty
-    const backupCat = '1427367817803464914'
-    const category = await guild.channels.fetch(categoryId)
-    if (!category || category.type !== ChannelType.GuildCategory) {
-      return console.log('Not a valid category.')
-    }
-    const channelCount = category.children.cache.size
-
-    const fallbackChannel = await guild.channels.create({
-      name: `match-${matchId}`,
-      type: ChannelType.GuildText,
-      parent: channelCount > 45 ? backupCat : categoryId,
-      permissionOverwrites: permissionOverwrites,
-    })
-
-    await pool.query(
-      `
-          UPDATE matches
-          SET channel_id = $1
-          WHERE id = $2
-      `,
-      [fallbackChannel.id, matchId],
-    )
-
-    // Use the fallback channel for the rest of the function
-    const fallbackChannelForReturn = fallbackChannel
-
-    // Insert match_users (queue_join_time is already NULL from matchUpGames)
-    for (const userId of userIds) {
-      await pool.query(
-        `INSERT INTO match_users (user_id, match_id, team)
-         VALUES ($1, $2, $3)`,
-        [userId, matchId, userIds.indexOf(userId) + 1],
-      )
-
-      const member = await guild.members.fetch(userId)
-      try {
-        await member.send({
-          embeds: [
-            new EmbedBuilder()
-              .setTitle('Match Found!')
-              .setDescription(`**Match Channel**\n<#${fallbackChannelForReturn.id}>`)
-              .setColor(0x00ff00),
-          ],
-        })
-      } catch (err) {}
-    }
-
-    await updateQueueMessage()
-
-    // Wait 2 seconds for channel to fully propagate in Discord's API
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-
-    // Send queue start messages
-    await sendMatchInitMessages(queueId, matchId, fallbackChannelForReturn)
-
-    // Log match creation
-    await sendQueueLog(matchId, queueId, userIds)
-
-    return fallbackChannelForReturn
+  const backupCat = '1427367817803464914'
+  const category = await guild.channels.fetch(categoryId)
+  if (!category || category.type !== ChannelType.GuildCategory) {
+    return console.log('Not a valid category.')
   }
+  const channelCount = category.children.cache.size
+
+  const channel = await guild.channels.create({
+    name: `match-${matchId}`,
+    type: ChannelType.GuildText,
+    parent: channelCount > 45 ? backupCat : categoryId,
+    permissionOverwrites: permissionOverwrites,
+  })
 
   await pool.query(
     `
-        UPDATE matches
+        UPDATE matches 
         SET channel_id = $1
         WHERE id = $2
     `,

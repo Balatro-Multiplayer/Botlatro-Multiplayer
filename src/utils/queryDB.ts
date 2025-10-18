@@ -799,19 +799,6 @@ export async function getUsersInQueue(queueId: number): Promise<string[]> {
   return response.rows.map((row) => row.user_id)
 }
 
-// Get users in all queues
-export async function getAllUsersInQueue(): Promise<string[]> {
-  const response = await pool.query(
-    `
-    SELECT u.user_id 
-    FROM queue_users u
-    WHERE u.queue_join_time IS NOT NULL
-    `,
-  )
-
-  return response.rows.map((row) => row.user_id)
-}
-
 // Remove user from queue
 export async function removeUserFromQueue(
   queueId: number,

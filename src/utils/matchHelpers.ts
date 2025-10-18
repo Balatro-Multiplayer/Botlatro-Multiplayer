@@ -53,7 +53,6 @@ import {
   clearChannelMessageCount,
   setLastWinVoteMessage,
 } from '../events/messageCreate'
-import { returnChannelToPool } from './channelPool'
 
 require('dotenv').config()
 
@@ -982,35 +981,14 @@ export async function deleteMatchChannel(matchId: number): Promise<boolean> {
   // Clear the message count for this channel
   clearChannelMessageCount(textChannel.id)
 
-  // Check if this channel is from the pool
-  const poolCheck = await pool.query(
-    'SELECT channel_id FROM channel_pool WHERE channel_id = $1',
-    [textChannel.id]
-  )
-
-  if (poolCheck.rows.length > 0) {
-    // Channel is from pool, return it instead of deleting
-    console.log(`Returning channel ${textChannel.id} to pool for match ${matchId}`)
-    setTimeout(async () => {
-      await returnChannelToPool(textChannel.id).catch((err) => {
-        console.error(
-          `Failed to return channel to pool for match ${matchId}: ${err}`,
-        )
-      })
-    }, 1000)
-  } else {
-    // Channel was created as fallback, delete it normally
-    console.log(`Deleting non-pooled channel ${textChannel.id} for match ${matchId}`)
-    setTimeout(async () => {
-      await textChannel.delete().catch((err) => {
-        console.error(
-          `Failed to delete text channel for match ${matchId}: ${err}`,
-        )
-        return false
-      })
-    }, 1000)
-  }
-
+  setTimeout(async () => {
+    await textChannel.delete().catch((err) => {
+      console.error(
+        `Failed to delete text channel for match ${matchId}: ${err}`,
+      )
+      return false
+    })
+  }, 1000)
   return true
 }
 
