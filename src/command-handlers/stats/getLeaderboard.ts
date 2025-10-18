@@ -4,6 +4,8 @@ export type LeaderboardEntry = {
   rank: number
   user_id: string
   mmr: number
+  wins: number
+  losses: number
 }
 
 /**

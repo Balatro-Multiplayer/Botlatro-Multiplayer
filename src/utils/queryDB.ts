@@ -2010,16 +2010,23 @@ export async function getQueueLeaderboard(
     rank: number
     user_id: string
     mmr: number
+    wins: number
+    losses: number
   }>
 > {
   const res = await pool.query(
     `
       SELECT
-        user_id,
-        elo
-      FROM queue_users
-      WHERE queue_id = $1
-      ORDER BY elo DESC
+        qu.user_id,
+        qu.elo,
+        COUNT(CASE WHEN m.winning_team = mu.team THEN 1 END)::integer as wins,
+        COUNT(CASE WHEN m.winning_team IS NOT NULL AND m.winning_team != mu.team THEN 1 END)::integer as losses
+      FROM queue_users qu
+      LEFT JOIN match_users mu ON mu.user_id = qu.user_id
+      LEFT JOIN matches m ON m.id = mu.match_id AND m.queue_id = $1
+      WHERE qu.queue_id = $1
+      GROUP BY qu.user_id, qu.elo
+      ORDER BY qu.elo DESC
       LIMIT $2`,
     [queueId, limit],
   )
@@ -2028,5 +2035,7 @@ export async function getQueueLeaderboard(
     rank: index + 1,
     user_id: row.user_id,
     mmr: row.elo,
+    wins: row.wins || 0,
+    losses: row.losses || 0,
   }))
 }

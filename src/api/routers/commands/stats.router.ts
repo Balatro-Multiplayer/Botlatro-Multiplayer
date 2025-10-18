@@ -47,6 +47,8 @@ statsRouter.openapi(
                   rank: z.number(),
                   user_id: z.string(),
                   mmr: z.number(),
+                  wins: z.number(),
+                  losses: z.number(),
                 }),
               ),
             }),
