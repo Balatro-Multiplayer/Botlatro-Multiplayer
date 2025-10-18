@@ -317,12 +317,12 @@ export async function getUsersNeedingRoleUpdates(
     [queueId],
   )
 
-  const thresholds = roles.rows.map(r => r.mmr_threshold)
+  const thresholds = roles.rows.map((r) => r.mmr_threshold)
   const usersToUpdate: string[] = []
 
   for (const player of players) {
-    const oldRole = thresholds.find(t => t <= player.oldMMR)
-    const newRole = thresholds.find(t => t <= player.newMMR)
+    const oldRole = thresholds.find((t) => t <= player.oldMMR)
+    const newRole = thresholds.find((t) => t <= player.newMMR)
 
     if (oldRole !== newRole) {
       usersToUpdate.push(player.user_id)
@@ -1081,6 +1081,35 @@ export async function updatePlayerMmrAll(
   await pool.query(
     `UPDATE queue_users SET elo = $1, peak_elo = GREATEST(peak_elo, $1), volatility = $2 WHERE user_id = $3 AND queue_id = $4`,
     [clampedElo, newVolatility, userId, queueId],
+  )
+}
+
+export async function updatePlayerMmrBulk(
+  queueId: number,
+  updates: Array<{ user_id: string; elo: number; volatility: number }>,
+): Promise<void> {
+  const values = updates.flatMap((u) => [
+    u.elo,
+    u.volatility,
+    u.user_id,
+    queueId,
+  ])
+
+  const placeholders = updates
+    .map((_, i) => {
+      const offset = i * 4
+      return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4})`
+    })
+    .join(', ')
+
+  await pool.query(
+    `UPDATE queue_users AS qu
+     SET elo = v.elo::numeric,
+         peak_elo = GREATEST(qu.peak_elo, v.elo::numeric),
+         volatility = v.volatility::integer
+     FROM (VALUES ${placeholders}) AS v(elo, volatility, user_id, queue_id)
+     WHERE qu.user_id = v.user_id::text AND qu.queue_id = v.queue_id::integer`,
+    values,
   )
 }
 
