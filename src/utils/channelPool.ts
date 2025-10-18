@@ -5,8 +5,8 @@ import {
   TextChannel,
 } from 'discord.js'
 import { pool } from '../db'
-import { client, getGuild } from '../client'
-import { getSettings } from './queryDB'
+import { getGuild } from '../client'
+import { getAllUsersInQueue, getSettings } from './queryDB'
 
 const POOL_SIZE = 10 // Number of channels to keep in the pool
 const MIN_POOL_SIZE = 5 // Minimum channels before creating more
@@ -36,6 +36,11 @@ export async function initializeChannelPool(): Promise<void> {
     }
 
     const guild = await getGuild()
+    const amountInQueue = await getAllUsersInQueue()
+    if (amountInQueue.length >= 2) {
+      console.log('Too many users in queue, waiting to create channels')
+      return
+    }
 
     console.log(`Creating ${channelsToCreate} channels for the pool...`)
 
@@ -49,7 +54,10 @@ export async function initializeChannelPool(): Promise<void> {
           permissionOverwrites: [
             {
               id: guild.roles.everyone,
-              deny: [PermissionFlagsBits.ViewChannel],
+              deny: [
+                PermissionFlagsBits.ViewChannel,
+                PermissionFlagsBits.ReadMessageHistory,
+              ],
             },
           ],
         })
@@ -209,31 +217,20 @@ export async function returnChannelToPool(channelId: string): Promise<void> {
       return
     }
 
-    // Reset channel to default state (no category, hidden)
+    // Reset channel to default state (no category, hidden, history hidden)
     await channel.edit({
       name: 'reserve-channel',
       parent: null, // Remove from category
       permissionOverwrites: [
         {
           id: guild.roles.everyone,
-          deny: [PermissionFlagsBits.ViewChannel],
+          deny: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.ReadMessageHistory,
+          ],
         },
       ],
     })
-
-    // Clear all messages in the channel
-    try {
-      let fetched
-      do {
-        fetched = await channel.messages.fetch({ limit: 100 })
-        if (fetched.size > 0) {
-          await channel.bulkDelete(fetched, true)
-        }
-      } while (fetched.size >= 2)
-    } catch (err) {
-      console.error(`Failed to clear messages in channel ${channelId}:`, err)
-      // Continue even if message deletion fails
-    }
 
     // Mark as available in database
     await pool.query(
