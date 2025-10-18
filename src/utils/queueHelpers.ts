@@ -8,7 +8,6 @@ import {
   CommandInteraction,
   EmbedBuilder,
   Message,
-  MessageFlags,
   OverwriteType,
   PermissionFlagsBits,
   StringSelectMenuBuilder,
@@ -16,14 +15,16 @@ import {
   StringSelectMenuOptionBuilder,
   TextChannel,
 } from 'discord.js'
-import { sendMatchInitMessages } from './matchHelpers'
+import { getTeamsInMatch, sendMatchInitMessages } from './matchHelpers'
 import {
   createQueueUser,
   getAllQueueRoles,
   getLeaderboardQueueRole,
+  getQueueSettings,
   getSettings,
   getUserQueueRole,
   getUsersInQueue,
+  setMatchQueueLogMessageId,
   userInMatch,
   userInQueue,
 } from './queryDB'
@@ -551,6 +552,9 @@ export async function createMatch(
   // Send queue start messages
   await sendMatchInitMessages(queueId, matchId, channel)
 
+  // Log match creation
+  await sendQueueLog(matchId, queueId, userIds)
+
   return channel
 }
 
@@ -652,8 +656,101 @@ export function setupViewStatsButtons(
   )
 }
 
-// TODO: ADD
+// Logs match creation with buttons to retroactively change the winner
 export async function sendQueueLog(
-  queueId: number,
   matchId: number,
-): Promise<void> {}
+  queueId: number,
+  userIds: string[],
+): Promise<void> {
+  const { CommandFactory } = await import('./logCommandUse')
+
+  // Get queue details
+  const queueSettings = await getQueueSettings(queueId)
+  if (!queueSettings) return
+
+  const queueName = queueSettings.queue_name
+  const numberOfTeams = queueSettings.number_of_teams
+
+  const matchLog = CommandFactory.build('match_created')
+  if (!matchLog) return
+
+  matchLog.setBlame('System')
+
+  const fields = [
+    {
+      name: 'Match ID',
+      value: `#${matchId}`,
+      inline: true,
+    },
+    {
+      name: 'Queue',
+      value: queueName,
+      inline: true,
+    },
+    {
+      name: 'Players',
+      value: userIds.map((id) => `<@${id}>`).join('\n'),
+      inline: false,
+    },
+  ]
+
+  matchLog.setFields(fields)
+  matchLog.createEmbed()
+  matchLog.addFields()
+
+  // Add select menu for changing winner
+  const membersPerTeam = queueSettings.members_per_team
+  const options: StringSelectMenuOptionBuilder[] = []
+
+  // Get team assignments using teamResults
+  const teamResults = await getTeamsInMatch(matchId)
+
+  // Build select menu options
+  for (const team of teamResults.teams) {
+    let label = `Team ${team.id}`
+    let description = `Set Team ${team.id} as the winner`
+
+    // If team size is 1, use player name instead
+    if (membersPerTeam === 1 && team.players.length > 0) {
+      try {
+        const guild = await getGuild()
+        const member = await guild.members.fetch(team.players[0].user_id)
+        label = member.displayName
+        description = `Set ${member.displayName} as the winner`
+      } catch (err) {
+        // If fetching fails, fall back to Team X
+        console.error('Failed to fetch member for team label:', err)
+      }
+    }
+
+    options.push(
+      new StringSelectMenuOptionBuilder()
+        .setLabel(label)
+        .setDescription(description)
+        .setValue(`${team.id}`),
+    )
+  }
+
+  const selectMenu = new StringSelectMenuBuilder()
+    .setCustomId(`change-match-winner-${matchId}`)
+    .setPlaceholder('Change Match Winner')
+    .addOptions(options)
+
+  const selectRow =
+    new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu)
+
+  // Send to logging channel
+  try {
+    await matchLog.setLogChannel()
+    if (matchLog.channel) {
+      const matchLogMsg = await matchLog.channel.send({
+        embeds: [matchLog.embed],
+        components: [selectRow],
+      })
+      await setMatchQueueLogMessageId(matchId, matchLogMsg.id)
+    }
+  } catch (err) {
+    console.error('Failed to send queue log:', err)
+    // Continue execution even if logging fails - don't block match creation
+  }
+}

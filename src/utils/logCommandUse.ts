@@ -1,4 +1,4 @@
-import { EmbedBuilder, EmbedField } from 'discord.js'
+import { ColorResolvable, EmbedBuilder, EmbedField } from 'discord.js'
 import { pool } from '../db'
 import { client } from '../client'
 import { EmbedType } from 'psqlDB'
@@ -9,7 +9,7 @@ export abstract class Embed {
   channel: any = null
   embed: any = null
   embedFields: EmbedField[] = []
-  color: number = 10070709 // grey
+  color: ColorResolvable = '#99A5A5' // grey
   title: string = 'TITLE'
   description: string = ' '
   blame: string = ' '
@@ -48,7 +48,7 @@ export abstract class Embed {
   public setEmbedFields(fields: any[]) {
     this.embedFields = fields
   }
-  public setColor(color: number) {
+  public setColor(color: ColorResolvable) {
     this.color = color
   }
   public setTitle(title: string) {
@@ -124,18 +124,20 @@ export class CommandFactory extends Embed {
         return new General()
       case 'room':
         return new Room(id)
+      case 'match_created':
+        return new MatchCreated()
     }
   }
 }
 
 export class General extends CommandFactory {
-  color: number = 10070709 // grey
+  color: ColorResolvable = '#99A5A5' // grey
   title: string = 'COMMAND LOGGED'
   logType: string = 'command'
 }
 
 export class Room extends CommandFactory {
-  color: number = 16776960 // yellow
+  color: ColorResolvable = '#FFFF00'
   title: string = 'Room created'
   logType: string = 'room'
 
@@ -146,20 +148,26 @@ export class Room extends CommandFactory {
 }
 
 export class RemoveStrike extends CommandFactory {
-  color: number = 65280 // green
+  color: ColorResolvable = '#00FF00' // green
   title: string = 'REMOVE STRIKE'
   logType: string = 'command'
 }
 
 export class AddStrike extends CommandFactory {
-  color: number = 16711680 // red
+  color: ColorResolvable = '#FF0000' // red
   title: string = 'ADD STRIKE'
   logType: string = 'command'
 }
 
+export class MatchCreated extends CommandFactory {
+  color: ColorResolvable = '#fff203' // yellow, for in progress
+  title: string = 'Match Created'
+  logType: string = 'queue'
+}
+
 // distilled process to log an EmbedType object
 // @parameter
-// type - choose from a list of embed types ['add_strike', 'remove_strike', 'general', 'room']
+// type - choose from a list of embed types ['add_strike', 'remove_strike', 'general', 'room', 'match_created']
 export async function logStrike(
   type: string,
   embed: EmbedType,
@@ -183,7 +191,7 @@ export async function logStrike(
 export function createEmbedType(
   title: string | null = null,
   description: string | null = null,
-  color: number | null = null,
+  color: ColorResolvable | null = null,
   fields: EmbedField[] | null = null,
   footer: { text: string } | null = null,
   blame: string | null = null,
