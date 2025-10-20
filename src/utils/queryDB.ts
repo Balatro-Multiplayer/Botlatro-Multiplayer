@@ -322,7 +322,13 @@ export async function getUserQueueRole(
 
 export async function getUsersNeedingRoleUpdates(
   queueId: number,
-  players: Array<{ user_id: string; oldMMR: number; newMMR: number }>,
+  players: Array<{
+    user_id: string
+    oldMMR: number
+    newMMR: number
+    oldRank: number
+    newRank: number
+  }>,
 ): Promise<string[]> {
   if (players.length === 0) return []
 
@@ -330,6 +336,13 @@ export async function getUsersNeedingRoleUpdates(
     `SELECT mmr_threshold FROM queue_roles
      WHERE queue_id = $1 AND mmr_threshold IS NOT NULL
      ORDER BY mmr_threshold DESC`,
+    [queueId],
+  )
+
+  const leaderboardRoles = await pool.query(
+    `SELECT leaderboard_min, leaderboard_max FROM queue_roles
+     WHERE queue_id = $1 AND mmr_threshold IS NULL
+     ORDER BY leaderboard_min DESC`,
     [queueId],
   )
 
@@ -342,6 +355,25 @@ export async function getUsersNeedingRoleUpdates(
 
     if (oldRole !== newRole) {
       usersToUpdate.push(player.user_id)
+    }
+
+    // Also handle leaderboard positions
+    if (
+      player.newRank !== null &&
+      leaderboardRoles &&
+      leaderboardRoles.rowCount !== 0
+    ) {
+      const oldLeaderboardRole = leaderboardRoles.rows.find(
+        (r) => r.leaderboard_min <= player.oldRank,
+      )
+      const newLeaderboardRole = leaderboardRoles.rows.find(
+        (r) => r.leaderboard_min <= player.newRank,
+      )
+
+      // Update leaderboard role if its not the same
+      if (oldLeaderboardRole !== newLeaderboardRole) {
+        usersToUpdate.push(player.user_id)
+      }
     }
   }
 
@@ -379,12 +411,14 @@ export async function getLeaderboardQueueRole(
     SELECT *
     FROM queue_roles
     WHERE queue_id = $1
-      AND leaderboard_min >= $2
-      AND leaderboard_max <= $2
+      AND leaderboard_min <= $2
+      AND leaderboard_max >= $2
     LIMIT 1
     `,
     [queueId, rank],
   )
+
+  console.log(roleRes.rowCount)
 
   if (roleRes.rowCount === 0) return null
   return roleRes.rows[0]

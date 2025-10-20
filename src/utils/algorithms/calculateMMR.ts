@@ -3,6 +3,7 @@ import {
   getUsersNeedingRoleUpdates,
   updatePlayerMmrAll,
   countPlayerGames,
+  getLeaderboardPosition,
 } from '../queryDB'
 import type { Queues, teamResults } from 'psqlDB'
 import { setUserQueueRole } from 'utils/queueHelpers'
@@ -147,6 +148,8 @@ export async function calculateNewMMR(
       user_id: string
       oldMMR: number
       newMMR: number
+      oldRank: number
+      newRank: number
     }> = []
     const updatePromises: Promise<void>[] = []
     let roleUpdateUsers: string[] = []
@@ -157,16 +160,11 @@ export async function calculateNewMMR(
 
       for (const player of ts.team.players) {
         const oldMMR = player.elo ?? queueSettings.default_elo
+        const oldRank = await getLeaderboardPosition(queueId, player.user_id)
         const oldVolatility = player.volatility ?? 0
 
         const newMMR = parseFloat((oldMMR + mmrChange).toFixed(1))
         const newVolatility = Math.min(oldVolatility + 1, 10)
-
-        playerMMRChanges.push({
-          user_id: player.user_id,
-          oldMMR,
-          newMMR,
-        })
 
         player.elo = clamp(newMMR, 0, 9999)
         player.elo_change = parseFloat(mmrChange.toFixed(1))
@@ -175,6 +173,16 @@ export async function calculateNewMMR(
         updatePromises.push(
           updatePlayerMmrAll(queueId, player.user_id, newMMR, newVolatility),
         )
+
+        const newRank = await getLeaderboardPosition(queueId, player.user_id)
+
+        playerMMRChanges.push({
+          user_id: player.user_id,
+          oldMMR,
+          newMMR,
+          oldRank,
+          newRank,
+        })
 
         const gamesPlayed = await countPlayerGames(queueId, player.user_id)
         if (gamesPlayed === 1) {
