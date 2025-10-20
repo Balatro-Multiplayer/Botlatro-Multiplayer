@@ -2060,7 +2060,6 @@ export async function getQueueLeaderboard(
   Array<{
     rank: number
     id: string
-    name: string | null
     mmr: number
     wins: number
     losses: number
@@ -2073,7 +2072,6 @@ export async function getQueueLeaderboard(
     `
       SELECT
         qu.user_id,
-        u.display_name,
         qu.elo,
         qu.peak_elo,
         qu.win_streak,
@@ -2081,11 +2079,10 @@ export async function getQueueLeaderboard(
         COUNT(CASE WHEN m.winning_team = mu.team THEN 1 END)::integer as wins,
         COUNT(CASE WHEN m.winning_team IS NOT NULL AND m.winning_team != mu.team THEN 1 END)::integer as losses
       FROM queue_users qu
-      LEFT JOIN users u ON u.user_id = qu.user_id
       LEFT JOIN match_users mu ON mu.user_id = qu.user_id
       LEFT JOIN matches m ON m.id = mu.match_id AND m.queue_id = $1
       WHERE qu.queue_id = $1
-      GROUP BY qu.user_id, u.display_name, qu.elo, qu.peak_elo, qu.win_streak, qu.peak_win_streak
+      GROUP BY qu.user_id, qu.elo, qu.peak_elo, qu.win_streak, qu.peak_win_streak
       ORDER BY qu.elo DESC
       LIMIT $2`,
     [queueId, limit],
@@ -2094,7 +2091,6 @@ export async function getQueueLeaderboard(
   return res.rows.map((row, index) => ({
     rank: index + 1,
     id: row.user_id,
-    name: row.display_name || null,
     mmr: row.elo,
     wins: row.wins || 0,
     losses: row.losses || 0,
@@ -2102,16 +2098,4 @@ export async function getQueueLeaderboard(
     peak_mmr: row.peak_elo || 0,
     peak_streak: row.peak_win_streak || 0,
   }))
-}
-
-// Update user's display name in the database
-export async function updateUserDisplayName(
-  userId: string,
-  displayName: string,
-): Promise<void> {
-  // Ensure user exists in users table
-  await pool.query(
-    'INSERT INTO users (user_id, display_name) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET display_name = $2',
-    [userId, displayName],
-  )
 }
