@@ -148,8 +148,8 @@ export async function calculateNewMMR(
       user_id: string
       oldMMR: number
       newMMR: number
-      oldRank: number
-      newRank: number
+      oldRank: number | null
+      newRank: number | null
     }> = []
     const updatePromises: Promise<void>[] = []
     let roleUpdateUsers: string[] = []

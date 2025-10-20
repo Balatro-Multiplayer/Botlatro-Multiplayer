@@ -326,8 +326,8 @@ export async function getUsersNeedingRoleUpdates(
     user_id: string
     oldMMR: number
     newMMR: number
-    oldRank: number
-    newRank: number
+    oldRank: number | null
+    newRank: number | null
   }>,
 ): Promise<string[]> {
   if (players.length === 0) return []
@@ -359,15 +359,16 @@ export async function getUsersNeedingRoleUpdates(
 
     // Also handle leaderboard positions
     if (
+      player.oldRank !== null &&
       player.newRank !== null &&
       leaderboardRoles &&
       leaderboardRoles.rowCount !== 0
     ) {
       const oldLeaderboardRole = leaderboardRoles.rows.find(
-        (r) => r.leaderboard_min <= player.oldRank,
+        (r) => r.leaderboard_min <= player.oldRank!,
       )
       const newLeaderboardRole = leaderboardRoles.rows.find(
-        (r) => r.leaderboard_min <= player.newRank,
+        (r) => r.leaderboard_min <= player.newRank!,
       )
 
       // Update leaderboard role if its not the same
