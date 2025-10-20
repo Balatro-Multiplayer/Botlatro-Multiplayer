@@ -3,6 +3,7 @@ import { getQueueLeaderboard } from '../../utils/queryDB'
 export type LeaderboardEntry = {
   rank: number
   id: string
+  name: string | null
   mmr: number
   wins: number
   losses: number
