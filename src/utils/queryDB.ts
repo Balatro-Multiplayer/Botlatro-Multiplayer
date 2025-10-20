@@ -13,7 +13,6 @@ import {
 } from 'psqlDB'
 import { client, getGuild } from '../client'
 import { QueryResult } from 'pg'
-import { setUserQueueRole } from './queueHelpers'
 import { endMatch } from './matchHelpers'
 
 // Get the helper role
@@ -281,6 +280,23 @@ export async function getAllQueueRoles(
   return res.rows
 }
 
+// Count completed games for a user in a queue
+export async function countPlayerGames(
+  queueId: number,
+  userId: string,
+): Promise<number> {
+  const res = await pool.query(
+    `
+    SELECT COUNT(CASE WHEN m.winning_team IS NOT NULL THEN 1 END)::integer as games_played
+    FROM match_users mu
+    JOIN matches m ON m.id = mu.match_id
+    WHERE mu.user_id = $1 AND m.queue_id = $2
+    `,
+    [userId, queueId],
+  )
+  return res.rows[0]?.games_played ?? 0
+}
+
 // get a users highest queue role
 export async function getUserQueueRole(
   queueId: number,
@@ -306,7 +322,13 @@ export async function getUserQueueRole(
 
 export async function getUsersNeedingRoleUpdates(
   queueId: number,
-  players: Array<{ user_id: string; oldMMR: number; newMMR: number }>,
+  players: Array<{
+    user_id: string
+    oldMMR: number
+    newMMR: number
+    oldRank: number | null
+    newRank: number | null
+  }>,
 ): Promise<string[]> {
   if (players.length === 0) return []
 
@@ -314,6 +336,13 @@ export async function getUsersNeedingRoleUpdates(
     `SELECT mmr_threshold FROM queue_roles
      WHERE queue_id = $1 AND mmr_threshold IS NOT NULL
      ORDER BY mmr_threshold DESC`,
+    [queueId],
+  )
+
+  const leaderboardRoles = await pool.query(
+    `SELECT leaderboard_min, leaderboard_max FROM queue_roles
+     WHERE queue_id = $1 AND mmr_threshold IS NULL
+     ORDER BY leaderboard_min DESC`,
     [queueId],
   )
 
@@ -326,6 +355,26 @@ export async function getUsersNeedingRoleUpdates(
 
     if (oldRole !== newRole) {
       usersToUpdate.push(player.user_id)
+    }
+
+    // Also handle leaderboard positions
+    if (
+      player.oldRank !== null &&
+      player.newRank !== null &&
+      leaderboardRoles &&
+      leaderboardRoles.rowCount !== 0
+    ) {
+      const oldLeaderboardRole = leaderboardRoles.rows.find(
+        (r) => r.leaderboard_min <= player.oldRank!,
+      )
+      const newLeaderboardRole = leaderboardRoles.rows.find(
+        (r) => r.leaderboard_min <= player.newRank!,
+      )
+
+      // Update leaderboard role if its not the same
+      if (oldLeaderboardRole !== newLeaderboardRole) {
+        usersToUpdate.push(player.user_id)
+      }
     }
   }
 
@@ -363,12 +412,14 @@ export async function getLeaderboardQueueRole(
     SELECT *
     FROM queue_roles
     WHERE queue_id = $1
-      AND leaderboard_min >= $2
-      AND leaderboard_max <= $2
+      AND leaderboard_min <= $2
+      AND leaderboard_max >= $2
     LIMIT 1
     `,
     [queueId, rank],
   )
+
+  console.log(roleRes.rowCount)
 
   if (roleRes.rowCount === 0) return null
   return roleRes.rows[0]
