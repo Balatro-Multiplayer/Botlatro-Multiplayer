@@ -46,6 +46,7 @@ statsRouter.openapi(
                 z.object({
                   rank: z.number(),
                   id: z.string(),
+                  name: z.string().nullable(),
                   mmr: z.number(),
                   wins: z.number(),
                   losses: z.number(),
@@ -245,7 +246,7 @@ statsRouter.openapi(
               streak: z.number(),
               totalgames: z.number(),
               decay: z.number(),
-              ign: z.any().nullable(),
+              name: z.string().nullable(),
               peak_mmr: z.number(),
               peak_streak: z.number(),
               rank: z.number(),

@@ -8,7 +8,7 @@ export type PlayerStatsData = {
   streak: number
   totalgames: number
   decay: number
-  ign: null
+  name: string | null
   peak_mmr: number
   peak_streak: number
   rank: number
@@ -35,8 +35,10 @@ export async function getPlayerStats(
         qu.peak_elo,
         qu.win_streak,
         qu.peak_win_streak,
-        qu.is_decay
+        qu.is_decay,
+        u.display_name
       FROM queue_users qu
+      LEFT JOIN users u ON u.user_id = qu.user_id
       WHERE qu.user_id = $1 AND qu.queue_id = $2
       `,
       [userId, queueId],
@@ -79,7 +81,7 @@ export async function getPlayerStats(
       streak: player.win_streak,
       totalgames,
       decay: player.is_decay ? 1 : 0,
-      ign: null,
+      name: player.display_name || null,
       peak_mmr: player.peak_elo,
       peak_streak: player.peak_win_streak,
       rank,

@@ -52,6 +52,7 @@ import {
   setUserDefaultDeckBans,
   setUserPriorityQueue,
   setWinningTeam,
+  updateUserDisplayName,
   userInMatch,
 } from '../utils/queryDB'
 import {
@@ -71,6 +72,16 @@ export default {
   name: Events.InteractionCreate,
   async execute(interaction: Interaction) {
     if (!interaction) return console.log('*No interaction found*')
+
+    // Update display name for all interactions except autocomplete
+    if (!interaction.isAutocomplete() && interaction.member instanceof GuildMember) {
+      try {
+        await updateUserDisplayName(interaction.user.id, interaction.member.displayName)
+      } catch (err) {
+        console.error('Error updating display name:', err)
+      }
+    }
+
     // Slash commands
     if (interaction.isChatInputCommand()) {
       const command = interaction.client.commands.get(interaction.commandName)
