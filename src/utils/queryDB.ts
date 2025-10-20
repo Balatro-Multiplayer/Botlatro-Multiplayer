@@ -2059,10 +2059,13 @@ export async function getQueueLeaderboard(
 ): Promise<
   Array<{
     rank: number
-    user_id: string
+    id: string
     mmr: number
     wins: number
     losses: number
+    streak: number
+    peak_mmr: number
+    peak_streak: number
   }>
 > {
   const res = await pool.query(
@@ -2070,6 +2073,9 @@ export async function getQueueLeaderboard(
       SELECT
         qu.user_id,
         qu.elo,
+        qu.peak_elo,
+        qu.win_streak,
+        qu.peak_win_streak,
         COUNT(CASE WHEN m.winning_team = mu.team THEN 1 END)::integer as wins,
         COUNT(CASE WHEN m.winning_team IS NOT NULL AND m.winning_team != mu.team THEN 1 END)::integer as losses
       FROM queue_users qu
@@ -2084,9 +2090,12 @@ export async function getQueueLeaderboard(
 
   return res.rows.map((row, index) => ({
     rank: index + 1,
-    user_id: row.user_id,
+    id: row.user_id,
     mmr: row.elo,
     wins: row.wins || 0,
     losses: row.losses || 0,
+    streak: row.win_streak || 0,
+    peak_mmr: row.peak_elo || 0,
+    peak_streak: row.peak_win_streak || 0,
   }))
 }
