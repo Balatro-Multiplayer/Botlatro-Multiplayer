@@ -45,10 +45,13 @@ statsRouter.openapi(
               leaderboard: z.array(
                 z.object({
                   rank: z.number(),
-                  user_id: z.string(),
+                  id: z.string(),
                   mmr: z.number(),
                   wins: z.number(),
                   losses: z.number(),
+                  streak: z.number(),
+                  peak_mmr: z.number(),
+                  peak_streak: z.number(),
                 }),
               ),
             }),
