@@ -2082,7 +2082,7 @@ export async function getQueueLeaderboard(
       LEFT JOIN match_users mu ON mu.user_id = qu.user_id
       LEFT JOIN matches m ON m.id = mu.match_id AND m.queue_id = $1
       WHERE qu.queue_id = $1
-      GROUP BY qu.user_id, qu.elo
+      GROUP BY qu.user_id, qu.elo, qu.peak_elo, qu.win_streak, qu.peak_win_streak
       ORDER BY qu.elo DESC
       LIMIT $2`,
     [queueId, limit],
