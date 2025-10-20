@@ -2,8 +2,9 @@ import {
   getQueueSettings,
   getUsersNeedingRoleUpdates,
   updatePlayerMmrAll,
+  countPlayerGames,
 } from '../queryDB'
-import type { Matches, Queues, teamResults } from 'psqlDB'
+import type { Queues, teamResults } from 'psqlDB'
 import { setUserQueueRole } from 'utils/queueHelpers'
 import { clamp } from 'lodash-es'
 
@@ -130,7 +131,6 @@ export async function calculatePredictedMMR(
 
 export async function calculateNewMMR(
   queueId: number,
-  matchData: Matches,
   queueSettings: Queues,
   teamResults: teamResults,
   winningTeamId: number,
@@ -143,8 +143,13 @@ export async function calculateNewMMR(
         queueSettings.default_elo,
       )
 
-    const playerMMRChanges: Array<{ user_id: string; oldMMR: number; newMMR: number }> = []
+    const playerMMRChanges: Array<{
+      user_id: string
+      oldMMR: number
+      newMMR: number
+    }> = []
     const updatePromises: Promise<void>[] = []
+    let roleUpdateUsers: string[] = []
 
     for (const ts of teamStats) {
       const isWinner = ts.isWinner
@@ -170,6 +175,11 @@ export async function calculateNewMMR(
         updatePromises.push(
           updatePlayerMmrAll(queueId, player.user_id, newMMR, newVolatility),
         )
+
+        const gamesPlayed = await countPlayerGames(queueId, player.user_id)
+        if (gamesPlayed === 1) {
+          roleUpdateUsers.push(player.user_id)
+        }
       }
 
       ts.team.score = isWinner ? 1 : 0
@@ -177,16 +187,17 @@ export async function calculateNewMMR(
 
     await Promise.all(updatePromises)
 
-    const usersNeedingRoleUpdate = await getUsersNeedingRoleUpdates(
+    // Get users who need role updates due to MMR threshold changes
+    let usersNeedingRoleUpdate = await getUsersNeedingRoleUpdates(
       queueId,
       playerMMRChanges,
     )
 
-    if (usersNeedingRoleUpdate.length > 0) {
+    roleUpdateUsers = roleUpdateUsers.concat(usersNeedingRoleUpdate).flat()
+
+    if (roleUpdateUsers.length > 0) {
       await Promise.all(
-        usersNeedingRoleUpdate.map((userId) =>
-          setUserQueueRole(queueId, userId),
-        ),
+        roleUpdateUsers.map((userId) => setUserQueueRole(queueId, userId)),
       )
     }
 

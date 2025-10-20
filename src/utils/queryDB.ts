@@ -13,7 +13,6 @@ import {
 } from 'psqlDB'
 import { client, getGuild } from '../client'
 import { QueryResult } from 'pg'
-import { setUserQueueRole } from './queueHelpers'
 import { endMatch } from './matchHelpers'
 
 // Get the helper role
@@ -279,6 +278,23 @@ export async function getAllQueueRoles(
   }
 
   return res.rows
+}
+
+// Count completed games for a user in a queue
+export async function countPlayerGames(
+  queueId: number,
+  userId: string,
+): Promise<number> {
+  const res = await pool.query(
+    `
+    SELECT COUNT(CASE WHEN m.winning_team IS NOT NULL THEN 1 END)::integer as games_played
+    FROM match_users mu
+    JOIN matches m ON m.id = mu.match_id
+    WHERE mu.user_id = $1 AND m.queue_id = $2
+    `,
+    [userId, queueId],
+  )
+  return res.rows[0]?.games_played ?? 0
 }
 
 // get a users highest queue role

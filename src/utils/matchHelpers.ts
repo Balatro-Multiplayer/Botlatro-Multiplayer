@@ -760,7 +760,6 @@ export async function endMatch(
 
   teamResults = await calculateNewMMR(
     queueId,
-    matchData,
     queueSettings,
     teamResultsData,
     winningTeamId,
