@@ -27,10 +27,6 @@ async function backfillDisplayNames() {
       return
     }
 
-    // Login to Discord
-    await client.login(process.env.TOKEN)
-    console.log('Discord client logged in')
-
     let successCount = 0
     let errorCount = 0
 
