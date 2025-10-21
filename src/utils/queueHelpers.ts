@@ -296,9 +296,10 @@ export async function joinQueues(
         `UPDATE queue_users
          SET queue_join_time = NOW(),
              elo = COALESCE(elo, $3),
-             peak_elo = COALESCE(peak_elo, $3)
+             peak_elo = COALESCE(peak_elo, $3),
+             current_elo_range = $4
          WHERE user_id = $1 AND queue_id = $2`,
-        [userId, queueId, queue.default_elo],
+        [userId, queueId, queue.default_elo, queue.elo_search_start],
       )
     }
 

@@ -1376,6 +1376,15 @@ export async function updateCurrentEloRangeForUser(
   )
 }
 
+export async function resetAllCurrentEloRangeForUser(
+  userId: string,
+): Promise<void> {
+  await pool.query(
+    `UPDATE queue_users SET current_elo_range = 0 WHERE user_id = $1`,
+    [userId],
+  )
+}
+
 export async function resetCurrentEloRangeForUser(
   userId: string,
   queueId: number,

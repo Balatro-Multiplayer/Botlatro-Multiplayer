@@ -45,6 +45,8 @@ import {
   getStatsCanvasUserData,
   getUserQueues,
   partyUtils,
+  resetAllCurrentEloRangeForUser,
+  resetCurrentEloRangeForUser,
   setMatchBestOf,
   setMatchStakeVoteTeam,
   setPickedMatchStake,
@@ -74,9 +76,15 @@ export default {
     if (!interaction) return console.log('*No interaction found*')
 
     // Update display name for all interactions except autocomplete
-    if (!interaction.isAutocomplete() && interaction.member instanceof GuildMember) {
+    if (
+      !interaction.isAutocomplete() &&
+      interaction.member instanceof GuildMember
+    ) {
       try {
-        await updateUserDisplayName(interaction.user.id, interaction.member.displayName)
+        await updateUserDisplayName(
+          interaction.user.id,
+          interaction.member.displayName,
+        )
       } catch (err) {
         console.error('Error updating display name:', err)
       }
@@ -562,6 +570,8 @@ export default {
             `,
             [interaction.user.id],
           )
+
+          await resetAllCurrentEloRangeForUser(interaction.user.id)
 
           let message = 'You left the queue!'
 
