@@ -865,6 +865,8 @@ export async function removeUserFromQueue(
     [userId, queueId],
   )
 
+  await resetCurrentEloRangeForUser(userId, queueId)
+
   return response.rowCount !== 0
 }
 
@@ -1371,6 +1373,17 @@ export async function updateCurrentEloRangeForUser(
   await pool.query(
     `UPDATE queue_users SET current_elo_range = $1 WHERE user_id = $2 AND queue_id = $3`,
     [newRange, userId, queueId],
+  )
+}
+
+export async function resetCurrentEloRangeForUser(
+  userId: string,
+  queueId: number,
+): Promise<void> {
+  const queueSettings = await getQueueSettings(queueId)
+  await pool.query(
+    `UPDATE queue_users SET current_elo_range = $3 WHERE user_id = $1 AND queue_id = $2`,
+    [userId, queueId, queueSettings.elo_search_start],
   )
 }
 
