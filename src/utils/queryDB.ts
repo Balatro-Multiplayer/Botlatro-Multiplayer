@@ -414,8 +414,8 @@ export async function getLeaderboardQueueRole(
     SELECT *
     FROM queue_roles
     WHERE queue_id = $1
-      AND leaderboard_min <= $2
-      AND leaderboard_max >= $2
+      AND leaderboard_min >= $2
+      AND leaderboard_max <= $2
     LIMIT 1
     `,
     [queueId, rank],
