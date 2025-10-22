@@ -1513,11 +1513,27 @@ export async function getStatsCanvasUserData(
     date: r.date as Date,
   }))
 
+  // Get queue default_elo for initial data point
+  const queueSettings = await getQueueSettings(queueId)
+  const defaultElo = queueSettings.default_elo
+
   const totalChange = eloChanges.reduce((sum, r) => sum + r.change, 0)
   let running = (p.elo ?? 0) - totalChange
-  const elo_graph_data = eloChanges.map((r) => {
+
+  const elo_graph_data: { date: Date; rating: number }[] = []
+
+  // Add initial starting point if there are any matches
+  if (eloChanges.length > 0) {
+    const firstMatchDate = new Date(eloChanges[0].date)
+    const startDate = new Date(firstMatchDate.getTime() - 1000) // 1 second before
+    elo_graph_data.push({ date: startDate, rating: defaultElo })
+  }
+
+  // Add all match data points
+  eloChanges.forEach((r) => {
     running += r.change
-    return { date: r.date, rating: running }
+    const clampedRating = Math.max(0, running) // Makes sure it stays within the range of 0-9999
+    elo_graph_data.push({ date: r.date, rating: clampedRating })
   })
 
   // Calculate percentiles for each stat using CTEs
