@@ -1,4 +1,4 @@
-import viewStats from '../queues/viewStats'
+import viewStats from '../queues/statsQueue'
 import {
   AutocompleteInteraction,
   ChatInputCommandInteraction,

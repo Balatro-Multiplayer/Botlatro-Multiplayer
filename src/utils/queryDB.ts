@@ -385,20 +385,22 @@ export async function getLeaderboardPosition(
   queueId: number,
   userId: string,
 ): Promise<number | null> {
-  const playersRes = await pool.query(
+  const result = await pool.query(
     `
-    SELECT user_id
-    FROM queue_users
-    WHERE queue_id = $1
-    ORDER BY elo DESC
+    SELECT rank
+    FROM (
+      SELECT user_id, ROW_NUMBER() OVER (ORDER BY elo DESC) as rank
+      FROM queue_users
+      WHERE queue_id = $1
+    ) ranked
+    WHERE user_id = $2
     `,
-    [queueId],
+    [queueId, userId],
   )
 
-  if (playersRes.rowCount === 0) return null
+  if (result.rowCount === 0) return null
 
-  const players: { user_id: string }[] = playersRes.rows
-  return players.findIndex((p) => p.user_id === userId) + 1
+  return result.rows[0].rank
 }
 
 export async function getLeaderboardQueueRole(
@@ -418,8 +420,6 @@ export async function getLeaderboardQueueRole(
     `,
     [queueId, rank],
   )
-
-  console.log(roleRes.rowCount)
 
   if (roleRes.rowCount === 0) return null
   return roleRes.rows[0]

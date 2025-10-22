@@ -1,7 +1,10 @@
 import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
 import { drawPlayerStatsCanvas } from '../../utils/canvasHelpers'
 import { getQueueIdFromName, getStatsCanvasUserData } from '../../utils/queryDB'
-import { setupViewStatsButtons } from '../../utils/queueHelpers'
+import {
+  setupViewStatsButtons,
+  setUserQueueRole,
+} from '../../utils/queueHelpers'
 
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
@@ -19,6 +22,10 @@ export default {
         files: [statFile],
         components: [viewStatsButtons],
       })
+
+      // Update queue role, just to be sure it's correct when they check
+      // This is a nice bandaid fix till we update leaderboard roles better
+      await setUserQueueRole(queueId, targetUser.id)
     } catch (err: any) {
       console.error(err)
       const errorMsg = err.detail || err.message || 'Unknown'
