@@ -620,7 +620,6 @@ export async function setUserQueueRole(
     const expectedRole = currentRole && role.role_id === currentRole.role_id
 
     // If the user has the expected role, check if they are within the MMR range
-    // Also don't add if they already have the role
     if (expectedRole && !currentRoleIds.has(role.role_id)) {
       rolesToAdd.push(role.role_id)
     } else if (!expectedRole && currentRoleIds.has(role.role_id)) {
