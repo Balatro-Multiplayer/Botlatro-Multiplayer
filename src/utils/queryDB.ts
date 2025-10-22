@@ -385,20 +385,22 @@ export async function getLeaderboardPosition(
   queueId: number,
   userId: string,
 ): Promise<number | null> {
-  const playersRes = await pool.query(
+  const result = await pool.query(
     `
-    SELECT user_id
-    FROM queue_users
-    WHERE queue_id = $1
-    ORDER BY elo DESC
+    SELECT rank
+    FROM (
+      SELECT user_id, ROW_NUMBER() OVER (ORDER BY elo DESC) as rank
+      FROM queue_users
+      WHERE queue_id = $1
+    ) ranked
+    WHERE user_id = $2
     `,
-    [queueId],
+    [queueId, userId],
   )
 
-  if (playersRes.rowCount === 0) return null
+  if (result.rowCount === 0) return null
 
-  const players: { user_id: string }[] = playersRes.rows
-  return players.findIndex((p) => p.user_id === userId) + 1
+  return result.rows[0].rank
 }
 
 export async function getLeaderboardQueueRole(
@@ -418,8 +420,6 @@ export async function getLeaderboardQueueRole(
     `,
     [queueId, rank],
   )
-
-  console.log(roleRes.rowCount)
 
   if (roleRes.rowCount === 0) return null
   return roleRes.rows[0]
@@ -1513,11 +1513,27 @@ export async function getStatsCanvasUserData(
     date: r.date as Date,
   }))
 
+  // Get queue default_elo for initial data point
+  const queueSettings = await getQueueSettings(queueId)
+  const defaultElo = queueSettings.default_elo
+
   const totalChange = eloChanges.reduce((sum, r) => sum + r.change, 0)
   let running = (p.elo ?? 0) - totalChange
-  const elo_graph_data = eloChanges.map((r) => {
+
+  const elo_graph_data: { date: Date; rating: number }[] = []
+
+  // Add initial starting point if there are any matches
+  if (eloChanges.length > 0) {
+    const firstMatchDate = new Date(eloChanges[0].date)
+    const startDate = new Date(firstMatchDate.getTime() - 1000) // 1 second before
+    elo_graph_data.push({ date: startDate, rating: defaultElo })
+  }
+
+  // Add all match data points
+  eloChanges.forEach((r) => {
     running += r.change
-    return { date: r.date, rating: running }
+    const clampedRating = Math.max(0, running) // Makes sure it stays within the range of 0-9999
+    elo_graph_data.push({ date: r.date, rating: clampedRating })
   })
 
   // Calculate percentiles for each stat using CTEs

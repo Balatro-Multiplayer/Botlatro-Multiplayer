@@ -877,6 +877,20 @@ export default {
             console.error('Failed to fetch original message embed:', err)
           }
 
+          // Add delete button for helpers
+          const deleteButtonRow =
+            new ActionRowBuilder<ButtonBuilder>().addComponents(
+              new ButtonBuilder()
+                .setCustomId(`delete-contest-${matchId}`)
+                .setLabel('Delete Contest Channel')
+                .setStyle(ButtonStyle.Danger),
+            )
+
+          await contestChannel.send({
+            content: 'Helpers can delete this contest channel when resolved:',
+            components: [deleteButtonRow],
+          })
+
           await interaction.update({
             content: `Contest channel created! Please go here to contest this matchup with the staff: ${contestChannel}`,
             components: [],
@@ -886,6 +900,40 @@ export default {
         if (interaction.customId.startsWith('contest-cancel-')) {
           await interaction.deferUpdate()
           await interaction.deleteReply()
+        }
+
+        if (interaction.customId.startsWith('delete-contest-')) {
+          const matchId = parseInt(interaction.customId.split('-')[2])
+          const botSettings = await getSettings()
+          const member = interaction.member as GuildMember
+
+          // Check if user is a helper
+          if (
+            member &&
+            (member.roles.cache.has(botSettings.helper_role_id) ||
+              member.roles.cache.has(botSettings.queue_helper_role_id))
+          ) {
+            // User is a helper, delete the channel
+            await interaction.reply({
+              content: 'Deleting contest channel...',
+              flags: MessageFlags.Ephemeral,
+            })
+
+            try {
+              await interaction.channel?.delete()
+            } catch (err) {
+              console.error(
+                `Failed to delete contest channel for match ${matchId}:`,
+                err,
+              )
+            }
+          } else {
+            // User is not a helper
+            await interaction.reply({
+              content: 'Only helpers can delete contest channels.',
+              flags: MessageFlags.Ephemeral,
+            })
+          }
         }
 
         if (interaction.customId.startsWith('rematch-')) {

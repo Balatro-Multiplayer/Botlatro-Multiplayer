@@ -585,53 +585,65 @@ export async function setUserQueueRole(
 ): Promise<void> {
   console.log(`setting queue role for user ${userId} in queue ${queueId}`)
   const currentRole = await getUserQueueRole(queueId, userId)
-  const leaderboardRole = await getLeaderboardQueueRole(queueId, userId)
   const allQueueRoles = await getAllQueueRoles(queueId, false)
+  const leaderboardRole = await getLeaderboardQueueRole(queueId, userId)
 
   const guild = await getGuild()
   const member = await guild.members.fetch(userId)
 
-  // Remove all MMR-based roles (where mmr_threshold is not null)
+  // Get current member roles
+  const currentRoleIds = new Set(member.roles.cache.keys())
+
+  // Determine which queue roles should be added/removed
   const mmrRoles = allQueueRoles.filter((role) => role.mmr_threshold !== null)
-  for (const role of mmrRoles) {
-    try {
-      await member.roles.remove(role.role_id)
-    } catch (err) {
-      console.error(`Failed to remove MMR role ${role.role_id}:`, err)
-    }
-  }
-
-  // Add the current MMR-based role if one exists
-  if (currentRole) {
-    try {
-      await member.roles.add(currentRole.role_id)
-    } catch (err) {
-      console.error(`Failed to add MMR role ${currentRole.role_id}:`, err)
-    }
-  }
-
-  // Remove all leaderboard roles (where leaderboard_min is not null)
   const leaderboardRoles = allQueueRoles.filter(
     (role) => role.leaderboard_min !== null,
   )
+
+  const rolesToRemove: string[] = []
+  const rolesToAdd: string[] = []
+
+  // Check leaderboard roles
   for (const role of leaderboardRoles) {
-    try {
-      await member.roles.remove(role.role_id)
-    } catch (err) {
-      console.error(`Failed to remove leaderboard role ${role.role_id}:`, err)
+    const expectedRole =
+      leaderboardRole && role.role_id === leaderboardRole.role_id
+
+    if (expectedRole && !currentRoleIds.has(role.role_id)) {
+      rolesToAdd.push(role.role_id)
+    } else if (!expectedRole && currentRoleIds.has(role.role_id)) {
+      rolesToRemove.push(role.role_id)
     }
   }
 
-  // Add the current leaderboard role if one exists
-  if (leaderboardRole) {
-    try {
-      await member.roles.add(leaderboardRole.role_id)
-    } catch (err) {
-      console.error(
-        `Failed to add leaderboard role ${leaderboardRole.role_id}:`,
-        err,
-      )
+  // Check MMR roles
+  for (const role of mmrRoles) {
+    const expectedRole = currentRole && role.role_id === currentRole.role_id
+
+    // If the user has the expected role, check if they are within the MMR range
+    if (expectedRole && !currentRoleIds.has(role.role_id)) {
+      rolesToAdd.push(role.role_id)
+    } else if (!expectedRole && currentRoleIds.has(role.role_id)) {
+      rolesToRemove.push(role.role_id)
     }
+  }
+
+  // Do nothing if no role changes are needed
+  if (rolesToRemove.length === 0 && rolesToAdd.length === 0) {
+    console.log(`No role changes needed for user ${userId}`)
+    return
+  }
+
+  try {
+    if (rolesToRemove.length > 0) {
+      await member.roles.remove(rolesToRemove)
+      console.log(`Removed ${rolesToRemove.length} roles from user ${userId}`)
+    }
+    if (rolesToAdd.length > 0) {
+      await member.roles.add(rolesToAdd)
+      console.log(`Added ${rolesToAdd.length} roles to user ${userId}`)
+    }
+  } catch (err) {
+    console.error(`Failed to update roles for user ${userId}:`, err)
   }
 }
 

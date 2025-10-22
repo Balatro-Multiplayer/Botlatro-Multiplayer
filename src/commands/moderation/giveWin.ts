@@ -81,9 +81,22 @@ export default {
       const usersIdInMatch = await getUsersInMatch(matchId)
       const users = await Promise.all(
         usersIdInMatch.map(async (userId) => {
-          const user = await interaction.client.users.fetch(userId)
+          // Try to get member first for displayName, fallback to user
+          let displayName: string
+          try {
+            const member = await interaction.guild?.members.fetch(userId)
+            displayName = member?.displayName ?? ''
+          } catch {
+            try {
+              const user = await interaction.client.users.fetch(userId)
+              displayName = user.username
+            } catch {
+              displayName = 'name not found'
+            }
+          }
+
           return {
-            name: user.username,
+            name: displayName,
             value: userId,
           }
         }),

@@ -11,7 +11,16 @@ export default {
       sub.setName('deck').setDescription('Roll a random deck'),
     )
     .addSubcommand((sub) =>
-      sub.setName('stake').setDescription('Roll a random stake'),
+      sub
+        .setName('stake')
+        .setDescription('Roll a random stake')
+        .addStringOption((option) =>
+          option
+            .setName('custom-stake')
+            .setDescription('Whether to include custom stakes or not')
+            .addChoices([{ name: 'yes', value: 'yes' }])
+            .setRequired(false),
+        ),
     ),
 
   async execute(interaction: ChatInputCommandInteraction) {
