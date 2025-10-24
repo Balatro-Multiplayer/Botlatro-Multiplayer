@@ -27,7 +27,7 @@ export async function getOverallHistory(
   limit?: number,
 ): Promise<OverallHistoryEntry[]> {
   try {
-    // Get overall match history for the queue
+    // Get overall match history with players in a single query using JSON aggregation
     let query = `
       SELECT
         m.id as match_id,
@@ -36,9 +36,22 @@ export async function getOverallHistory(
         m.stake,
         m.best_of_3,
         m.best_of_5,
-        m.created_at
+        m.created_at,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'user_id', mu.user_id,
+              'team', mu.team,
+              'elo_change', mu.elo_change
+            )
+            ORDER BY mu.team, mu.user_id
+          ) FILTER (WHERE mu.user_id IS NOT NULL),
+          '[]'::json
+        ) as players
       FROM matches m
+      LEFT JOIN match_users mu ON m.id = mu.match_id
       WHERE m.queue_id = $1 AND m.winning_team IS NOT NULL
+      GROUP BY m.id, m.winning_team, m.deck, m.stake, m.best_of_3, m.best_of_5, m.created_at
       ORDER BY m.created_at DESC
     `
 
@@ -50,37 +63,16 @@ export async function getOverallHistory(
 
     const historyRes = await pool.query(query, params)
 
-    // For each match, get the players
-    const matches = await Promise.all(
-      historyRes.rows.map(async (row) => {
-        const playersRes = await pool.query(
-          `
-          SELECT user_id, team, elo_change
-          FROM match_users
-          WHERE match_id = $1
-          ORDER BY team, user_id
-          `,
-          [row.match_id],
-        )
-
-        return {
-          match_id: row.match_id,
-          winning_team: row.winning_team,
-          deck: row.deck,
-          stake: row.stake,
-          best_of_3: row.best_of_3,
-          best_of_5: row.best_of_5,
-          created_at: row.created_at.toISOString(),
-          players: playersRes.rows.map((player) => ({
-            user_id: player.user_id,
-            team: player.team,
-            elo_change: player.elo_change,
-          })),
-        }
-      }),
-    )
-
-    return matches
+    return historyRes.rows.map((row) => ({
+      match_id: row.match_id,
+      winning_team: row.winning_team,
+      deck: row.deck,
+      stake: row.stake,
+      best_of_3: row.best_of_3,
+      best_of_5: row.best_of_5,
+      created_at: row.created_at.toISOString(),
+      players: row.players,
+    }))
   } catch (error) {
     console.error('Error fetching overall match history:', error)
     throw error
