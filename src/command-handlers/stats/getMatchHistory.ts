@@ -18,18 +18,17 @@ export type MatchHistoryEntry = {
  *
  * @param {string} userId - The Discord user ID of the player.
  * @param {number} queueId - The queue ID to fetch match history for.
- * @param {number} limit - Maximum number of matches to return (default: 50).
+ * @param {number} limit - Optional maximum number of matches to return. If not provided, returns all matches.
  * @return {Promise<MatchHistoryEntry[]>} A promise that resolves to an array of match history entries.
  */
 export async function getMatchHistory(
   userId: string,
   queueId: number,
-  limit: number = 50,
+  limit?: number,
 ): Promise<MatchHistoryEntry[]> {
   try {
     // Get match history for the player
-    const historyRes = await pool.query(
-      `
+    let query = `
       SELECT
         m.id as match_id,
         m.winning_team,
@@ -44,10 +43,15 @@ export async function getMatchHistory(
       JOIN matches m ON m.id = mu.match_id
       WHERE mu.user_id = $1 AND m.queue_id = $2 AND m.winning_team IS NOT NULL
       ORDER BY m.created_at DESC
-      LIMIT $3
-      `,
-      [userId, queueId, limit],
-    )
+    `
+
+    const params: any[] = [userId, queueId]
+    if (limit) {
+      query += ` LIMIT $${params.length + 1}`
+      params.push(limit)
+    }
+
+    const historyRes = await pool.query(query, params)
 
     return historyRes.rows.map((row) => ({
       match_id: row.match_id,

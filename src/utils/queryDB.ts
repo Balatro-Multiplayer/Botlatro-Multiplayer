@@ -2093,7 +2093,7 @@ export async function getAllOpenRooms(): Promise<UserRoom[]> {
 // Get leaderboard data for a queue
 export async function getQueueLeaderboard(
   queueId: number,
-  limit: number = 100,
+  limit?: number,
 ): Promise<
   Array<{
     rank: number
@@ -2107,27 +2107,32 @@ export async function getQueueLeaderboard(
     peak_streak: number
   }>
 > {
-  const res = await pool.query(
-    `
-      SELECT
-        qu.user_id,
-        u.display_name,
-        qu.elo,
-        qu.peak_elo,
-        qu.win_streak,
-        qu.peak_win_streak,
-        COUNT(CASE WHEN m.winning_team = mu.team THEN 1 END)::integer as wins,
-        COUNT(CASE WHEN m.winning_team IS NOT NULL AND m.winning_team != mu.team THEN 1 END)::integer as losses
-      FROM queue_users qu
-      LEFT JOIN users u ON u.user_id = qu.user_id
-      LEFT JOIN match_users mu ON mu.user_id = qu.user_id
-      LEFT JOIN matches m ON m.id = mu.match_id AND m.queue_id = $1
-      WHERE qu.queue_id = $1
-      GROUP BY qu.user_id, u.display_name, qu.elo, qu.peak_elo, qu.win_streak, qu.peak_win_streak
-      ORDER BY qu.elo DESC
-      LIMIT $2`,
-    [queueId, limit],
-  )
+  let query = `
+    SELECT
+      qu.user_id,
+      u.display_name,
+      qu.elo,
+      qu.peak_elo,
+      qu.win_streak,
+      qu.peak_win_streak,
+      COUNT(CASE WHEN m.winning_team = mu.team THEN 1 END)::integer as wins,
+      COUNT(CASE WHEN m.winning_team IS NOT NULL AND m.winning_team != mu.team THEN 1 END)::integer as losses
+    FROM queue_users qu
+    LEFT JOIN users u ON u.user_id = qu.user_id
+    LEFT JOIN match_users mu ON mu.user_id = qu.user_id
+    LEFT JOIN matches m ON m.id = mu.match_id AND m.queue_id = $1
+    WHERE qu.queue_id = $1
+    GROUP BY qu.user_id, u.display_name, qu.elo, qu.peak_elo, qu.win_streak, qu.peak_win_streak
+    ORDER BY qu.elo DESC
+  `
+
+  const params: any[] = [queueId]
+  if (limit) {
+    query += ` LIMIT $${params.length + 1}`
+    params.push(limit)
+  }
+
+  const res = await pool.query(query, params)
 
   return res.rows.map((row, index) => ({
     rank: index + 1,

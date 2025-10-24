@@ -19,17 +19,16 @@ export type OverallHistoryEntry = {
  * Gets overall match history for a queue.
  *
  * @param {number} queueId - The queue ID to fetch match history for.
- * @param {number} limit - Maximum number of matches to return (default: 50).
+ * @param {number} limit - Optional maximum number of matches to return. If not provided, returns all matches.
  * @return {Promise<OverallHistoryEntry[]>} A promise that resolves to an array of match history entries.
  */
 export async function getOverallHistory(
   queueId: number,
-  limit: number = 50,
+  limit?: number,
 ): Promise<OverallHistoryEntry[]> {
   try {
     // Get overall match history for the queue
-    const historyRes = await pool.query(
-      `
+    let query = `
       SELECT
         m.id as match_id,
         m.winning_team,
@@ -41,10 +40,15 @@ export async function getOverallHistory(
       FROM matches m
       WHERE m.queue_id = $1 AND m.winning_team IS NOT NULL
       ORDER BY m.created_at DESC
-      LIMIT $2
-      `,
-      [queueId, limit],
-    )
+    `
+
+    const params: any[] = [queueId]
+    if (limit) {
+      query += ` LIMIT $${params.length + 1}`
+      params.push(limit)
+    }
+
+    const historyRes = await pool.query(query, params)
 
     // For each match, get the players
     const matches = await Promise.all(

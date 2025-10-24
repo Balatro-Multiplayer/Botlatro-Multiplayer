@@ -16,12 +16,12 @@ export type LeaderboardEntry = {
  * Gets leaderboard data for a specific queue.
  *
  * @param {number} queueId - The queue ID to fetch leaderboard for.
- * @param {number} limit - Maximum number of entries to return.
+ * @param {number} limit - Optional maximum number of entries to return. If not provided, returns all entries.
  * @return {Promise<LeaderboardEntry[]>} A promise that resolves to the leaderboard data.
  */
 export async function getLeaderboard(
   queueId: number,
-  limit: number = 100,
+  limit?: number,
 ): Promise<LeaderboardEntry[]> {
   try {
     return await getQueueLeaderboard(queueId, limit)
