@@ -590,9 +590,8 @@ export async function setUserQueueRole(
 
   const guild = await getGuild()
   const member = await guild.members.fetch(userId)
-
-  // Get current member roles
-  const currentRoleIds = new Set(member.roles.cache.keys())
+  console.log(member.roles.cache.map((role) => `${role.name} ${role.id}`))
+  const currentRoleIds = member.roles.cache.map((role) => role.id)
 
   // Determine which queue roles should be added/removed
   const mmrRoles = allQueueRoles.filter((role) => role.mmr_threshold !== null)
@@ -608,9 +607,9 @@ export async function setUserQueueRole(
     const expectedRole =
       leaderboardRole && role.role_id === leaderboardRole.role_id
 
-    if (expectedRole && !currentRoleIds.has(role.role_id)) {
+    if (expectedRole && !currentRoleIds.includes(role.role_id)) {
       rolesToAdd.push(role.role_id)
-    } else if (!expectedRole && currentRoleIds.has(role.role_id)) {
+    } else if (!expectedRole && currentRoleIds.includes(role.role_id)) {
       rolesToRemove.push(role.role_id)
     }
   }
@@ -620,12 +619,16 @@ export async function setUserQueueRole(
     const expectedRole = currentRole && role.role_id === currentRole.role_id
 
     // If the user has the expected role, check if they are within the MMR range
-    if (expectedRole && !currentRoleIds.has(role.role_id)) {
+    if (expectedRole && !currentRoleIds.includes(role.role_id)) {
       rolesToAdd.push(role.role_id)
-    } else if (!expectedRole && currentRoleIds.has(role.role_id)) {
+    } else if (!expectedRole && currentRoleIds.includes(role.role_id)) {
       rolesToRemove.push(role.role_id)
     }
   }
+
+  console.log(
+    `roles to remove: ${rolesToRemove.join(', ')}, roles to add: ${rolesToAdd.join(', ')}`,
+  )
 
   // Do nothing if no role changes are needed
   if (rolesToRemove.length === 0 && rolesToAdd.length === 0) {
@@ -635,12 +638,26 @@ export async function setUserQueueRole(
 
   try {
     if (rolesToRemove.length > 0) {
-      await member.roles.remove(rolesToRemove)
-      console.log(`Removed ${rolesToRemove.length} roles from user ${userId}`)
+      console.log(`Attempting to remove roles: ${rolesToRemove.join(', ')}`)
+      for (const roleId of rolesToRemove) {
+        try {
+          await member.roles.remove(roleId)
+          console.log(`Successfully removed role ${roleId} from user ${userId}`)
+        } catch (roleErr) {
+          console.error(`Failed to remove role ${roleId} from user ${userId}:`, roleErr)
+        }
+      }
     }
     if (rolesToAdd.length > 0) {
-      await member.roles.add(rolesToAdd)
-      console.log(`Added ${rolesToAdd.length} roles to user ${userId}`)
+      console.log(`Attempting to add roles: ${rolesToAdd.join(', ')}`)
+      for (const roleId of rolesToAdd) {
+        try {
+          await member.roles.add(roleId)
+          console.log(`Successfully added role ${roleId} to user ${userId}`)
+        } catch (roleErr) {
+          console.error(`Failed to add role ${roleId} to user ${userId}:`, roleErr)
+        }
+      }
     }
   } catch (err) {
     console.error(`Failed to update roles for user ${userId}:`, err)
