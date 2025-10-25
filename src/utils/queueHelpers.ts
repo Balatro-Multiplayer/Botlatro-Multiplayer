@@ -590,7 +590,6 @@ export async function setUserQueueRole(
 
   const guild = await getGuild()
   const member = await guild.members.fetch(userId)
-  console.log(member.roles.cache.map((role) => `${role.name} ${role.id}`))
   const currentRoleIds = member.roles.cache.map((role) => role.id)
 
   // Determine which queue roles should be added/removed
@@ -644,7 +643,10 @@ export async function setUserQueueRole(
           await member.roles.remove(roleId)
           console.log(`Successfully removed role ${roleId} from user ${userId}`)
         } catch (roleErr) {
-          console.error(`Failed to remove role ${roleId} from user ${userId}:`, roleErr)
+          console.error(
+            `Failed to remove role ${roleId} from user ${userId}:`,
+            roleErr,
+          )
         }
       }
     }
@@ -655,7 +657,10 @@ export async function setUserQueueRole(
           await member.roles.add(roleId)
           console.log(`Successfully added role ${roleId} to user ${userId}`)
         } catch (roleErr) {
-          console.error(`Failed to add role ${roleId} to user ${userId}:`, roleErr)
+          console.error(
+            `Failed to add role ${roleId} to user ${userId}:`,
+            roleErr,
+          )
         }
       }
     }
