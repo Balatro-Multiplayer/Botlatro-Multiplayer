@@ -159,9 +159,22 @@ export async function calculateNewMMR(
       const mmrChange = isWinner ? ratingChange : -ratingChange / loserCount
 
       for (const player of ts.team.players) {
-        const oldMMR = player.elo ?? queueSettings.default_elo
+        // If this match was already processed, revert the previous MMR change
+        // to get the pre-match MMR before applying the new change
+        let currentMMR = player.elo ?? queueSettings.default_elo
+        const previousEloChange = player.elo_change ?? 0
+        const isRecalculation = previousEloChange !== 0
+
+        // Revert previous MMR change if it exists
+        const oldMMR = currentMMR - previousEloChange
+
         const oldRank = await getLeaderboardPosition(queueId, player.user_id)
-        const oldVolatility = player.volatility ?? 0
+        const currentVolatility = player.volatility ?? 0
+
+        // Only increment volatility if this is the first time processing this match
+        const oldVolatility = isRecalculation
+          ? currentVolatility - 1
+          : currentVolatility
 
         const newMMR = parseFloat((oldMMR + mmrChange).toFixed(1))
         const newVolatility = Math.min(oldVolatility + 1, 10)
