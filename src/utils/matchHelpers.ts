@@ -336,9 +336,14 @@ export async function sendMatchInitMessages(
 
   // Build team ping string for initial message
   let teamPingString = ``
+  let disabilityUser = false
   for (const team of teamData.teams) {
     for (const player of team.players) {
       teamPingString += `<@${player.user_id}> `
+      // Specific handling for the user three_6666
+      if (player.user_id == '366416883454443520') {
+        disabilityUser = true
+      }
     }
     teamPingString += 'vs. '
   }
@@ -427,6 +432,18 @@ export async function sendMatchInitMessages(
     content: `**Stake Bans:**\n${teamUsers}`,
     components: stakeBanButtons,
   })
+
+  // Send special disability message
+  if (disabilityUser) {
+    await textChannel.send({
+      content:
+        `This match includes a user that has an official exemption from certain ranked rules due to health reasons. ` +
+        `This game boths player will not be allowed to use the timer, and will not be allowed ` +
+        `to purchase or use Conjoined Joker (agreeing to the rules and then intentionally breaking them will be seen as a forfeit).\n\n` +
+        `If you agree with these rules, please type **"I agree"** before the match is started.\n` +
+        `If you do not want to play by these rules you are free to say **"I disagree"** and vote to cancel the match. Please be respectful.`,
+    })
+  }
 }
 
 export async function resendMatchWinVote(
