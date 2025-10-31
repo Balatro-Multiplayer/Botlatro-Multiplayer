@@ -182,7 +182,7 @@ async function drawCircle(ctx: CanvasRenderingContext2D, x: number, y: number, r
 }
 
 async function addBackground(ctx: CanvasRenderingContext2D) {
-  const bg = await loadImage("src/assets/backgrounds/bgZodiac.png")
+  const bg = await loadImage("src/assets/backgrounds/bgPlanet.png")
   ctx.drawImage(bg,0,0)
 }
 
@@ -776,6 +776,10 @@ async function rankupBar(ctx: CanvasRenderingContext2D, playerData: StatsCanvasP
     const xfill = xlen * ((xact - xmin)/(xmax - xmin))
 
     ctx.fillStyle = rankColor
+    if (rankName == "STONE") {
+      ctx.fillStyle = "#868692ff"
+    }
+
     ctx.fillRect(x,y,xfill,ylen)
 
     corner(x,y,xlen,ylen)
@@ -838,7 +842,6 @@ async function rankupBar(ctx: CanvasRenderingContext2D, playerData: StatsCanvasP
   borderText(nextRankName,x+xlen-10,y + ylen -8,config.colors.textPrimary,config.colors.textQuaternary)
 
 }
-
 
 export async function drawPlayerStatsCanvas(
   queueName: string,
