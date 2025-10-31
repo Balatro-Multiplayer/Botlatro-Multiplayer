@@ -538,6 +538,7 @@ export default {
 
         if (interaction.customId.startsWith('view-stats-')) {
           try {
+            await interaction.deferReply()
             const queueName = interaction.customId.split('-')[2]
             const queueId = await getQueueIdFromName(queueName)
             const playerStats = await getStatsCanvasUserData(
@@ -547,14 +548,13 @@ export default {
             const statFile = await drawPlayerStatsCanvas(queueName, playerStats)
             const viewStatsButtons = setupViewStatsButtons(queueName)
 
-            await interaction.reply({
+            await interaction.editReply({
               files: [statFile],
               components: [viewStatsButtons],
             })
           } catch (err) {
-            await interaction.reply({
+            await interaction.editReply({
               content: `You don't have any stats for this queue.`,
-              flags: [MessageFlags.Ephemeral],
             })
           }
         }
