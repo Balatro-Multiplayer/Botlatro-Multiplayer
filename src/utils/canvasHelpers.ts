@@ -182,7 +182,7 @@ async function drawCircle(ctx: CanvasRenderingContext2D, x: number, y: number, r
 }
 
 async function addBackground(ctx: CanvasRenderingContext2D) {
-  const bg = await loadImage("src/assets/background.png")
+  const bg = await loadImage("src/assets/backgrounds/bgZodiac.png")
   ctx.drawImage(bg,0,0)
 }
 
@@ -480,10 +480,10 @@ function createGraph(ctx: CanvasRenderingContext2D, playerData: StatsCanvasPlaye
     }
 
     ctx.beginPath()
-    ctx.setLineDash([12, 4])
     ctx.moveTo(x, yPos)
     ctx.lineTo(x + xlen, yPos)
     ctx.stroke()
+
   })
 
   //DRAW LINE
@@ -491,7 +491,6 @@ function createGraph(ctx: CanvasRenderingContext2D, playerData: StatsCanvasPlaye
   ctx.save()
   ctx.lineCap = "round"
   ctx.lineJoin = "round"
-  ctx.setLineDash([])
   ctx.lineWidth = 3
 
   // Helper: get color by rating
