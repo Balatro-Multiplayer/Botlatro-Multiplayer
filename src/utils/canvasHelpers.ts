@@ -35,6 +35,7 @@ const config = {
     gold: '#ffd081',
     lucky: '#ffefc4',
     glass: '#5ce4ed',
+    glass: '#8ae9f0ff',
     chips: '#0093FF',
     mult: '#FF4C40',
   },
@@ -815,7 +816,7 @@ async function rankupBar(ctx: CanvasRenderingContext2D, playerData: StatsCanvasP
   if (nextRankMRR != null) {
     await drawBar(x,y,xlen,ylen,rankMMR,nextRankMRR,MMR)
 
-    borderText((nextRankMRR - MMR).toString() + " MMR to " + toProperCase(nextRankName),x+xlen+10 + xlen2/2+1,y + ylen - 8+1,config.colors.textPrimary,config.colors.textQuaternary)
+    borderText((Math.round(nextRankMRR - MMR)).toString() + " MMR to " + toProperCase(nextRankName),x+xlen+10 + xlen2/2+1,y + ylen - 8,config.colors.textPrimary,config.colors.textQuaternary)
 
   } else if (position != 1) {
     await drawBar(x,y,xlen,ylen,rankPosition,nextRankPosition,position)
