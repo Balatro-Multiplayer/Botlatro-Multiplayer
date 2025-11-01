@@ -149,10 +149,10 @@ async function drawAvatar(
   ctx.imageSmoothingEnabled = false
 
   //hide corners
-  const tl = await loadImage('../../assets/hideTL.png')
-  const tr = await loadImage('../../assets/hideTR.png')
-  const bl = await loadImage('../../assets/hideBL.png')
-  const br = await loadImage('../../assets/hideBR.png')
+  const tl = await loadImage('../assets/hideTL.png')
+  const tr = await loadImage('../assets/hideTR.png')
+  const bl = await loadImage('../assets/hideBL.png')
+  const br = await loadImage('../assets/hideBR.png')
 
   //shadow
   ctx.fillStyle = '#1E2E32'
@@ -185,7 +185,7 @@ async function addBackground(
   filename: string = 'bgMain.png',
 ) {
   const bg = await loadImage(
-    path.join(__dirname, '../../assets/backgrounds', filename),
+    path.join(__dirname, '../assets/backgrounds', filename),
   )
 
   ctx.drawImage(bg, 0, 0)
@@ -216,10 +216,10 @@ async function addRedBox(
   xlen: number,
   ylen: number,
 ) {
-  const tl = await loadImage('../../assets/RedTL.png')
-  const tr = await loadImage('../../assets/RedTR.png')
-  const bl = await loadImage('../../assets/RedBL.png')
-  const br = await loadImage('../../assets/RedBR.png')
+  const tl = await loadImage('../assets/RedTL.png')
+  const tr = await loadImage('../assets/RedTR.png')
+  const bl = await loadImage('../assets/RedBL.png')
+  const br = await loadImage('../assets/RedBR.png')
 
   //corners
   drawBoxCorners(ctx, x, y, tl, tr, bl, br, xlen, ylen)
@@ -242,10 +242,10 @@ async function addGrayBox(
   xlen: number,
   ylen: number,
 ) {
-  const tl = await loadImage('../../assets/GrayTL.png')
-  const tr = await loadImage('../../assets/GrayTR.png')
-  const bl = await loadImage('../../assets/GrayBL.png')
-  const br = await loadImage('../../assets/GrayBR.png')
+  const tl = await loadImage('../assets/GrayTL.png')
+  const tr = await loadImage('../assets/GrayTR.png')
+  const bl = await loadImage('../assets/GrayBL.png')
+  const br = await loadImage('../assets/GrayBR.png')
 
   drawBoxCorners(ctx, x, y, tl, tr, bl, br, xlen, ylen)
 
@@ -270,10 +270,10 @@ async function addBlueBox(
   xlen: number,
   ylen: number,
 ) {
-  const tl = await loadImage('../../assets/BlueTL.png')
-  const tr = await loadImage('../../assets/BlueTR.png')
-  const bl = await loadImage('../../assets/BlueBL.png')
-  const br = await loadImage('../../assets/BlueBR.png')
+  const tl = await loadImage('../assets/BlueTL.png')
+  const tr = await loadImage('../assets/BlueTR.png')
+  const bl = await loadImage('../assets/BlueBL.png')
+  const br = await loadImage('../assets/BlueBR.png')
 
   //corners
   drawBoxCorners(ctx, x, y, tl, tr, bl, br, xlen, ylen)
@@ -296,10 +296,10 @@ async function addBlackBox(
   xlen: number,
   ylen: number,
 ) {
-  const tl = await loadImage('../../assets/BlackTL.png')
-  const tr = await loadImage('../../assets/BlackTR.png')
-  const bl = await loadImage('../../assets/BlackBL.png')
-  const br = await loadImage('../../assets/BlackBR.png')
+  const tl = await loadImage('../assets/BlackTL.png')
+  const tr = await loadImage('../assets/BlackTR.png')
+  const bl = await loadImage('../assets/BlackBL.png')
+  const br = await loadImage('../assets/BlackBR.png')
 
   //corners
   drawBoxCorners(ctx, x, y, tl, tr, bl, br, xlen, ylen)
@@ -322,10 +322,10 @@ async function addBackBox(
   xlen: number,
   ylen: number,
 ) {
-  const tl = await loadImage('../../assets/bgTL.png')
-  const tr = await loadImage('../../assets/bgTR.png')
-  const bl = await loadImage('../../assets/bgBL.png')
-  const br = await loadImage('../../assets/bgBR.png')
+  const tl = await loadImage('../assets/bgTL.png')
+  const tr = await loadImage('../assets/bgTR.png')
+  const bl = await loadImage('../assets/bgBL.png')
+  const br = await loadImage('../assets/bgBR.png')
 
   //fill
   ctx.fillStyle = '#3A5055'
@@ -918,10 +918,10 @@ async function rankupBar(
   const position = playerData.leaderboard_position
 
   async function corner(x: number, y: number, xlen: number, ylen: number) {
-    const tl = await loadImage('../../assets/antiTL.png')
-    const tr = await loadImage('../../assets/antiTR.png')
-    const bl = await loadImage('../../assets/antiBL.png')
-    const br = await loadImage('../../assets/antiBR.png')
+    const tl = await loadImage('../assets/antiTL.png')
+    const tr = await loadImage('../assets/antiTR.png')
+    const bl = await loadImage('../assets/antiBL.png')
+    const br = await loadImage('../assets/antiBR.png')
 
     drawBoxCorners(ctx, x, y, tl, tr, bl, br, xlen, ylen)
 
