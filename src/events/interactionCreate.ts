@@ -63,8 +63,8 @@ import {
   handleVoting,
 } from '../utils/voteHelpers'
 import { drawPlayerStatsCanvas } from '../utils/canvasHelpers'
-import { getBackgroundById } from '../utils/backgroundManager'
 import { generateBackgroundPreview } from '../commands/queues/setStatsBackground'
+import { getBackgroundById } from '../utils/backgroundManager'
 
 // Track users currently processing queue joins to prevent duplicates
 const processingQueueJoins = new Set<string>()

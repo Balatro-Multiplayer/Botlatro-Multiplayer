@@ -15,6 +15,7 @@ import path from 'node:path'
 import * as dotenv from 'dotenv'
 import { setupClientCommands } from 'setupCommands'
 import { serve } from '@hono/node-server'
+import { preloadBackgrounds } from './utils/backgroundManager'
 
 dotenv.config()
 
@@ -57,7 +58,6 @@ client.on('error', (error: Error) => {
 })
 
 // Preload background images
-import { preloadBackgrounds } from './utils/backgroundManager'
 void preloadBackgrounds().catch((error) => {
   console.error('[BACKGROUND PRELOAD ERROR]', error)
 })

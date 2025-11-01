@@ -7,7 +7,6 @@ import {
   MessageFlags,
 } from 'discord.js'
 import { BACKGROUNDS, getBackgroundById } from '../../utils/backgroundManager'
-import { pool } from '../../db'
 import { Canvas } from 'skia-canvas'
 import path from 'path'
 import { loadImage } from 'skia-canvas'
@@ -61,10 +60,10 @@ export async function generateBackgroundPreview(
   ctx.scale(scale, scale)
   ctx.imageSmoothingEnabled = false
 
+  const bgDir = process.env.ASSETS_DIR || path.join(process.cwd(), 'assets')
+
   // Draw background
-  const bg = await loadImage(
-    path.join(__dirname, '../../assets/backgrounds', backgroundFilename),
-  )
+  const bg = await loadImage(path.join(bgDir, 'backgrounds', backgroundFilename))
   ctx.drawImage(bg, 0, 0)
 
   const buffer = await canvas.toBuffer('png', { quality: 1.0, density: scale })

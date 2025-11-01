@@ -40,13 +40,11 @@ export const BACKGROUNDS: Background[] = [
 export async function preloadBackgrounds(): Promise<void> {
   console.log('Preloading background images...')
 
+  const bgDir = process.env.ASSETS_DIR || path.join(process.cwd(), 'assets')
+
   for (const bg of BACKGROUNDS) {
     try {
-      const imagePath = path.join(
-        __dirname,
-        '../assets/backgrounds',
-        bg.filename,
-      )
+      const imagePath = path.join(bgDir, 'backgrounds', bg.filename)
       const image = await loadImage(imagePath)
       imageCache.set(bg.filename, image)
     } catch (error) {

@@ -27,6 +27,8 @@ RUN node -e "const fs=require('fs'),p=require('path');(function w(d){for(const e
 # logs: create a writable dir and expose to app via env
 RUN mkdir -p /app/data/logs
 ENV LOG_DIR=/app/data/logs
+ENV ASSETS_DIR=/app/dist/assets
+ENV FONTS_DIR=/app/dist/fonts
 
 ENV NODE_ENV=production
 
