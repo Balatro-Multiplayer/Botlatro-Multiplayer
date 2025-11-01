@@ -165,13 +165,14 @@ declare module 'psqlDB' {
     mmr: number
     peak_mmr: number
     win_streak: number
+    stat_background: string
     stats: {
       label: string
       value: string
       percentile: number
       isTop: boolean
     }[]
-    previous_games: { change: number; time: Date }[]
+    previous_games: { change: number; time: Date; deck: string; stake: string }[]
     elo_graph_data: { date: Date; rating: number }[]
     rank_name?: string | null
     rank_color?: string | null

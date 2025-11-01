@@ -13,9 +13,15 @@ export default {
 
       const queueName = interaction.options.getString('queue-name', true)
       const targetUser = interaction.options.getUser('user') || interaction.user
+      const byDate =
+        interaction.options.getString('by-date') === 'yes' ? true : false
       const queueId = await getQueueIdFromName(queueName)
       const playerStats = await getStatsCanvasUserData(targetUser.id, queueId)
-      const statFile = await drawPlayerStatsCanvas(queueName, playerStats)
+      const statFile = await drawPlayerStatsCanvas(
+        queueName,
+        playerStats,
+        byDate,
+      )
       const viewStatsButtons = setupViewStatsButtons(queueName)
 
       await interaction.editReply({
@@ -24,7 +30,6 @@ export default {
       })
 
       // Update queue role, just to be sure it's correct when they check
-      // This is a nice bandaid fix till we update leaderboard roles better
       await setUserQueueRole(queueId, targetUser.id)
     } catch (err: any) {
       console.error(err)

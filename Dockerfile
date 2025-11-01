@@ -8,6 +8,7 @@ FROM deps AS build
 COPY . .
 RUN npm run build  # -> dist/
 RUN mkdir -p dist/fonts && cp -r src/fonts/. dist/fonts/
+RUN mkdir -p dist/assets && cp -r src/assets/. dist/assets/
 
 FROM node:20-bookworm-slim AS run
 WORKDIR /app

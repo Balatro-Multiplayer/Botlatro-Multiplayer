@@ -63,6 +63,8 @@ import {
   handleVoting,
 } from '../utils/voteHelpers'
 import { drawPlayerStatsCanvas } from '../utils/canvasHelpers'
+import { getBackgroundById } from '../utils/backgroundManager'
+import { generateBackgroundPreview } from '../commands/queues/setStatsBackground'
 
 // Track users currently processing queue joins to prevent duplicates
 const processingQueueJoins = new Set<string>()
@@ -210,6 +212,45 @@ export default {
             interaction.update({
               content: `Successfully removed your priority queue.`,
               components: [],
+            })
+          }
+        }
+
+        if (interaction.customId === 'stats-background-select') {
+          try {
+            await interaction.deferUpdate()
+
+            const selectedId = interaction.values[0]
+            const background = getBackgroundById(selectedId)
+
+            if (!background) {
+              await interaction.followUp({
+                content: 'Invalid background selected.',
+                flags: MessageFlags.Ephemeral,
+              })
+              return
+            }
+
+            const previewImage = await generateBackgroundPreview(
+              background.filename,
+            )
+
+            // Update user's background in database
+            await pool.query(
+              'UPDATE users SET stat_background = $1 WHERE user_id = $2',
+              [background.filename, interaction.user.id],
+            )
+
+            await interaction.followUp({
+              content: `Background set to **${background.name}**!\n\nHere's a preview of your stats background:`,
+              files: [previewImage],
+              flags: MessageFlags.Ephemeral,
+            })
+          } catch (error: any) {
+            console.error('Error setting background:', error)
+            await interaction.followUp({
+              content: `Failed to set background: ${error.message}`,
+              flags: MessageFlags.Ephemeral,
             })
           }
         }
@@ -538,23 +579,27 @@ export default {
 
         if (interaction.customId.startsWith('view-stats-')) {
           try {
+            await interaction.deferReply()
             const queueName = interaction.customId.split('-')[2]
             const queueId = await getQueueIdFromName(queueName)
             const playerStats = await getStatsCanvasUserData(
               interaction.user.id,
               queueId,
             )
-            const statFile = await drawPlayerStatsCanvas(queueName, playerStats)
+            const statFile = await drawPlayerStatsCanvas(
+              queueName,
+              playerStats,
+              false,
+            )
             const viewStatsButtons = setupViewStatsButtons(queueName)
 
-            await interaction.reply({
+            await interaction.editReply({
               files: [statFile],
               components: [viewStatsButtons],
             })
           } catch (err) {
-            await interaction.reply({
+            await interaction.editReply({
               content: `You don't have any stats for this queue.`,
-              flags: [MessageFlags.Ephemeral],
             })
           }
         }

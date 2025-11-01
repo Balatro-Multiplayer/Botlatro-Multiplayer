@@ -7,6 +7,7 @@ import {
 import setDefaultDeckBans from '../queues/setDefaultDeckBans'
 import setPriorityQueue from '../queues/setPriorityQueue'
 import queue from './queue'
+import setStatsBackground from '../queues/setStatsBackground'
 
 export default {
   data: new SlashCommandBuilder()
@@ -39,6 +40,12 @@ export default {
             .setRequired(true)
             .setAutocomplete(true),
         ),
+    )
+
+    .addSubcommand((sub) =>
+      sub
+        .setName('stats-background')
+        .setDescription('Choose a background for your stats card'),
     ),
 
   async execute(interaction: ChatInputCommandInteraction) {
@@ -46,6 +53,8 @@ export default {
       await setPriorityQueue.execute(interaction)
     } else if (interaction.options.getSubcommand() === 'preset-deck-bans') {
       await setDefaultDeckBans.execute(interaction)
+    } else if (interaction.options.getSubcommand() === 'stats-background') {
+      await setStatsBackground.execute(interaction)
     }
   },
 

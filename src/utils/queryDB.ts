@@ -1483,17 +1483,18 @@ export async function getStatsCanvasUserData(
     `
     SELECT
       mu.elo_change AS change,
-      m.created_at   AS time
+      m.created_at   AS time,
+      m.stake AS stake,
+      m.deck AS deck
     FROM match_users mu
     JOIN matches m ON m.id = mu.match_id
     WHERE mu.user_id = $1 AND m.queue_id = $2 AND m.winning_team IS NOT NULL
     ORDER BY m.created_at DESC
-    LIMIT 4
     `,
     [userId, queueId],
   )
 
-  const previous_games = previousRes.rows as { change: number; time: Date }[]
+  const previous_games = previousRes.rows as { change: number; time: Date; deck: string; stake: string }[]
 
   const eloRes = await pool.query(
     `
@@ -1647,12 +1648,20 @@ export async function getStatsCanvasUserData(
 
   const leaderboardPos = await getLeaderboardPosition(queueId, userId)
 
+  // Fetch user's selected background
+  const bgRes = await pool.query(
+    'SELECT stat_background FROM users WHERE user_id = $1',
+    [userId],
+  )
+  const statBackground = bgRes.rows[0]?.stat_background || 'bgMain.png'
+
   const data: StatsCanvasPlayerData = {
     user_id: p.user_id,
     name: '',
     mmr: p.elo,
     peak_mmr: p.peak_elo,
     win_streak: p.win_streak,
+    stat_background: statBackground,
     stats,
     previous_games,
     elo_graph_data,
