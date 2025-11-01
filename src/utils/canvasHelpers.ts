@@ -10,7 +10,7 @@ import path from 'path'
 
 const font = 'm6x11'
 
-FontLibrary.use(font, [path.join(__dirname, '../dist/fonts', `${font}.ttf`)])
+FontLibrary.use(font, [path.join(__dirname, '../fonts', `${font}.ttf`)])
 
 const config = {
   width: 800,
