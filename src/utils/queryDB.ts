@@ -1648,12 +1648,20 @@ export async function getStatsCanvasUserData(
 
   const leaderboardPos = await getLeaderboardPosition(queueId, userId)
 
+  // Fetch user's selected background
+  const bgRes = await pool.query(
+    'SELECT stat_background FROM users WHERE user_id = $1',
+    [userId],
+  )
+  const statBackground = bgRes.rows[0]?.stat_background || 'bgMain.png'
+
   const data: StatsCanvasPlayerData = {
     user_id: p.user_id,
     name: '',
     mmr: p.elo,
     peak_mmr: p.peak_elo,
     win_streak: p.win_streak,
+    stat_background: statBackground,
     stats,
     previous_games,
     elo_graph_data,

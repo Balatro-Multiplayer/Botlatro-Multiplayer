@@ -165,6 +165,7 @@ declare module 'psqlDB' {
     mmr: number
     peak_mmr: number
     win_streak: number
+    stat_background: string
     stats: {
       label: string
       value: string

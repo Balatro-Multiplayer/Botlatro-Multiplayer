@@ -56,6 +56,12 @@ client.on('error', (error: Error) => {
   console.error('Stack:', error.stack)
 })
 
+// Preload background images
+import { preloadBackgrounds } from './utils/backgroundManager'
+void preloadBackgrounds().catch((error) => {
+  console.error('[BACKGROUND PRELOAD ERROR]', error)
+})
+
 void client.login(token).catch((error) => {
   console.error('[LOGIN FAILED]', error)
   process.exit(1)

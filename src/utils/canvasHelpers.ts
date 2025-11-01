@@ -70,11 +70,6 @@ function timeAgo(date: Date) {
   return `<1 min ago`
 }
 
-function formatNumber(num: number): string {
-  if (num >= 1000) return `${(num / 1000).toFixed(1).replace(/\.0$/, '')}k`
-  return num.toString()
-}
-
 async function addTopText(
   ctx: CanvasRenderingContext2D,
   playerData: StatsCanvasPlayerData,
@@ -93,7 +88,7 @@ async function addTopText(
       ? `${queueName.toUpperCase()}: #${playerData.leaderboard_position}`
       : `${queueName.toUpperCase()} PLAYER`,
     190,
-    70,
+    65,
   )
 
   // Player name with dynamic font sizing
@@ -147,13 +142,11 @@ async function drawAvatar(
 
   //drawCircle(ctx,x + size/2,y + size/2, size/11 * 6,"#47746C")
 
+  ctx.imageSmoothingEnabled = true
   ctx.save()
-  //ctx.beginPath()
-  //ctx.arc(x + size/2, y + size/2, size / 2, 0, Math.PI * 2)
-  //ctx.closePath()
-  //ctx.clip()
   ctx.drawImage(avatar, x, y, size, size)
   ctx.restore()
+  ctx.imageSmoothingEnabled = false
 
   //hide corners
   const tl = await loadImage('src/assets/hideTL.png')
@@ -187,8 +180,11 @@ async function drawCircle(
   ctx.fill()
 }
 
-async function addBackground(ctx: CanvasRenderingContext2D) {
-  const bg = await loadImage('src/assets/backgrounds/bgPlanet.png')
+async function addBackground(
+  ctx: CanvasRenderingContext2D,
+  filename: string = 'bgPlanet.png',
+) {
+  const bg = await loadImage(`src/assets/backgrounds/${filename}`)
   ctx.drawImage(bg, 0, 0)
 }
 
@@ -440,7 +436,21 @@ function createGraph(
   //draw divides
   ctx.save()
   const guideRatings = [
-    0, 200, 250, 320, 460, 620, 800, 1000, 1200, 1400, 1600, 1800, 2000,
+    0,
+    200,
+    250,
+    320,
+    460,
+    620,
+    800,
+    1000,
+    1200,
+    1400,
+    1600,
+    1800,
+    2000,
+    maxRating,
+    minRating,
   ]
   const eloSplits = config.eloSplits
   const eloColors = [
@@ -782,13 +792,7 @@ function addSideData(
     ctx.textAlign = 'center'
     ctx.font = config.fonts.statLabel
     ctx.fillStyle = config.colors.textPrimary
-    ctx.fillText(
-      Number.isNaN(parseInt(data.value))
-        ? data.value
-        : formatNumber(parseInt(data.value)),
-      x + xlen / 2,
-      y + ylen / 2 + 5,
-    )
+    ctx.fillText(data.value, x + xlen / 2, y + ylen / 2 + 5)
 
     ctx.textAlign = 'left'
     ctx.font = config.fonts.small
@@ -992,7 +996,7 @@ async function rankupBar(
         ' MMR to ' +
         toProperCase(nextRankName),
       x + xlen + 10 + xlen2 / 2,
-      y + ylen - 8,
+      y + ylen - 9,
       config.colors.textPrimary,
       config.colors.textQuaternary,
     )
@@ -1005,7 +1009,7 @@ async function rankupBar(
           ' rank to ' +
           toProperCase(nextRankNameConcat),
         x + xlen + 10 + xlen2 / 2,
-        y + ylen - 8,
+        y + ylen - 9,
         config.colors.textPrimary,
         config.colors.textQuaternary,
       )
@@ -1015,7 +1019,7 @@ async function rankupBar(
           ' ranks to ' +
           toProperCase(nextRankNameConcat),
         x + xlen + 10 + xlen2 / 2,
-        y + ylen - 8,
+        y + ylen - 9,
         config.colors.textPrimary,
         config.colors.textQuaternary,
       )
@@ -1025,7 +1029,7 @@ async function rankupBar(
     borderText(
       '₍^. .^₎/',
       x + xlen + 10 + xlen2 / 2,
-      y + ylen - 8,
+      y + ylen - 9,
       config.colors.textPrimary,
       config.colors.textQuaternary,
     )
@@ -1035,7 +1039,7 @@ async function rankupBar(
   borderText(
     rankName,
     x + 10,
-    y + ylen - 8,
+    y + ylen - 9,
     config.colors.textPrimary,
     config.colors.textQuaternary,
   )
@@ -1044,7 +1048,7 @@ async function rankupBar(
   borderText(
     nextRankName,
     x + xlen - 10,
-    y + ylen - 8,
+    y + ylen - 9,
     config.colors.textPrimary,
     config.colors.textQuaternary,
   )
@@ -1055,21 +1059,28 @@ export async function drawPlayerStatsCanvas(
   playerData: StatsCanvasPlayerData,
   byDate: boolean,
 ) {
-  const canvas = new Canvas(config.width, config.height)
+  // Render at higher resolution for sharper text (2x, 4x, etc.)
+  // Higher scale = more anti-aliasing but larger file size
+  const scale = 2
+  const canvas = new Canvas(config.width * scale, config.height * scale)
   const ctx = canvas.getContext('2d')
 
+  ctx.scale(2, 2)
+
   //back elements
-  await addBackground(ctx)
+  await addBackground(ctx, playerData.stat_background)
   await addBackBox(
     ctx,
-    canvas.width / 32,
-    canvas.height / 24,
-    canvas.width - canvas.width / 16,
-    canvas.height - canvas.height / 12,
+    config.width / 32,
+    config.height / 32,
+    config.width - config.width / 16,
+    config.height - config.height / 12,
   )
 
   //top elements
   await drawAvatar(ctx, 60, 50, 110, playerData)
+
+  ctx.textBaseline = 'middle'
 
   //change the gray and red boxes depending on if mmr is 5 digits or >5
   if (`${playerData.peak_mmr}`.length > 5) {
@@ -1081,13 +1092,8 @@ export async function drawPlayerStatsCanvas(
     await addRedBox(ctx, 605, 50, 136, 80)
     await rankupBar(ctx, playerData, 180, 140, 415, 20, 136)
   }
-  await addTopText(ctx, playerData, queueName)
 
-  if (`${playerData.peak_mmr}`.length > 5) {
-    await rankupBar(ctx, playerData, 180, 140, 385, 20, 166)
-  } else {
-    await rankupBar(ctx, playerData, 180, 140, 415, 20, 136)
-  }
+  await addTopText(ctx, playerData, queueName)
 
   //side elements
   await addBlackBox(ctx, 60, 170, 95, 85)
@@ -1104,5 +1110,9 @@ export async function drawPlayerStatsCanvas(
   await addBlackBox(ctx, 270, 170, 470, 370)
   createGraph(ctx, playerData, 280, 180, 450, 350, byDate)
 
-  return await canvas.png
+  // Export with high quality settings
+  return await canvas.toBuffer('png', {
+    quality: 1.0,
+    density: scale,
+  })
 }
