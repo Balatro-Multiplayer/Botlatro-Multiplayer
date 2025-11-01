@@ -332,20 +332,20 @@ async function addBackBox(
   //corners
   ctx.drawImage(tl, x, y)
   ctx.drawImage(tr, x + xlen - 32, y)
-  ctx.drawImage(bl, x, y + ylen - 32)
-  ctx.drawImage(br, x + xlen - 38, y + ylen - 32)
+  ctx.drawImage(bl, x -6, y + ylen - 32)
+  ctx.drawImage(br, x -6 + xlen - 38, y + ylen - 32)
 
   //border
   ctx.fillStyle = '#BAC2D2'
   ctx.fillRect(x + 32, y, xlen - 64, 9)
   ctx.fillRect(x, y + 32, 9, ylen - 64)
   ctx.fillRect(x + xlen, y + 32, -9, ylen - 64)
-  ctx.fillRect(x + 44, y + ylen, xlen - 82, -9)
+  ctx.fillRect(x + 38, y + ylen, xlen - 82, -9)
 
   //shadow
   ctx.fillStyle = '#47746C'
-  ctx.fillRect(x + 44, y + ylen, xlen - 76, 12)
-  ctx.fillRect(x + xlen, y + 32, 6, ylen - 46)
+  ctx.fillRect(x + 38, y + ylen, xlen - 76, 12)
+  ctx.fillRect(x, y + 32, -6, ylen - 46)
 }
 
 function normalizeDataPosition(
