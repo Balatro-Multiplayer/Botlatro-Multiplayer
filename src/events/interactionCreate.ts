@@ -545,7 +545,11 @@ export default {
               interaction.user.id,
               queueId,
             )
-            const statFile = await drawPlayerStatsCanvas(queueName, playerStats)
+            const statFile = await drawPlayerStatsCanvas(
+              queueName,
+              playerStats,
+              false,
+            )
             const viewStatsButtons = setupViewStatsButtons(queueName)
 
             await interaction.editReply({

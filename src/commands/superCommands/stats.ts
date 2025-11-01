@@ -26,6 +26,13 @@ export default {
             .setName('user')
             .setDescription('The user to view stats for (defaults to yourself)')
             .setRequired(false),
+        )
+        .addStringOption((option) =>
+          option
+            .setName('by-date')
+            .setDescription('Sort the stats by date')
+            .addChoices([{ name: 'yes', value: 'yes' }])
+            .setRequired(false),
         ),
     ),
   async execute(interaction: ChatInputCommandInteraction) {

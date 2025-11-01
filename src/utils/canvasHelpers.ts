@@ -7,14 +7,10 @@ import {
 import { StatsCanvasPlayerData } from 'psqlDB'
 import { client, getGuild } from 'client'
 import path from 'path'
-import { blockQuote } from 'discord.js'
-
 
 const font = 'm6x11'
 
-FontLibrary.use(font, [
-  path.join(__dirname, '../fonts', `${font}.ttf`)
-])
+FontLibrary.use(font, [path.join(__dirname, '../fonts', `${font}.ttf`)])
 
 const config = {
   width: 800,
@@ -34,8 +30,7 @@ const config = {
     steel: '#c3dee0',
     gold: '#ffd081',
     lucky: '#ffefc4',
-    glass: '#5ce4ed',
-    glass: '#8ae9f0ff',
+    glass: '#7debf3',
     chips: '#0093FF',
     mult: '#FF4C40',
   },
@@ -50,7 +45,7 @@ const config = {
     mini: `12px ${font}`,
     gameList: `20px ${font}`,
   },
-  eloSplits: [250, 320, 460, 620]
+  eloSplits: [250, 320, 460, 620],
 }
 
 function timeAgo(date: Date) {
@@ -80,11 +75,14 @@ function formatNumber(num: number): string {
   return num.toString()
 }
 
-async function addTopText(ctx: CanvasRenderingContext2D, playerData: StatsCanvasPlayerData, queueName: string) {
+async function addTopText(
+  ctx: CanvasRenderingContext2D,
+  playerData: StatsCanvasPlayerData,
+  queueName: string,
+) {
   const guild = await getGuild()
   const member = await guild.members.fetch(playerData.user_id).catch(() => null)
   const user = await client.users.fetch(playerData.user_id)
-
 
   // Player leaderboard position
   ctx.textAlign = 'left'
@@ -119,7 +117,6 @@ async function addTopText(ctx: CanvasRenderingContext2D, playerData: StatsCanvas
   ctx.textBaseline = 'middle'
   ctx.fillText(displayName, nameStartX, 105)
 
-
   // Current MMR and peak
   ctx.textAlign = 'right'
   ctx.font = config.fonts.title
@@ -131,14 +128,20 @@ async function addTopText(ctx: CanvasRenderingContext2D, playerData: StatsCanvas
   ctx.fillStyle = config.colors.textTertiary
   //ctx.fillText(`PEAK: ${playerData.peak_mmr}`, 733, 65)
   ctx.fillText(`MMR`, 733, 65)
- 
+
   ctx.textAlign = 'left'
   ctx.font = config.fonts.label
   ctx.fillStyle = config.colors.textTertiary
   //ctx.fillText('MMR', 585, 65)
 }
 
-async function drawAvatar(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, playerData: StatsCanvasPlayerData) {
+async function drawAvatar(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  playerData: StatsCanvasPlayerData,
+) {
   const user = await client.users.fetch(playerData.user_id)
   const avatar = await loadImage(user.displayAvatarURL({ extension: 'png' }))
 
@@ -153,28 +156,31 @@ async function drawAvatar(ctx: CanvasRenderingContext2D, x: number, y: number, s
   ctx.restore()
 
   //hide corners
-  const tl = await loadImage("src/assets/hideTL.png")
-  const tr = await loadImage("src/assets/hideTR.png")
-  const bl = await loadImage("src/assets/hideBL.png")
-  const br = await loadImage("src/assets/hideBR.png")
-
+  const tl = await loadImage('src/assets/hideTL.png')
+  const tr = await loadImage('src/assets/hideTR.png')
+  const bl = await loadImage('src/assets/hideBL.png')
+  const br = await loadImage('src/assets/hideBR.png')
 
   //shadow
-  ctx.fillStyle = "#1E2E32"
-  ctx.fillRect(x-2,y+20,2,size-30)
+  ctx.fillStyle = '#1E2E32'
+  ctx.fillRect(x - 2, y + 20, 2, size - 30)
 
-  ctx.fillRect(x+16,y+size,size-36,6)
+  ctx.fillRect(x + 16, y + size, size - 36, 6)
 
   //fill corners
-  ctx.drawImage(tl,x,y)
-  ctx.drawImage(tr,x + size - 16,y)
-  ctx.drawImage(bl,x,y + size - 16)
-  ctx.drawImage(br,x + size - 22,y + size - 16)
-
-
+  ctx.drawImage(tl, x, y)
+  ctx.drawImage(tr, x + size - 16, y)
+  ctx.drawImage(bl, x, y + size - 16)
+  ctx.drawImage(br, x + size - 22, y + size - 16)
 }
 
-async function drawCircle(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number, color: string){
+async function drawCircle(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  radius: number,
+  color: string,
+) {
   ctx.beginPath()
   ctx.arc(x, y, radius, 0, Math.PI * 2)
   ctx.fillStyle = color
@@ -182,194 +188,238 @@ async function drawCircle(ctx: CanvasRenderingContext2D, x: number, y: number, r
 }
 
 async function addBackground(ctx: CanvasRenderingContext2D) {
-  const bg = await loadImage("src/assets/backgrounds/bgPlanet.png")
-  ctx.drawImage(bg,0,0)
+  const bg = await loadImage('src/assets/backgrounds/bgPlanet.png')
+  ctx.drawImage(bg, 0, 0)
 }
 
-async function addRedBox(ctx: CanvasRenderingContext2D, x: number, y: number, xlen: number, ylen: number) {
-  const tl = await loadImage("src/assets/RedTL.png")
-  const tr = await loadImage("src/assets/RedTR.png")
-  const bl = await loadImage("src/assets/RedBL.png")
-  const br = await loadImage("src/assets/RedBR.png")
+function drawBoxCorners(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  tl: any,
+  tr: any,
+  bl: any,
+  br: any,
+  xlen: number,
+  ylen: number,
+) {
+  //corners
+  ctx.drawImage(tl, x - 2, y)
+  ctx.drawImage(tr, x + xlen - 14, y)
+  ctx.drawImage(bl, x - 2, y + ylen - 14 + 6)
+  ctx.drawImage(br, x + xlen - 14, y + ylen - 14 + 6)
+}
+
+async function addRedBox(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  xlen: number,
+  ylen: number,
+) {
+  const tl = await loadImage('src/assets/RedTL.png')
+  const tr = await loadImage('src/assets/RedTR.png')
+  const bl = await loadImage('src/assets/RedBL.png')
+  const br = await loadImage('src/assets/RedBR.png')
 
   //corners
-  ctx.drawImage(tl,x-2,y)
-  ctx.drawImage(tr,x + xlen - 14,y)
-  ctx.drawImage(bl,x-2,y + ylen - 14 + 6)
-  ctx.drawImage(br,x + xlen - 14,y + ylen - 14 + 6)
+  drawBoxCorners(ctx, x, y, tl, tr, bl, br, xlen, ylen)
 
   //shadow
-  ctx.fillStyle = "#1E2E32"
-  ctx.fillRect(x-2,y+14,2,ylen-22)
-  ctx.fillRect(x+12,y+ylen+6,xlen-26,-6)
+  ctx.fillStyle = '#1E2E32'
+  ctx.fillRect(x - 2, y + 14, 2, ylen - 22)
+  ctx.fillRect(x + 12, y + ylen + 6, xlen - 26, -6)
 
   //fill
   ctx.fillStyle = config.colors.mult
-  ctx.fillRect(x,y+14,xlen,ylen-22)
-  ctx.fillRect(x+12,y,xlen-24,ylen)
+  ctx.fillRect(x, y + 14, xlen, ylen - 22)
+  ctx.fillRect(x + 12, y, xlen - 24, ylen)
 }
 
-async function addGrayBox(ctx: CanvasRenderingContext2D, x: number, y: number, xlen: number, ylen: number) {
-  const tl = await loadImage("src/assets/GrayTL.png")
-  const tr = await loadImage("src/assets/GrayTR.png")
-  const bl = await loadImage("src/assets/GrayBL.png")
-  const br = await loadImage("src/assets/GrayBR.png")
+async function addGrayBox(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  xlen: number,
+  ylen: number,
+) {
+  const tl = await loadImage('src/assets/GrayTL.png')
+  const tr = await loadImage('src/assets/GrayTR.png')
+  const bl = await loadImage('src/assets/GrayBL.png')
+  const br = await loadImage('src/assets/GrayBR.png')
 
-  ctx.save
-  //corners
-  ctx.drawImage(tl,x-2,y)
-  ctx.drawImage(tr,x + xlen - 14,y)
-  ctx.drawImage(bl,x-2,y + ylen - 14 + 6)
-  ctx.drawImage(br,x + xlen - 14,y + ylen - 14 + 6)
+  drawBoxCorners(ctx, x, y, tl, tr, bl, br, xlen, ylen)
 
   //shadow
-  ctx.fillStyle = "#1E2E32"
-  ctx.fillRect(x-2,y+14,2,ylen-22)
-  ctx.fillRect(x+12,y+ylen+6,xlen-26,-6)
+  ctx.fillStyle = '#1E2E32'
+  ctx.fillRect(x - 2, y + 14, 2, ylen - 22)
+  ctx.fillRect(x + 12, y + ylen + 6, xlen - 26, -6)
 
   //fill
-  ctx.fillStyle = "#545454"
-  ctx.fillRect(x,y+14,xlen,ylen-22)
-  ctx.fillRect(x+12,y,xlen-24,ylen)
+  ctx.fillStyle = '#545454'
+  ctx.fillRect(x, y + 14, xlen, ylen - 22)
+  ctx.fillRect(x + 12, y, xlen - 24, ylen)
 
+  ctx.save
   ctx.restore
 }
 
-async function addBlueBox(ctx: CanvasRenderingContext2D, x: number, y: number, xlen: number, ylen: number) {
-  const tl = await loadImage("src/assets/BlueTL.png")
-  const tr = await loadImage("src/assets/BlueTR.png")
-  const bl = await loadImage("src/assets/BlueBL.png")
-  const br = await loadImage("src/assets/BlueBR.png")
+async function addBlueBox(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  xlen: number,
+  ylen: number,
+) {
+  const tl = await loadImage('src/assets/BlueTL.png')
+  const tr = await loadImage('src/assets/BlueTR.png')
+  const bl = await loadImage('src/assets/BlueBL.png')
+  const br = await loadImage('src/assets/BlueBR.png')
 
   //corners
-  ctx.drawImage(tl,x-2,y)
-  ctx.drawImage(tr,x + xlen - 14,y)
-  ctx.drawImage(bl,x-2,y + ylen - 14 + 6)
-  ctx.drawImage(br,x + xlen - 14,y + ylen - 14 + 6)
+  drawBoxCorners(ctx, x, y, tl, tr, bl, br, xlen, ylen)
 
   //shadow
-  ctx.fillStyle = "#1E2E32"
-  ctx.fillRect(x-2,y+14,2,ylen-22)
-  ctx.fillRect(x+12,y+ylen+6,xlen-26,-6)
+  ctx.fillStyle = '#1E2E32'
+  ctx.fillRect(x - 2, y + 14, 2, ylen - 22)
+  ctx.fillRect(x + 12, y + ylen + 6, xlen - 26, -6)
 
   //fill
   ctx.fillStyle = config.colors.chips
-  ctx.fillRect(x,y+14,xlen,ylen-22)
-  ctx.fillRect(x+12,y,xlen-24,ylen)
+  ctx.fillRect(x, y + 14, xlen, ylen - 22)
+  ctx.fillRect(x + 12, y, xlen - 24, ylen)
 }
 
-async function addBlackBox(ctx: CanvasRenderingContext2D, x: number, y: number, xlen: number, ylen: number) {
-  const tl = await loadImage("src/assets/BlackTL.png")
-  const tr = await loadImage("src/assets/BlackTR.png")
-  const bl = await loadImage("src/assets/BlackBL.png")
-  const br = await loadImage("src/assets/BlackBR.png")
+async function addBlackBox(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  xlen: number,
+  ylen: number,
+) {
+  const tl = await loadImage('src/assets/BlackTL.png')
+  const tr = await loadImage('src/assets/BlackTR.png')
+  const bl = await loadImage('src/assets/BlackBL.png')
+  const br = await loadImage('src/assets/BlackBR.png')
 
   //corners
-  ctx.drawImage(tl,x-2,y)
-  ctx.drawImage(tr,x + xlen - 14,y)
-  ctx.drawImage(bl,x-2,y + ylen - 14 + 6)
-  ctx.drawImage(br,x + xlen - 14,y + ylen - 14 + 6)
+  drawBoxCorners(ctx, x, y, tl, tr, bl, br, xlen, ylen)
 
   //shadow
-  ctx.fillStyle = "#0B1415"
-  ctx.fillRect(x-2,y+14,2,ylen-22)
-  ctx.fillRect(x+12,y+ylen+6,xlen-26,-6)
+  ctx.fillStyle = '#0B1415'
+  ctx.fillRect(x - 2, y + 14, 2, ylen - 22)
+  ctx.fillRect(x + 12, y + ylen + 6, xlen - 26, -6)
 
   //fill
-  ctx.fillStyle = "#1E2B2D"
-  ctx.fillRect(x,y+14,xlen,ylen-22)
-  ctx.fillRect(x+12,y,xlen-24,ylen)
+  ctx.fillStyle = '#1E2B2D'
+  ctx.fillRect(x, y + 14, xlen, ylen - 22)
+  ctx.fillRect(x + 12, y, xlen - 24, ylen)
 }
 
-async function addBackBox(ctx: CanvasRenderingContext2D, x: number, y: number, xlen: number, ylen: number) {
-  const tl = await loadImage("src/assets/bgTL.png")
-  const tr = await loadImage("src/assets/bgTR.png")
-  const bl = await loadImage("src/assets/bgBL.png")
-  const br = await loadImage("src/assets/bgBR.png")
+async function addBackBox(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  xlen: number,
+  ylen: number,
+) {
+  const tl = await loadImage('src/assets/bgTL.png')
+  const tr = await loadImage('src/assets/bgTR.png')
+  const bl = await loadImage('src/assets/bgBL.png')
+  const br = await loadImage('src/assets/bgBR.png')
 
   //fill
-  ctx.fillStyle = "#3A5055"
-  ctx.fillRect(x+32,y+9,xlen-44,ylen-32)
-  ctx.fillRect(x+9,y+32,xlen-18,ylen-36)
+  ctx.fillStyle = '#3A5055'
+  ctx.fillRect(x + 32, y + 9, xlen - 44, ylen - 32)
+  ctx.fillRect(x + 9, y + 32, xlen - 18, ylen - 36)
 
   //corners
-  ctx.drawImage(tl,x,y)
-  ctx.drawImage(tr,x + xlen- 32,y)
-  ctx.drawImage(bl,x,y + ylen - 32)
-  ctx.drawImage(br,x + xlen - 38,y + ylen - 32)
+  ctx.drawImage(tl, x, y)
+  ctx.drawImage(tr, x + xlen - 32, y)
+  ctx.drawImage(bl, x, y + ylen - 32)
+  ctx.drawImage(br, x + xlen - 38, y + ylen - 32)
 
   //border
-  ctx.fillStyle = "#BAC2D2"
-  ctx.fillRect(x+32,y,xlen-64,9)
-  ctx.fillRect(x,y+32,9,ylen-64)
-  ctx.fillRect(x+xlen,y+32,-9,ylen-64)
-  ctx.fillRect(x+44,y+ylen,xlen-82,-9)
+  ctx.fillStyle = '#BAC2D2'
+  ctx.fillRect(x + 32, y, xlen - 64, 9)
+  ctx.fillRect(x, y + 32, 9, ylen - 64)
+  ctx.fillRect(x + xlen, y + 32, -9, ylen - 64)
+  ctx.fillRect(x + 44, y + ylen, xlen - 82, -9)
 
   //shadow
-  ctx.fillStyle = "#47746C"
-  ctx.fillRect(x+44,y+ylen,xlen-76,12)  
-  ctx.fillRect(x+xlen,y+32,6,ylen-46)
+  ctx.fillStyle = '#47746C'
+  ctx.fillRect(x + 44, y + ylen, xlen - 76, 12)
+  ctx.fillRect(x + xlen, y + 32, 6, ylen - 46)
 }
 
-function normalizeDataPosition(playerData: StatsCanvasPlayerData, byDate: boolean) {
-  const data = playerData.elo_graph_data;
+function normalizeDataPosition(
+  playerData: StatsCanvasPlayerData,
+  byDate: boolean,
+) {
+  const data = playerData.elo_graph_data
 
   if (!data || data.length === 0) {
-    return [];
+    return []
   }
 
   // Sort chronologically (oldest first)
   const sortedData = [...data].sort(
-    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-  );
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+  )
 
-  let filteredData = sortedData;
+  let filteredData = sortedData
 
   if (byDate) {
     // Group by date (ignoring time)
-    const grouped: Record<string, typeof sortedData[0]> = {};
+    const grouped: Record<string, (typeof sortedData)[0]> = {}
 
     for (const point of sortedData) {
-      const day = new Date(point.date).toISOString().split("T")[0]; // e.g., "2025-09-08"
+      const day = new Date(point.date).toISOString().split('T')[0] // e.g., "2025-09-08"
 
       // Keep only the max rating for that day
       if (!grouped[day] || point.rating > grouped[day].rating) {
-        grouped[day] = point;
+        grouped[day] = point
       }
     }
 
-    filteredData = Object.values(grouped);
+    filteredData = Object.values(grouped)
   }
 
   // Sort again after grouping (important!)
   const finalData = filteredData.sort(
-    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-  );
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+  )
 
-  const startDate = new Date(finalData[0].date);
+  const startDate = new Date(finalData[0].date)
 
   // Add xVar (and keep rating as yVar)
-  const normalizedPoints = finalData.map((point, index) => {
-    const date = new Date(point.date);
+  return finalData.map((point, index) => {
+    const date = new Date(point.date)
     const xVar = byDate
       ? (date.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24) // days since start
-      : index;
+      : index
 
     return {
       ...point,
       xVar,
       yVar: point.rating,
-    };
-  });
-
-  return normalizedPoints;
+    }
+  })
 }
 
-function createGraph(ctx: CanvasRenderingContext2D, playerData: StatsCanvasPlayerData, x: number, y: number, xlen: number, ylen: number, byDate: boolean = false) {
+function createGraph(
+  ctx: CanvasRenderingContext2D,
+  playerData: StatsCanvasPlayerData,
+  x: number,
+  y: number,
+  xlen: number,
+  ylen: number,
+  byDate: boolean = false,
+) {
   /**
    * Draws normalizedPoints to ctx. The top left of the graph is at x,y, and the graph should be xlen across and ylen down
    */
-  const normalizedPoints = normalizeDataPosition(playerData,byDate)
+  const normalizedPoints = normalizeDataPosition(playerData, byDate)
   const graphX = x
   const graphY = y + 15
   const graphXLen = xlen
@@ -388,72 +438,76 @@ function createGraph(ctx: CanvasRenderingContext2D, playerData: StatsCanvasPlaye
   const xRange = maxX - minX || 1
 
   //draw divides
-  ctx.save();
-  const guideRatings = [0, 200, 250, 320, 460, 620, 800, 1000, 1200, 1400, 1600, 1800, 2000, maxRating, minRating]
+  ctx.save()
+  const guideRatings = [
+    0, 200, 250, 320, 460, 620, 800, 1000, 1200, 1400, 1600, 1800, 2000,
+  ]
   const eloSplits = config.eloSplits
-  const eloColors = [config.colors.stone, config.colors.steel, config.colors.gold, config.colors.lucky, config.colors.glass]
-  ctx.lineWidth = 0.5;
+  const eloColors = [
+    config.colors.stone,
+    config.colors.steel,
+    config.colors.gold,
+    config.colors.lucky,
+    config.colors.glass,
+  ]
+  ctx.lineWidth = 0.5
 
   function convertToCanvasSpace(y: number) {
-    return graphY + graphYLen - ((y - minRating) / ratingRange) * graphYLen;
+    return graphY + graphYLen - ((y - minRating) / ratingRange) * graphYLen
   }
 
   // Build rating bands (from minRating to maxRating)
-  const bands = [minRating, ...eloSplits, maxRating];
+  const bands = [minRating, ...eloSplits, maxRating]
 
   for (let i = 0; i < bands.length - 1; i++) {
-    const bandMin = bands[i];
-    const bandMax = bands[i + 1];
+    const bandMin = bands[i]
+    const bandMax = bands[i + 1]
 
     // Convert rating band to canvas-space Y
-    const yTop = convertToCanvasSpace(bandMax);
-    const yBottom = convertToCanvasSpace(bandMin);
+    const yTop = convertToCanvasSpace(bandMax)
+    const yBottom = convertToCanvasSpace(bandMin)
 
     // Create the graph path clipped to this band
-    ctx.save();
+    ctx.save()
 
     // Clip only the area between bandTop and bandBottom
-    ctx.beginPath();
-    ctx.rect(graphX, yTop, graphXLen, yBottom - yTop);
-    ctx.clip();
+    ctx.beginPath()
+    ctx.rect(graphX, yTop, graphXLen, yBottom - yTop)
+    ctx.clip()
 
     // Draw the filled shape under the line
-    ctx.beginPath();
-    const firstX = graphX + ((normalizedPoints[0].xVar - minX) / xRange) * graphXLen;
-    const firstY = convertToCanvasSpace(normalizedPoints[0].rating);
-    ctx.moveTo(firstX, firstY);
+    ctx.beginPath()
+    const firstX =
+      graphX + ((normalizedPoints[0].xVar - minX) / xRange) * graphXLen
+    const firstY = convertToCanvasSpace(normalizedPoints[0].rating)
+    ctx.moveTo(firstX, firstY)
 
     for (let j = 1; j < normalizedPoints.length; j++) {
-      const p = normalizedPoints[j];
-      const x = graphX + ((p.xVar - minX) / xRange) * graphXLen;
-      const y = convertToCanvasSpace(p.rating);
-      ctx.lineTo(x, y);
+      const p = normalizedPoints[j]
+      const x = graphX + ((p.xVar - minX) / xRange) * graphXLen
+      const y = convertToCanvasSpace(p.rating)
+      ctx.lineTo(x, y)
     }
 
     // Close path down to the bottom of the graph area
-    const lastX = graphX + ((normalizedPoints.at(-1)!.xVar - minX) / xRange) * graphXLen;
-    ctx.lineTo(lastX, graphY + graphYLen);
-    ctx.lineTo(firstX, graphY + graphYLen);
-    ctx.closePath();
+    const lastX =
+      graphX +
+      ((normalizedPoints[normalizedPoints.length - 1].xVar - minX) / xRange) *
+        graphXLen
+    ctx.lineTo(lastX, graphY + graphYLen)
+    ctx.lineTo(firstX, graphY + graphYLen)
+    ctx.closePath()
 
     // Fill with semi-transparent band color
-    const hex = eloColors[i] || eloColors[eloColors.length - 1];
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    const rgba = `rgba(${r}, ${g}, ${b}, 0.12)`; // translucent
+    const hex = eloColors[i] || eloColors[eloColors.length - 1]
+    const r = parseInt(hex.slice(1, 3), 16)
+    const g = parseInt(hex.slice(3, 5), 16)
+    const b = parseInt(hex.slice(5, 7), 16)
 
-    ctx.fillStyle = rgba;
-    ctx.fill();
-    ctx.restore();
-
-
-
-
-
-
+    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.12)` // translucent
+    ctx.fill()
+    ctx.restore()
   }
-
 
   //Draw Horizontal Lines
 
@@ -461,9 +515,10 @@ function createGraph(ctx: CanvasRenderingContext2D, playerData: StatsCanvasPlaye
     // Skip if the line is outside of the current visible range
     if (r < minRating || r > maxRating) return
 
-    const yPos = graphY + graphYLen - ((r - minRating) / ratingRange) * graphYLen
+    const yPos =
+      graphY + graphYLen - ((r - minRating) / ratingRange) * graphYLen
 
-    if (r == maxRating) { 
+    if (r == maxRating) {
       ctx.strokeStyle = config.colors.win
     } else if (r == 620) {
       ctx.strokeStyle = config.colors.glass
@@ -475,7 +530,12 @@ function createGraph(ctx: CanvasRenderingContext2D, playerData: StatsCanvasPlaye
       ctx.strokeStyle = config.colors.steel
     } else if (r == 200 && maxRating > 185 && maxRating > 215) {
       ctx.strokeStyle = config.colors.stone
-    } else if (!(r < maxRating + 15 && r > maxRating - 15 || r < minRating + 15 && r > minRating - 15)) {
+    } else if (
+      !(
+        (r < maxRating + 15 && r > maxRating - 15) ||
+        (r < minRating + 15 && r > minRating - 15)
+      )
+    ) {
       ctx.strokeStyle = config.colors.stone
     }
 
@@ -483,14 +543,13 @@ function createGraph(ctx: CanvasRenderingContext2D, playerData: StatsCanvasPlaye
     ctx.moveTo(x, yPos)
     ctx.lineTo(x + xlen, yPos)
     ctx.stroke()
-
   })
 
   //DRAW LINE
 
   ctx.save()
-  ctx.lineCap = "round"
-  ctx.lineJoin = "round"
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
   ctx.lineWidth = 3
 
   // Helper: get color by rating
@@ -522,20 +581,21 @@ function createGraph(ctx: CanvasRenderingContext2D, playerData: StatsCanvasPlaye
       ctx.moveTo(x1, y1)
       ctx.lineTo(x2, y2)
       ctx.stroke()
-
     } else {
       // y = n
       const crossedSplit = eloSplits.find(
-        (split) => split >= Math.min(p1.rating, p2.rating) && split <= Math.max(p1.rating, p2.rating)
+        (split) =>
+          split >= Math.min(p1.rating, p2.rating) &&
+          split <= Math.max(p1.rating, p2.rating),
       )
 
       // Convert rating split → canvas y
-      const y3Canvas = convertToCanvasSpace(crossedSplit)
+      const y3Canvas = convertToCanvasSpace(crossedSplit ?? 0)
 
       // line equation
       const m = (y2 - y1) / (x2 - x1)
       const b = y1 - m * x1
-      const x3 = (y3Canvas  - b) / m
+      const x3 = (y3Canvas - b) / m
 
       ctx.beginPath()
       ctx.strokeStyle = color1
@@ -549,131 +609,220 @@ function createGraph(ctx: CanvasRenderingContext2D, playerData: StatsCanvasPlaye
       ctx.lineTo(x2, y2)
       ctx.stroke()
     }
-
-
   }
 
-  ctx.restore();
+  ctx.restore()
 
   // Add y level labels
 
   guideRatings.forEach((r) => {
     // Skip if the line is outside of the current visible range
-    if (r < minRating || r > maxRating) return;
+    if (r < minRating || r > maxRating) return
 
-    const yPos = graphY + graphYLen - ((r - minRating) / ratingRange) * graphYLen
+    const yPos =
+      graphY + graphYLen - ((r - minRating) / ratingRange) * graphYLen
 
     ctx.fillStyle = config.colors.textSecondary
     ctx.textAlign = 'left'
     ctx.font = config.fonts.tiny
 
-    if (r == maxRating) { 
-      ctx.fillText(`${Math.round(r)}`,x,yPos - 16)
+    if (r == maxRating) {
+      ctx.fillText(`${Math.round(r)}`, x, yPos - 16)
       ctx.font = config.fonts.tiny
-      ctx.fillText(" · Peak MMR",x + ctx.measureText(`${Math.round(r)}`).width - 3,yPos - 16)
+      ctx.fillText(
+        ' · Peak MMR',
+        x + ctx.measureText(`${Math.round(r)}`).width - 3,
+        yPos - 16,
+      )
     } else if (r == 620) {
-      ctx.fillText(r.toString(),x,yPos - 16)
+      ctx.fillText(r.toString(), x, yPos - 16)
     } else if (r == 460) {
-      ctx.fillText(r.toString(),x,yPos - 16)
+      ctx.fillText(r.toString(), x, yPos - 16)
     } else if (r == 320) {
-      ctx.fillText(r.toString(),x,yPos - 16)
+      ctx.fillText(r.toString(), x, yPos - 16)
     } else if (r == 250) {
-      ctx.fillText(r.toString(),x,yPos - 16)
-    } else {  
-      ctx.fillText(r.toString(),x,yPos - 16)
+      ctx.fillText(r.toString(), x, yPos - 16)
+    } else {
+      ctx.fillText(r.toString(), x, yPos - 16)
     }
   })
 
   // Add x axis
   function addXAxisLabel(str: string, xVar: number) {
-    ctx.fillText(str.toString(),   graphX+((xVar - minX) / xRange)*graphXLen,    graphY+graphYLen+4)
+    ctx.fillText(
+      str.toString(),
+      graphX + ((xVar - minX) / xRange) * graphXLen,
+      graphY + graphYLen + 4,
+    )
   }
 
   if (byDate) {
-    function formatDateToDDMM(dateString: string): string {
-      const date = new Date(dateString);
-      const day = date.getUTCDate().toString().padStart(2, '0');
-      const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
-      return `${day}/${month}`;
+    function formatDateToMMDD(dateString: string): string {
+      const date = new Date(dateString)
+      const day = date.getUTCDate().toString().padStart(2, '0')
+      const month = (date.getUTCMonth() + 1).toString().padStart(2, '0')
+      return `${month}/${day}`
     }
 
     ctx.fillStyle = config.colors.textSecondary
     ctx.textAlign = 'left'
     ctx.font = config.fonts.tiny
 
-    ctx.fillText(formatDateToDDMM(normalizedPoints[0].date.toString()) + " · Date",graphX,graphY+graphYLen+4)
+    ctx.fillText(
+      formatDateToMMDD(normalizedPoints[0].date.toString()) + ' · Date',
+      graphX,
+      graphY + graphYLen + 4,
+    )
 
     ctx.textAlign = 'right'
-    if ((normalizedPoints[Math.floor(normalizedPoints.length * 0.5)].xVar - minX)/xRange >= (normalizedPoints[Math.floor(normalizedPoints.length * 0.75)].xVar - minX)/xRange - 0.1) {
-      addXAxisLabel(formatDateToDDMM(normalizedPoints[Math.floor(normalizedPoints.length * 0.5)].date.toString()),normalizedPoints[Math.floor(normalizedPoints.length * 0.5)].xVar)
-
+    if (
+      (normalizedPoints[Math.floor(normalizedPoints.length * 0.5)].xVar -
+        minX) /
+        xRange >=
+      (normalizedPoints[Math.floor(normalizedPoints.length * 0.75)].xVar -
+        minX) /
+        xRange -
+        0.1
+    ) {
+      addXAxisLabel(
+        formatDateToMMDD(
+          normalizedPoints[
+            Math.floor(normalizedPoints.length * 0.5)
+          ].date.toString(),
+        ),
+        normalizedPoints[Math.floor(normalizedPoints.length * 0.5)].xVar,
+      )
     } else {
-      addXAxisLabel(formatDateToDDMM(normalizedPoints[Math.floor(normalizedPoints.length * 0.5)].date.toString()),normalizedPoints[Math.floor(normalizedPoints.length * 0.5)].xVar)
-      addXAxisLabel(formatDateToDDMM(normalizedPoints[Math.floor(normalizedPoints.length * 0.75)].date.toString()),normalizedPoints[Math.floor(normalizedPoints.length * 0.75)].xVar)
-
+      addXAxisLabel(
+        formatDateToMMDD(
+          normalizedPoints[
+            Math.floor(normalizedPoints.length * 0.5)
+          ].date.toString(),
+        ),
+        normalizedPoints[Math.floor(normalizedPoints.length * 0.5)].xVar,
+      )
+      addXAxisLabel(
+        formatDateToMMDD(
+          normalizedPoints[
+            Math.floor(normalizedPoints.length * 0.75)
+          ].date.toString(),
+        ),
+        normalizedPoints[Math.floor(normalizedPoints.length * 0.75)].xVar,
+      )
     }
 
-
-    
-    addXAxisLabel(formatDateToDDMM(normalizedPoints[normalizedPoints.length-1].date.toString()),normalizedPoints[normalizedPoints.length-1].xVar)
+    addXAxisLabel(
+      formatDateToMMDD(
+        normalizedPoints[normalizedPoints.length - 1].date.toString(),
+      ),
+      normalizedPoints[normalizedPoints.length - 1].xVar,
+    )
   } else {
     ctx.fillStyle = config.colors.textSecondary
     ctx.textAlign = 'left'
     ctx.font = config.fonts.tiny
 
-    ctx.fillText(normalizedPoints[0].xVar.toString() + " · Games",graphX,graphY+graphYLen+4)
+    ctx.fillText(
+      normalizedPoints[0].xVar.toString() + ' · Games',
+      graphX,
+      graphY + graphYLen + 4,
+    )
 
     ctx.textAlign = 'right'
-    addXAxisLabel(normalizedPoints[Math.floor(normalizedPoints.length * 0.25)].xVar.toString(),normalizedPoints[Math.floor(normalizedPoints.length * 0.25)].xVar)
-    addXAxisLabel(normalizedPoints[Math.floor(normalizedPoints.length * 0.5)].xVar.toString(),normalizedPoints[Math.floor(normalizedPoints.length * 0.5)].xVar)
-    addXAxisLabel(normalizedPoints[Math.floor(normalizedPoints.length * 0.75)].xVar.toString(),normalizedPoints[Math.floor(normalizedPoints.length * 0.75)].xVar)
-    addXAxisLabel(normalizedPoints[normalizedPoints.length-1].xVar.toString(),normalizedPoints[normalizedPoints.length-1].xVar)
+    addXAxisLabel(
+      normalizedPoints[
+        Math.floor(normalizedPoints.length * 0.25)
+      ].xVar.toString(),
+      normalizedPoints[Math.floor(normalizedPoints.length * 0.25)].xVar,
+    )
+    addXAxisLabel(
+      normalizedPoints[
+        Math.floor(normalizedPoints.length * 0.5)
+      ].xVar.toString(),
+      normalizedPoints[Math.floor(normalizedPoints.length * 0.5)].xVar,
+    )
+    addXAxisLabel(
+      normalizedPoints[
+        Math.floor(normalizedPoints.length * 0.75)
+      ].xVar.toString(),
+      normalizedPoints[Math.floor(normalizedPoints.length * 0.75)].xVar,
+    )
+    addXAxisLabel(
+      normalizedPoints[normalizedPoints.length - 1].xVar.toString(),
+      normalizedPoints[normalizedPoints.length - 1].xVar,
+    )
   }
-
-
 }
 
-function addSideData(ctx: CanvasRenderingContext2D, playerData: StatsCanvasPlayerData, x: number, y: number, xlen: number, ylen: number) {
-  
+function addSideData(
+  ctx: CanvasRenderingContext2D,
+  playerData: StatsCanvasPlayerData,
+  x: number,
+  y: number,
+  xlen: number,
+  ylen: number,
+) {
   const winsData = playerData.stats[0]
   const lossesData = playerData.stats[1]
   const gamesData = playerData.stats[2]
   const winrateData = playerData.stats[3]
 
-  addData(winrateData, x +10, y, xlen/2 -25, ylen)
-  addData(gamesData, x +15+ xlen/2, y, xlen/2 -25, ylen)
-  addData(winsData, x+10, y + 95, xlen/2 -25, ylen)
-  addData(lossesData, x +15+ xlen/2, y + 95, xlen/2 -25, ylen)
+  addData(winrateData, x + 10, y, xlen / 2 - 25, ylen)
+  addData(gamesData, x + 15 + xlen / 2, y, xlen / 2 - 25, ylen)
+  addData(winsData, x + 10, y + 95, xlen / 2 - 25, ylen)
+  addData(lossesData, x + 15 + xlen / 2, y + 95, xlen / 2 - 25, ylen)
 
-
-  function addData(data: { label: string; value: string; percentile: number; isTop: boolean }, x: number, y: number, xlen: number, ylen: number) {
-
+  function addData(
+    data: { label: string; value: string; percentile: number; isTop: boolean },
+    x: number,
+    y: number,
+    xlen: number,
+    ylen: number,
+  ) {
     ctx.textAlign = 'center'
     ctx.font = config.fonts.statLabel
     ctx.fillStyle = config.colors.textPrimary
-    ctx.fillText(data.value, x + xlen/2, y + ylen/2 + 5)
+    ctx.fillText(
+      Number.isNaN(parseInt(data.value))
+        ? data.value
+        : formatNumber(parseInt(data.value)),
+      x + xlen / 2,
+      y + ylen / 2 + 5,
+    )
 
     ctx.textAlign = 'left'
     ctx.font = config.fonts.small
     ctx.fillStyle = config.colors.textTertiary
 
     ctx.fillText(data.label, x, y + 15)
-    
 
     ctx.textAlign = 'right'
     ctx.font = config.fonts.tiny
     ctx.fillStyle = config.colors.textTertiary
     if (data.isTop) {
-      ctx.fillText("Top " + data.percentile.toString()+"%", x + xlen, y + ylen - 10)
+      ctx.fillText(
+        'Top ' + data.percentile.toString() + '%',
+        x + xlen,
+        y + ylen - 10,
+      )
     } else {
-      ctx.fillText("Bottom " + data.percentile.toString()+"%", x + xlen, y + ylen - 10)
+      ctx.fillText(
+        'Bottom ' + data.percentile.toString() + '%',
+        x + xlen,
+        y + ylen - 10,
+      )
     }
-
   }
-
 }
 
-function drawPreviousGames(ctx: CanvasRenderingContext2D, playerData: StatsCanvasPlayerData, x: number, y: number, xlen: number, ylen: number) {
+function drawPreviousGames(
+  ctx: CanvasRenderingContext2D,
+  playerData: StatsCanvasPlayerData,
+  x: number,
+  y: number,
+  xlen: number,
+  ylen: number,
+) {
   const startX = x + 10
   const panelWidth = xlen
   const lineHeight = 22
@@ -682,7 +831,7 @@ function drawPreviousGames(ctx: CanvasRenderingContext2D, playerData: StatsCanva
   ctx.textAlign = 'center'
   ctx.font = config.fonts.prevgameLabel
   ctx.fillStyle = config.colors.textTertiary
-  ctx.fillText('PREVIOUS GAMES', x + xlen/2, y + 20)
+  ctx.fillText('PREVIOUS GAMES', x + xlen / 2, y + 20)
 
   ctx.textAlign = 'left'
 
@@ -708,11 +857,14 @@ function drawPreviousGames(ctx: CanvasRenderingContext2D, playerData: StatsCanva
 
       ctx.fillText(changeText, startX + numberWidth + 45, lineY)
 
-
       ctx.fillStyle = config.colors.textSecondary
       ctx.textAlign = 'right'
       ctx.font = config.fonts.tiny
-      ctx.fillText(timeAgo(new Date(game.time)), startX + panelWidth - 20, lineY)
+      ctx.fillText(
+        timeAgo(new Date(game.time)),
+        startX + panelWidth - 20,
+        lineY,
+      )
     }
   }
 
@@ -734,13 +886,21 @@ function drawPreviousGames(ctx: CanvasRenderingContext2D, playerData: StatsCanva
   ctx.textBaseline = 'top'
 }
 
-async function rankupBar(ctx: CanvasRenderingContext2D, playerData: StatsCanvasPlayerData, x: number, y: number, xlen: number, ylen: number, xlen2: number) {
-  const eloSplits = config.eloSplits
-  
+async function rankupBar(
+  ctx: CanvasRenderingContext2D,
+  playerData: StatsCanvasPlayerData,
+  x: number,
+  y: number,
+  xlen: number,
+  ylen: number,
+  xlen2: number,
+) {
   const rankColor = playerData.rank_color || config.colors.textTertiary
   const nextRankColor = playerData.next_rank_color || config.colors.textPrimary
   const rankName = (playerData.rank_name || 'UNRANKED').toUpperCase()
-  const nextRankName = playerData.next_rank_name  ? playerData.next_rank_name.toUpperCase() : ''
+  const nextRankName = playerData.next_rank_name
+    ? playerData.next_rank_name.toUpperCase()
+    : ''
 
   const nextRankMRR = playerData.next_rank_mmr
   const rankMMR = playerData.rank_mmr
@@ -751,150 +911,198 @@ async function rankupBar(ctx: CanvasRenderingContext2D, playerData: StatsCanvasP
   const position = playerData.leaderboard_position
 
   async function corner(x: number, y: number, xlen: number, ylen: number) {
-    const tl = await loadImage("src/assets/antiTL.png")
-    const tr = await loadImage("src/assets/antiTR.png")
-    const bl = await loadImage("src/assets/antiBL.png")
-    const br = await loadImage("src/assets/antiBR.png")
+    const tl = await loadImage('src/assets/antiTL.png')
+    const tr = await loadImage('src/assets/antiTR.png')
+    const bl = await loadImage('src/assets/antiBL.png')
+    const br = await loadImage('src/assets/antiBR.png')
 
-    ctx.drawImage(tl,x-2,y)
-    ctx.drawImage(tr,x + xlen - 14,y)
-    ctx.drawImage(bl,x-2,y + ylen - 14 + 6)
-    ctx.drawImage(br,x + xlen - 14,y + ylen - 14 + 6)
+    drawBoxCorners(ctx, x, y, tl, tr, bl, br, xlen, ylen)
 
     //shadow
-    ctx.fillStyle = "#1E2E32"
-    ctx.fillRect(x-2,y+14,2,ylen-22)
-    ctx.fillRect(x+12,y+ylen+6,xlen-26,-6)
+    ctx.fillStyle = '#1E2E32'
+    ctx.fillRect(x - 2, y + 14, 2, ylen - 22)
+    ctx.fillRect(x + 12, y + ylen + 6, xlen - 26, -6)
   }
 
-  async function drawBar(x: number, y: number, xlen: number, ylen: number, xmin: number, xmax: number, xact: number) {
-    
-
+  async function drawBar(
+    x: number,
+    y: number,
+    xlen: number,
+    ylen: number,
+    xmin: number,
+    xmax: number,
+    xact: number,
+  ) {
     ctx.fillStyle = nextRankColor
-    ctx.fillRect(x,y,xlen,ylen)
+    ctx.fillRect(x, y, xlen, ylen)
 
-    const xfill = xlen * ((xact - xmin)/(xmax - xmin))
+    const xfill = xlen * ((xact - xmin) / (xmax - xmin))
 
     ctx.fillStyle = rankColor
-    if (rankName == "STONE") {
-      ctx.fillStyle = "#868692ff"
+    if (rankName == 'STONE') {
+      ctx.fillStyle = '#868692ff'
     }
 
-    ctx.fillRect(x,y,xfill,ylen)
+    ctx.fillRect(x, y, xfill, ylen)
 
-    corner(x,y,xlen,ylen)
+    await corner(x, y, xlen, ylen)
 
     ctx.fillStyle = config.colors.textPrimary
-
   }
 
   function toProperCase(str: string): string {
-    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase()
   }
 
-  function borderText(str: string, x: number, y: number, fill: string, border: string) {
+  function borderText(
+    str: string,
+    x: number,
+    y: number,
+    fill: string,
+    border: string,
+  ) {
     ctx.fillStyle = border
-    ctx.fillText(str,x+1,y+1)
-    ctx.fillText(str,x+1,y-1)
-    ctx.fillText(str,x-1,y+1)
-    ctx.fillText(str,x-1,y-1)
-    
+    ctx.fillText(str, x + 1, y + 1)
+    ctx.fillText(str, x + 1, y - 1)
+    ctx.fillText(str, x - 1, y + 1)
+    ctx.fillText(str, x - 1, y - 1)
+
     ctx.fillStyle = fill
-    ctx.fillText(str,x,y)
+    ctx.fillText(str, x, y)
   }
 
   ctx.fillStyle = nextRankColor
-  ctx.fillRect(x+xlen+10,y,xlen2,ylen)
-  corner(x+xlen+10,y,xlen2,ylen)
+  ctx.fillRect(x + xlen + 10, y, xlen2, ylen)
+  await corner(x + xlen + 10, y, xlen2, ylen)
 
   ctx.textAlign = 'center'
   ctx.font = config.fonts.tiny
 
   let nextRankNameConcat = nextRankName
 
-  if (nextRankName == "HOLOGRAPHIC" || nextRankName == "POLYCHROME") {
+  if (nextRankName == 'HOLOGRAPHIC' || nextRankName == 'POLYCHROME') {
     nextRankNameConcat = nextRankName.slice(0, 4)
-  } 
+  }
 
-  if (nextRankMRR != null) {
-    await drawBar(x,y,xlen,ylen,rankMMR,nextRankMRR,MMR)
+  if (nextRankMRR != null && rankMMR != null && MMR != null) {
+    await drawBar(x, y, xlen, ylen, rankMMR, nextRankMRR, MMR)
 
-    borderText((Math.round(nextRankMRR - MMR)).toString() + " MMR to " + toProperCase(nextRankName),x+xlen+10 + xlen2/2+1,y + ylen - 8,config.colors.textPrimary,config.colors.textQuaternary)
-
-  } else if (position != 1) {
-    await drawBar(x,y,xlen,ylen,rankPosition,nextRankPosition,position)
+    borderText(
+      Math.round(nextRankMRR - MMR).toString() +
+        ' MMR to ' +
+        toProperCase(nextRankName),
+      x + xlen + 10 + xlen2 / 2,
+      y + ylen - 8,
+      config.colors.textPrimary,
+      config.colors.textQuaternary,
+    )
+  } else if (position && rankPosition && nextRankPosition && position != 1) {
+    await drawBar(x, y, xlen, ylen, rankPosition, nextRankPosition, position)
 
     if (position - nextRankPosition == 1) {
-      borderText((position - nextRankPosition).toString() + " rank to " + toProperCase(nextRankNameConcat),x+xlen+10 + xlen2/2,y + ylen - 8,config.colors.textPrimary,config.colors.textQuaternary)
+      borderText(
+        (position - nextRankPosition).toString() +
+          ' rank to ' +
+          toProperCase(nextRankNameConcat),
+        x + xlen + 10 + xlen2 / 2,
+        y + ylen - 8,
+        config.colors.textPrimary,
+        config.colors.textQuaternary,
+      )
     } else {
-      borderText((position - nextRankPosition).toString() + " ranks to " + toProperCase(nextRankNameConcat),x+xlen+10 + xlen2/2,y + ylen - 8,config.colors.textPrimary,config.colors.textQuaternary)
+      borderText(
+        (position - nextRankPosition).toString() +
+          ' ranks to ' +
+          toProperCase(nextRankNameConcat),
+        x + xlen + 10 + xlen2 / 2,
+        y + ylen - 8,
+        config.colors.textPrimary,
+        config.colors.textQuaternary,
+      )
     }
   } else {
-    await drawBar(x,y,xlen,ylen,0,1,1)
-    borderText("₍^. .^₎/",x+xlen+10 + xlen2/2,y + ylen - 8,config.colors.textPrimary,config.colors.textQuaternary)
-
+    await drawBar(x, y, xlen, ylen, 0, 1, 1)
+    borderText(
+      '₍^. .^₎/',
+      x + xlen + 10 + xlen2 / 2,
+      y + ylen - 8,
+      config.colors.textPrimary,
+      config.colors.textQuaternary,
+    )
   }
 
   ctx.textAlign = 'left'
-  borderText(rankName,x+10,y + ylen -8,config.colors.textPrimary,config.colors.textQuaternary)
+  borderText(
+    rankName,
+    x + 10,
+    y + ylen - 8,
+    config.colors.textPrimary,
+    config.colors.textQuaternary,
+  )
 
   ctx.textAlign = 'right'
-  borderText(nextRankName,x+xlen-10,y + ylen -8,config.colors.textPrimary,config.colors.textQuaternary)
-
+  borderText(
+    nextRankName,
+    x + xlen - 10,
+    y + ylen - 8,
+    config.colors.textPrimary,
+    config.colors.textQuaternary,
+  )
 }
 
 export async function drawPlayerStatsCanvas(
   queueName: string,
-  playerData: StatsCanvasPlayerData,  
+  playerData: StatsCanvasPlayerData,
+  byDate: boolean,
 ) {
   const canvas = new Canvas(config.width, config.height)
   const ctx = canvas.getContext('2d')
 
   //back elements
   await addBackground(ctx)
-  await addBackBox(ctx,canvas.width/32,canvas.height/24,canvas.width-canvas.width/16,canvas.height-canvas.height/12)
-
+  await addBackBox(
+    ctx,
+    canvas.width / 32,
+    canvas.height / 24,
+    canvas.width - canvas.width / 16,
+    canvas.height - canvas.height / 12,
+  )
 
   //top elements
   await drawAvatar(ctx, 60, 50, 110, playerData)
 
   //change the gray and red boxes depending on if mmr is 5 digits or >5
   if (`${playerData.peak_mmr}`.length > 5) {
-    await addGrayBox(ctx,180,50,385,80)
-    await addRedBox(ctx,575,50,165,80)
-    await rankupBar(ctx,playerData,180,140,385,20,166)
-
+    await addGrayBox(ctx, 180, 50, 385, 80)
+    await addRedBox(ctx, 575, 50, 166, 80)
+    await rankupBar(ctx, playerData, 180, 140, 385, 20, 166)
   } else {
-    await addGrayBox(ctx,180,50,415,80)
-    await addRedBox(ctx,605,50,136,80)
-    await rankupBar(ctx,playerData,180,140,415,20,136)
+    await addGrayBox(ctx, 180, 50, 415, 80)
+    await addRedBox(ctx, 605, 50, 136, 80)
+    await rankupBar(ctx, playerData, 180, 140, 415, 20, 136)
   }
   await addTopText(ctx, playerData, queueName)
 
   if (`${playerData.peak_mmr}`.length > 5) {
-    await rankupBar(ctx,playerData,180,140,385,20,166)
-
+    await rankupBar(ctx, playerData, 180, 140, 385, 20, 166)
   } else {
-    await rankupBar(ctx,playerData,180,140,415,20,136)
+    await rankupBar(ctx, playerData, 180, 140, 415, 20, 136)
   }
 
   //side elements
-  await addBlackBox(ctx,60,170,95,85)
-  await addBlackBox(ctx,165,170,95,85)
-  await addBlackBox(ctx,60,265,95,85)
-  await addBlackBox(ctx,165,265,95,85)
+  await addBlackBox(ctx, 60, 170, 95, 85)
+  await addBlackBox(ctx, 165, 170, 95, 85)
+  await addBlackBox(ctx, 60, 265, 95, 85)
+  await addBlackBox(ctx, 165, 265, 95, 85)
 
-  await addBlackBox(ctx,60,360,200,180)
+  await addBlackBox(ctx, 60, 360, 200, 180)
 
-  addSideData(ctx,playerData,60,170,200,85)
-  drawPreviousGames(ctx,playerData,60,360,200,180)
-
+  addSideData(ctx, playerData, 60, 170, 200, 85)
+  drawPreviousGames(ctx, playerData, 60, 360, 200, 180)
 
   //graph
-  await addBlackBox(ctx,270,170,470,370)
-  createGraph(ctx,playerData,280,180,450,350,false)
+  await addBlackBox(ctx, 270, 170, 470, 370)
+  createGraph(ctx, playerData, 280, 180, 450, 350, byDate)
 
-
-  
   return await canvas.png
 }
