@@ -332,8 +332,8 @@ async function addBackBox(
   //corners
   ctx.drawImage(tl, x, y)
   ctx.drawImage(tr, x + xlen - 32, y)
-  ctx.drawImage(bl, x -6, y + ylen - 32)
-  ctx.drawImage(br, x -6 + xlen - 38, y + ylen - 32)
+  ctx.drawImage(bl, x - 6, y + ylen - 32)
+  ctx.drawImage(br, x - 6 + xlen - 38, y + ylen - 32)
 
   //border
   ctx.fillStyle = '#BAC2D2'
@@ -342,10 +342,10 @@ async function addBackBox(
   ctx.fillRect(x + xlen, y + 32, -9, ylen - 64)
   ctx.fillRect(x + 38, y + ylen, xlen - 82, -9)
 
-  //shadow
-  ctx.fillStyle = '#47746C'
+  //shadows
+  ctx.fillStyle = '#1b3233'
   ctx.fillRect(x + 38, y + ylen, xlen - 76, 12)
-  ctx.fillRect(x, y + 32, -6, ylen - 46)
+  ctx.fillRect(x, y + 48, -6, ylen - 58)
 }
 
 function normalizeDataPosition(
@@ -1065,10 +1065,12 @@ export async function drawPlayerStatsCanvas(
   const canvas = new Canvas(config.width * scale, config.height * scale)
   const ctx = canvas.getContext('2d')
 
+  ctx.imageSmoothingEnabled = false
   ctx.scale(2, 2)
 
   //back elements
   await addBackground(ctx, playerData.stat_background)
+  ctx.imageSmoothingEnabled = false
   await addBackBox(
     ctx,
     config.width / 32,
@@ -1076,6 +1078,7 @@ export async function drawPlayerStatsCanvas(
     config.width - config.width / 16,
     config.height - config.height / 12,
   )
+  ctx.imageSmoothingEnabled = true
 
   //top elements
   await drawAvatar(ctx, 60, 50, 110, playerData)
