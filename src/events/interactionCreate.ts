@@ -242,7 +242,7 @@ export default {
             )
 
             await interaction.followUp({
-              content: `Background set to **${background.name}**!\n\nHere's a preview of your new stats card:`,
+              content: `Background set to **${background.name}**!\n\nHere's a preview of your stats background:`,
               files: [previewImage],
               flags: MessageFlags.Ephemeral,
             })
