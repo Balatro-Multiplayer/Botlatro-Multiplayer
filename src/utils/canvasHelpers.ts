@@ -217,9 +217,9 @@ async function addRedBox(
   ylen: number,
 ) {
   const tl = await loadImage(path.join(bgDir, 'RedTL.png'))
-  const tr = await loadImage(path.join(bgDir, 'RedTR.png'))
-  const bl = await loadImage(path.join(bgDir, 'RedBL.png'))
-  const br = await loadImage(path.join(bgDir, 'RedBR.png'))
+  const tr = await loadImage(path.join(bgDir, 'redTR.png'))
+  const bl = await loadImage(path.join(bgDir, 'redBL.png'))
+  const br = await loadImage(path.join(bgDir, 'redBR.png'))
 
   //corners
   drawBoxCorners(ctx, x, y, tl, tr, bl, br, xlen, ylen)
@@ -242,10 +242,10 @@ async function addGrayBox(
   xlen: number,
   ylen: number,
 ) {
-  const tl = await loadImage(path.join(bgDir, 'GrayTL.png'))
-  const tr = await loadImage(path.join(bgDir, 'GrayTR.png'))
-  const bl = await loadImage(path.join(bgDir, 'GrayBL.png'))
-  const br = await loadImage(path.join(bgDir, 'GrayBR.png'))
+  const tl = await loadImage(path.join(bgDir, 'grayTL.png'))
+  const tr = await loadImage(path.join(bgDir, 'grayTR.png'))
+  const bl = await loadImage(path.join(bgDir, 'grayBL.png'))
+  const br = await loadImage(path.join(bgDir, 'grayBR.png'))
 
   drawBoxCorners(ctx, x, y, tl, tr, bl, br, xlen, ylen)
 
@@ -270,10 +270,10 @@ async function addBlueBox(
   xlen: number,
   ylen: number,
 ) {
-  const tl = await loadImage(path.join(bgDir, 'BlueTL.png'))
-  const tr = await loadImage(path.join(bgDir, 'BlueTR.png'))
-  const bl = await loadImage(path.join(bgDir, 'BlueBL.png'))
-  const br = await loadImage(path.join(bgDir, 'BlueBR.png'))
+  const tl = await loadImage(path.join(bgDir, 'blueTL.png'))
+  const tr = await loadImage(path.join(bgDir, 'blueTR.png'))
+  const bl = await loadImage(path.join(bgDir, 'blueBL.png'))
+  const br = await loadImage(path.join(bgDir, 'blueBR.png'))
 
   //corners
   drawBoxCorners(ctx, x, y, tl, tr, bl, br, xlen, ylen)
@@ -296,10 +296,10 @@ async function addBlackBox(
   xlen: number,
   ylen: number,
 ) {
-  const tl = await loadImage(path.join(bgDir, 'BlackTL.png'))
-  const tr = await loadImage(path.join(bgDir, 'BlackTR.png'))
-  const bl = await loadImage(path.join(bgDir, 'BlackBL.png'))
-  const br = await loadImage(path.join(bgDir, 'BlackBR.png'))
+  const tl = await loadImage(path.join(bgDir, 'blackTL.png'))
+  const tr = await loadImage(path.join(bgDir, 'blackTR.png'))
+  const bl = await loadImage(path.join(bgDir, 'blackBL.png'))
+  const br = await loadImage(path.join(bgDir, 'blackBR.png'))
 
   //corners
   drawBoxCorners(ctx, x, y, tl, tr, bl, br, xlen, ylen)
