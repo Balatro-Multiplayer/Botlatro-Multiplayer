@@ -216,7 +216,7 @@ async function addRedBox(
   xlen: number,
   ylen: number,
 ) {
-  const tl = await loadImage(path.join(bgDir, 'RedTL.png'))
+  const tl = await loadImage(path.join(bgDir, 'redTL.png'))
   const tr = await loadImage(path.join(bgDir, 'redTR.png'))
   const bl = await loadImage(path.join(bgDir, 'redBL.png'))
   const br = await loadImage(path.join(bgDir, 'redBR.png'))
