@@ -9,7 +9,7 @@ import { client, getGuild } from 'client'
 import path from 'path'
 
 const bgDir = process.env.ASSETS_DIR || path.join(process.cwd(), 'assets')
-const fontDir = process.env.FONTS_DIR || path.join(process.cwd(), 'assets')
+const fontDir = process.env.FONTS_DIR || path.join(process.cwd(), 'fonts')
 
 const font = 'm6x11'
 

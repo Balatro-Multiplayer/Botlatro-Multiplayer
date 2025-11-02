@@ -1494,7 +1494,12 @@ export async function getStatsCanvasUserData(
     [userId, queueId],
   )
 
-  const previous_games = previousRes.rows as { change: number; time: Date; deck: string; stake: string }[]
+  const previous_games = previousRes.rows as {
+    change: number
+    time: Date
+    deck: string
+    stake: string
+  }[]
 
   const eloRes = await pool.query(
     `
@@ -1504,7 +1509,7 @@ export async function getStatsCanvasUserData(
     FROM match_users mu
     JOIN matches m ON m.id = mu.match_id
     WHERE mu.user_id = $1 AND m.queue_id = $2 AND m.winning_team IS NOT NULL
-    ORDER BY m.id
+    ORDER BY m.created_at
     `,
     [userId, queueId],
   )
@@ -1518,8 +1523,7 @@ export async function getStatsCanvasUserData(
   const queueSettings = await getQueueSettings(queueId)
   const defaultElo = queueSettings.default_elo
 
-  const totalChange = eloChanges.reduce((sum, r) => sum + r.change, 0)
-  let running = (p.elo ?? 0) - totalChange
+  let running = defaultElo
 
   const elo_graph_data: { date: Date; rating: number }[] = []
 
@@ -1533,7 +1537,8 @@ export async function getStatsCanvasUserData(
   // Add all match data points
   eloChanges.forEach((r) => {
     running += r.change
-    const clampedRating = Math.max(0, running) // Makes sure it stays within the range of 0-9999
+    const clampedRating = Math.max(0, Math.min(9999, running)) // Clamp between 0 and 9999
+    running = clampedRating // Update running to match the clamped value for next iteration
     elo_graph_data.push({ date: r.date, rating: clampedRating })
   })
 
