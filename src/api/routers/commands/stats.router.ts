@@ -151,8 +151,10 @@ statsRouter.openapi(
                   players: z.array(
                     z.object({
                       user_id: z.string(),
+                      name: z.string(),
                       team: z.number().nullable(),
                       elo_change: z.number().nullable(),
+                      mmr_after: z.number(),
                     }),
                   ),
                 }),
@@ -251,9 +253,20 @@ statsRouter.openapi(
               matches: z.array(
                 z.object({
                   match_id: z.number(),
+                  player_name: z.string(),
+                  mmr_after: z.number(),
                   won: z.boolean(),
                   elo_change: z.number().nullable(),
                   team: z.number().nullable(),
+                  opponents: z.array(
+                    z.object({
+                      user_id: z.string(),
+                      name: z.string(),
+                      team: z.number().nullable(),
+                      elo_change: z.number().nullable(),
+                      mmr_after: z.number(),
+                    }),
+                  ),
                   deck: z.string().nullable(),
                   stake: z.string().nullable(),
                   best_of_3: z.boolean(),
