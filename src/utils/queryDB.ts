@@ -1180,10 +1180,16 @@ export async function updatePlayerMmrAll(
 ): Promise<void> {
   // Clamp elo between 0 and 9999
   const clampedElo = Math.max(0, Math.min(9999, newElo))
+  const { decay_grace } = await getSettings()
 
   await pool.query(
-    `UPDATE queue_users SET elo = $1, peak_elo = GREATEST(peak_elo, $1), volatility = $2 WHERE user_id = $3 AND queue_id = $4`,
-    [clampedElo, newVolatility, userId, queueId],
+    `UPDATE queue_users 
+    SET elo = $1, 
+    peak_elo = GREATEST(peak_elo, $1),
+    volatility = $2,
+    last_decay = clock_timestamp() + ($3::double precision * interval '1 hour')
+    WHERE user_id = $4 AND queue_id = $5`,
+    [clampedElo, newVolatility, decay_grace, userId, queueId],
   )
 }
 
@@ -1903,7 +1909,6 @@ export async function getDecayUsers(): Promise<{ user_id: string }[]> {
 export async function addIsDecayToUsers(
   decay_threshold: number,
   decay_grace: number,
-  decay_interval: number,
 ) {
   await pool.query(
     `

@@ -122,8 +122,20 @@ export async function incrementEloCronJobAllQueues() {
         for (let i = 0; i < candidates.length; i++) {
           for (let j = i + 1; j < candidates.length; j++) {
             const diff = Math.abs(candidates[i].elo - candidates[j].elo)
+
+            // If both players are in the 650-2000 MMR range, match them immediately
+            // Owen requested this - Jeff
+            const instaQueueMin = 650
+            const instaQueueMax = 2000
+            const bothInInstaQueueRange =
+              candidates[i].elo >= instaQueueMin &&
+              candidates[i].elo <= instaQueueMax &&
+              candidates[j].elo >= instaQueueMin &&
+              candidates[j].elo <= instaQueueMax
+
             let inRange =
-              diff < candidates[i].range && diff < candidates[j].range
+              bothInInstaQueueRange ||
+              (diff < candidates[i].range && diff < candidates[j].range)
 
             // Temporarily removing this until its fixed
             // // Time-in-queue check
@@ -219,7 +231,7 @@ export async function runDecayTick() {
       const { decay_threshold, decay_interval, decay_grace, decay_amount } =
         await getSettings()
       // 1: all users who have reached decay threshold should have is_decay set to true, and last_decay set to null.
-      await addIsDecayToUsers(decay_threshold, decay_grace, decay_interval)
+      await addIsDecayToUsers(decay_threshold, decay_grace)
       // 2: all users who have dropped below decay threshold should have is_decay removed, and last_decay set to null.
       await removeIsDecayFromUsers(decay_threshold)
       // 3: all users who still have is_decay == true, and who's last_decay is 'due', should have a decay tick applied, and last_decay set to now. If last_decay is null, set it to the future (after decay_grace)
