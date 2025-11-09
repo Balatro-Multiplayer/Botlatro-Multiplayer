@@ -56,6 +56,15 @@ export default {
 
     const color = interaction.options.getString('color', false)
 
+    const instaqueueMin = interaction.options.getInteger(
+      'instaqueue-min',
+      false,
+    )
+    const instaqueueMax = interaction.options.getInteger(
+      'instaqueue-max',
+      false,
+    )
+
     try {
       const result = await pool.query(
         `
@@ -74,7 +83,9 @@ export default {
           second_deck_ban_num = COALESCE($12, second_deck_ban_num),
           role_lock_id = COALESCE($13, role_lock_id),
           veto_mmr_threshold = COALESCE($14, veto_mmr_threshold),
-          color = COALESCE($15, color)
+          color = COALESCE($15, color),
+          instaqueue_min = COALESCE($16, instaqueue_min),
+          instaqueue_max = COALESCE($17, instaqueue_max)
         WHERE queue_name = $1
         RETURNING queue_name
         `,
@@ -94,6 +105,8 @@ export default {
           roleLockId,
           vetoMmrThreshold,
           color,
+          instaqueueMin,
+          instaqueueMax,
         ],
       )
 

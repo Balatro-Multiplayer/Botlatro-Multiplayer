@@ -78,9 +78,13 @@ export async function incrementEloCronJobAllQueues() {
           'elo_search_increment',
           'elo_search_speed',
           'elo_search_start',
+          'instaqueue_min',
+          'instaqueue_max',
         ])
         const increment = queueSettings.elo_search_increment || 1
         const start = queueSettings.elo_search_start || 0
+        const instaqueueMin = queueSettings.instaqueue_min
+        const instaqueueMax = queueSettings.instaqueue_max
 
         let usersInQueue = await getUsersInQueue(queue.id)
         // if (usersInQueue.length <= 1) continue
@@ -123,15 +127,13 @@ export async function incrementEloCronJobAllQueues() {
           for (let j = i + 1; j < candidates.length; j++) {
             const diff = Math.abs(candidates[i].elo - candidates[j].elo)
 
-            // If both players are in the 650-2000 MMR range, match them immediately
+            // If both players are within the configured instaqueue range, match them immediately
             // Owen requested this - Jeff
-            const instaQueueMin = 650
-            const instaQueueMax = 2000
             const bothInInstaQueueRange =
-              candidates[i].elo >= instaQueueMin &&
-              candidates[i].elo <= instaQueueMax &&
-              candidates[j].elo >= instaQueueMin &&
-              candidates[j].elo <= instaQueueMax
+              candidates[i].elo >= instaqueueMin &&
+              candidates[i].elo <= instaqueueMax &&
+              candidates[j].elo >= instaqueueMin &&
+              candidates[j].elo <= instaqueueMax
 
             let inRange =
               bothInInstaQueueRange ||

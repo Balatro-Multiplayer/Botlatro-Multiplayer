@@ -127,6 +127,24 @@ export default {
             .setRequired(false)
             .setMinLength(7)
             .setMaxLength(7),
+        )
+        .addIntegerOption((option) =>
+          option
+            .setName('instaqueue-min')
+            .setDescription(
+              'Minimum MMR for instant queue matching (players in range match immediately)',
+            )
+            .setRequired(false)
+            .setMinValue(0),
+        )
+        .addIntegerOption((option) =>
+          option
+            .setName('instaqueue-max')
+            .setDescription(
+              'Maximum MMR for instant queue matching (players in range match immediately)',
+            )
+            .setRequired(false)
+            .setMinValue(0),
         ),
     )
     .addSubcommand((sub) =>
