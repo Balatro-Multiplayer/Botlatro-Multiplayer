@@ -61,11 +61,10 @@ export default {
       sub
         .setName('strikes')
         .setDescription('[HELPER] List all strike(s) for a certain user')
-        .addStringOption((option) =>
+        .addUserOption((option) =>
           option
             .setName('user')
             .setDescription('The user to list strike(s) of')
-            .setAutocomplete(true)
             .setRequired(true),
         ),
     ),
