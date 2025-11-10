@@ -1935,10 +1935,9 @@ export async function applyDecayToUsers(
 ) {
   await pool.query(
     `
-    UPDATE queue_users SET elo = greatest(elo - $1::numeric, 0::numeric), last_decay = clock_timestamp() 
-                       WHERE is_decay 
-                         AND ((last_decay IS null) 
-                                             OR (last_decay <= clock_timestamp() - ($2::double precision * interval '1 hour'))) 
+    UPDATE queue_users SET elo = greatest(elo - $1::numeric, 0::numeric), last_decay = clock_timestamp() + ($2::double precision * interval '1 hour')
+                       WHERE is_decay
+                         AND last_decay <= clock_timestamp()
   `,
     [decay_amount, decay_interval],
   )
