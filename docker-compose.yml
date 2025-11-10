@@ -41,6 +41,18 @@ services:
               1000, 25, 24, 6, ''::text
        where not exists (select 1 from settings where singleton = true);\""
 
+  deploy-commands:
+    build: .
+    environment:
+      DISCORD_TOKEN: ${DISCORD_TOKEN}
+      CLIENT_ID: ${CLIENT_ID}
+      GUILD_ID: ${GUILD_ID}
+    depends_on:
+      seed-settings:
+        condition: service_completed_successfully
+    command: node dist/scripts/deploy-commands.js
+    restart: "no"
+
   bot:
     build: .
     environment:
@@ -51,7 +63,7 @@ services:
       LOG_DIR: /app/data/logs
       API_TOKEN: ${API_TOKEN}
     depends_on:
-      seed-settings:
+      deploy-commands:
         condition: service_completed_successfully
     command: bash -lc "exec node dist/index.js"
     volumes:

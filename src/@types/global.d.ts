@@ -21,6 +21,8 @@ declare module 'psqlDB' {
     role_lock_id?: string | null
     veto_mmr_threshold?: number | null
     color: string
+    instaqueue_min: number
+    instaqueue_max: number
   }
 
   export interface QueueRoles {
@@ -172,7 +174,12 @@ declare module 'psqlDB' {
       percentile: number
       isTop: boolean
     }[]
-    previous_games: { change: number; time: Date; deck: string; stake: string }[]
+    previous_games: {
+      change: number
+      time: Date
+      deck: string
+      stake: string
+    }[]
     elo_graph_data: { date: Date; rating: number }[]
     rank_name?: string | null
     rank_color?: string | null

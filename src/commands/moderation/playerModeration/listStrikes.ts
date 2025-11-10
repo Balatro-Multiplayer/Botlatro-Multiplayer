@@ -9,12 +9,12 @@ import { getGuild } from '../../../client'
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
     try {
-      await interaction.deferReply({})
-      const userId = interaction.options.getString('user', true)
-      const strikeInfo = await strikeUtils.getUserStrikes(userId)
+      await interaction.deferReply()
+      const user = interaction.options.getUser('user', true)
+      const strikeInfo = await strikeUtils.getUserStrikes(user.id)
       const guild = await getGuild()
       const member =
-        guild.members.cache.get(userId) ?? (await guild.members.fetch(userId))
+        guild.members.cache.get(user.id) ?? (await guild.members.fetch(user.id))
       const username = member.displayName
       const usernameFormatted =
         username.toLowerCase().slice(-1) === 's'

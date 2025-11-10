@@ -50,6 +50,8 @@ export default {
         reference: referenceChannel.name ?? 'unknown channel',
       })
 
+      const strikeList = await strikeUtils.getUserStrikes(user.id)
+
       const member = await interaction.guild!.members.fetch(user.id)
       // log usage
       const embed = createEmbedType(
@@ -57,7 +59,11 @@ export default {
         `<@${user.id}>`,
         null, // default
         [
-          { name: `Amount`, value: `${amount}`, inline: true },
+          {
+            name: `Amount`,
+            value: `${amount} (total: ${strikeList.length})`,
+            inline: true,
+          },
           { name: `Reason`, value: `${reasonFormat}`, inline: true },
           {
             name: `Ref`,

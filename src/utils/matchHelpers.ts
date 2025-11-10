@@ -340,8 +340,11 @@ export async function sendMatchInitMessages(
   for (const team of teamData.teams) {
     for (const player of team.players) {
       teamPingString += `<@${player.user_id}> `
-      // Specific handling for the user three_6666
-      if (player.user_id == '366416883454443520') {
+      // Specific handling for disability users
+      if (
+        player.user_id == '366416883454443520' ||
+        player.user_id == '621234251215405066'
+      ) {
         disabilityUser = true
       }
     }

@@ -40,6 +40,11 @@ export default {
 
     const color = interaction.options.getString('color', false) ?? '#FFD700'
 
+    const instaqueueMin =
+      interaction.options.getInteger('instaqueue-min', false) ?? 650
+    const instaqueueMax =
+      interaction.options.getInteger('instaqueue-max', false) ?? 2000
+
     try {
       const nameCheck = await pool.query(
         'SELECT 1 FROM queues WHERE queue_name = $1',
@@ -61,8 +66,9 @@ export default {
 				 elo_search_speed, default_elo,
 				 max_party_elo_difference, locked,
 				 best_of_allowed, first_deck_ban_num, second_deck_ban_num,
-				 role_lock_id, veto_mmr_threshold, color)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+				 role_lock_id, veto_mmr_threshold, color,
+				 instaqueue_min, instaqueue_max)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
                 `,
         [
           queueName,
@@ -81,6 +87,8 @@ export default {
           roleLockId,
           vetoMmrThreshold,
           color,
+          instaqueueMin,
+          instaqueueMax,
         ],
       )
 
