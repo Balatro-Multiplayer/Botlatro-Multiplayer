@@ -135,6 +135,7 @@ declare module 'psqlDB' {
     decay_interval: number
     decay_grace: number
     match_count_channel_id: string
+    webhook_url?: string | null
   }
 
   export type teamResults = {

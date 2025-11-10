@@ -12,6 +12,7 @@ import {
 } from 'discord.js'
 import { pool } from '../db'
 import { shuffle } from 'lodash-es'
+import { sendMatchEndWebhook } from './webhookHelpers'
 import {
   closeMatch,
   getActiveMatches,
@@ -737,6 +738,21 @@ export async function endMatch(
       )
     }
 
+    // Send webhook notification for cancelled match if configured
+    try {
+      const queueSettings = await getQueueSettings(queueId)
+      await sendMatchEndWebhook(
+        matchId,
+        queueId,
+        queueSettings.queue_name,
+        matchTeams,
+        true
+      )
+    } catch (err) {
+      console.error(`Failed to send webhook for cancelled match ${matchId}:`, err)
+      // Continue execution even if webhook fails
+    }
+
     return true
   }
 
@@ -985,6 +1001,20 @@ export async function endMatch(
 
   // Update queue log message after everything else is done
   await updateQueueLogMessage(matchId, queueId, teamResults, false)
+
+  // Send webhook notification if configured
+  try {
+    await sendMatchEndWebhook(
+      matchId,
+      queueId,
+      queueSettings.queue_name,
+      teamResults,
+      false
+    )
+  } catch (err) {
+    console.error(`Failed to send webhook for match ${matchId}:`, err)
+    // Continue execution even if webhook fails
+  }
 
   return true
 }
