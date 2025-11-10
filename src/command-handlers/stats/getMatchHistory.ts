@@ -28,12 +28,16 @@ export type MatchHistoryEntry = {
  * @param {string} userId - The Discord user ID of the player.
  * @param {number} queueId - The queue ID to fetch match history for.
  * @param {number} limit - Optional maximum number of matches to return. If not provided, returns all matches.
+ * @param {string} startDate - Optional start date to filter matches (ISO 8601 format).
+ * @param {string} endDate - Optional end date to filter matches (ISO 8601 format).
  * @return {Promise<MatchHistoryEntry[]>} A promise that resolves to an array of match history entries.
  */
 export async function getMatchHistory(
   userId: string,
   queueId: number,
   limit?: number,
+  startDate?: string,
+  endDate?: string,
 ): Promise<MatchHistoryEntry[]> {
   try {
     // Get match history for the player with opponent details
@@ -92,10 +96,22 @@ export async function getMatchHistory(
       LEFT JOIN users all_u ON all_mu.user_id = all_u.user_id
       LEFT JOIN match_elo_at_time all_meat ON all_mu.match_id = all_meat.match_id AND all_mu.user_id = all_meat.user_id
       WHERE mu.user_id = $1 AND m.queue_id = $2 AND m.winning_team IS NOT NULL
-      ORDER BY m.created_at DESC, all_mu.team, all_mu.user_id
     `
 
     const params: any[] = [userId, queueId]
+
+    // Add date range filters if provided
+    if (startDate) {
+      query += ` AND m.created_at >= $${params.length + 1}`
+      params.push(startDate)
+    }
+    if (endDate) {
+      query += ` AND m.created_at <= $${params.length + 1}`
+      params.push(endDate)
+    }
+
+    query += ` ORDER BY m.created_at DESC, all_mu.team, all_mu.user_id`
+
     if (limit) {
       query += ` LIMIT $${params.length + 1}`
       params.push(limit)

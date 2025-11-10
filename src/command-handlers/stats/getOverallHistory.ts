@@ -22,11 +22,15 @@ export type OverallHistoryEntry = {
  *
  * @param {number} queueId - The queue ID to fetch match history for.
  * @param {number} limit - Optional maximum number of matches to return. If not provided, returns all matches.
+ * @param {string} startDate - Optional start date to filter matches (ISO 8601 format).
+ * @param {string} endDate - Optional end date to filter matches (ISO 8601 format).
  * @return {Promise<OverallHistoryEntry[]>} A promise that resolves to an array of match history entries.
  */
 export async function getOverallHistory(
   queueId: number,
   limit?: number,
+  startDate?: string,
+  endDate?: string,
 ): Promise<OverallHistoryEntry[]> {
   try {
     // Get flat list of all match-player combinations with calculated MMR
@@ -77,10 +81,22 @@ export async function getOverallHistory(
       LEFT JOIN users u ON mu.user_id = u.user_id
       LEFT JOIN match_elo_at_time meat ON mu.match_id = meat.match_id AND mu.user_id = meat.user_id
       WHERE m.queue_id = $1 AND m.winning_team IS NOT NULL
-      ORDER BY m.created_at DESC, mu.team, mu.user_id
     `
 
     const params: any[] = [queueId]
+
+    // Add date range filters if provided
+    if (startDate) {
+      query += ` AND m.created_at >= $${params.length + 1}`
+      params.push(startDate)
+    }
+    if (endDate) {
+      query += ` AND m.created_at <= $${params.length + 1}`
+      params.push(endDate)
+    }
+
+    query += ` ORDER BY m.created_at DESC, mu.team, mu.user_id`
+
     if (limit) {
       query += ` LIMIT $${params.length + 1}`
       params.push(limit)

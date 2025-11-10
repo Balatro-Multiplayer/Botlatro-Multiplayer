@@ -132,6 +132,28 @@ statsRouter.openapi(
             },
             example: '50',
           }),
+        start_date: z
+          .string()
+          .datetime()
+          .optional()
+          .openapi({
+            param: {
+              name: 'start_date',
+              in: 'query',
+            },
+            example: '2024-01-01T00:00:00Z',
+          }),
+        end_date: z
+          .string()
+          .datetime()
+          .optional()
+          .openapi({
+            param: {
+              name: 'end_date',
+              in: 'query',
+            },
+            example: '2024-12-31T23:59:59Z',
+          }),
       }),
     },
     responses: {
@@ -178,12 +200,14 @@ statsRouter.openapi(
   }),
   async (c) => {
     const { queue_id } = c.req.valid('param')
-    const { limit } = c.req.valid('query')
+    const { limit, start_date, end_date } = c.req.valid('query')
 
     try {
       const matches = await COMMAND_HANDLERS.STATS.GET_OVERALL_HISTORY(
         queue_id,
         limit,
+        start_date,
+        end_date,
       )
 
       return c.json(
@@ -243,6 +267,28 @@ statsRouter.openapi(
             },
             example: '10',
           }),
+        start_date: z
+          .string()
+          .datetime()
+          .optional()
+          .openapi({
+            param: {
+              name: 'start_date',
+              in: 'query',
+            },
+            example: '2024-01-01T00:00:00Z',
+          }),
+        end_date: z
+          .string()
+          .datetime()
+          .optional()
+          .openapi({
+            param: {
+              name: 'end_date',
+              in: 'query',
+            },
+            example: '2024-12-31T23:59:59Z',
+          }),
       }),
     },
     responses: {
@@ -294,13 +340,15 @@ statsRouter.openapi(
   }),
   async (c) => {
     const { user_id, queue_id } = c.req.valid('param')
-    const { limit } = c.req.valid('query')
+    const { limit, start_date, end_date } = c.req.valid('query')
 
     try {
       const matches = await COMMAND_HANDLERS.STATS.GET_MATCH_HISTORY(
         user_id,
         queue_id,
         limit,
+        start_date,
+        end_date,
       )
 
       return c.json(
