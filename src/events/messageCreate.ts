@@ -1,4 +1,9 @@
-import { Events } from 'discord.js'
+import {
+  Events,
+  GuildMember,
+  MessageFlags,
+  PermissionFlagsBits,
+} from 'discord.js'
 import {
   getMatchIdFromChannel,
   getSettings,
@@ -44,10 +49,18 @@ export default {
       if (content.startsWith('!')) {
         const parts = content.slice(1).split(' ')
         const pasteName = parts[0].toLowerCase()
+        const botSettings = await getSettings()
+        const member = message.member as GuildMember
 
         if (pasteName) {
           // If there's additional content after the paste name, create/update the paste
-          if (parts.length > 1) {
+          if (
+            parts.length > 1 &&
+            member &&
+            (member.roles.cache.has(botSettings.helper_role_id) ||
+              member.roles.cache.has(botSettings.queue_helper_role_id) ||
+              member.permissions.has(PermissionFlagsBits.Administrator))
+          ) {
             const pasteContent = parts.slice(1).join(' ')
             try {
               await upsertCopyPaste(pasteName, pasteContent, message.author.id)
