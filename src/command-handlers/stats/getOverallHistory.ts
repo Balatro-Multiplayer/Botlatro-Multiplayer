@@ -33,27 +33,77 @@ export async function getOverallHistory(
   endDate?: string,
 ): Promise<OverallHistoryEntry[]> {
   try {
-    // Get flat list of all match-player combinations with calculated MMR
-    let query = `
-      WITH user_current_elo AS (
+    // Optimized query strategy:
+    // 1. First CTE filters and limits matches BEFORE any ELO calculations
+    // 2. Get only relevant match_users for those filtered matches
+    // 3. Calculate cumulative ELO changes only for users in filtered matches
+    // 4. This reduces window function processing from ALL matches to just what we need
+
+    let matchFilterConditions =
+      'WHERE m.queue_id = $1 AND m.winning_team IS NOT NULL'
+    const params: any[] = [queueId]
+
+    // Add date range filters if provided
+    if (startDate) {
+      matchFilterConditions += ` AND m.created_at >= $${params.length + 1}`
+      params.push(startDate)
+    }
+    if (endDate) {
+      matchFilterConditions += ` AND m.created_at <= $${params.length + 1}`
+      params.push(endDate)
+    }
+
+    // Build limit clause for matches (not rows)
+    const limitClause = limit ? `LIMIT ${limit}` : ''
+
+    const query = `
+      WITH filtered_matches AS (
+        SELECT
+          m.id,
+          m.winning_team,
+          m.deck,
+          m.stake,
+          m.best_of_3,
+          m.best_of_5,
+          m.created_at
+        FROM matches m
+        ${matchFilterConditions}
+        ORDER BY m.created_at DESC
+        ${limitClause}
+      ),
+      user_current_elo AS (
         SELECT user_id, elo
         FROM queue_users
         WHERE queue_id = $1
       ),
-      match_elo_changes AS (
+      relevant_users AS (
+        SELECT DISTINCT mu.user_id
+        FROM match_users mu
+        JOIN filtered_matches fm ON mu.match_id = fm.id
+      ),
+      all_user_matches AS (
         SELECT
           mu.match_id,
           mu.user_id,
           mu.elo_change,
           m.created_at,
-          SUM(mu.elo_change) OVER (
-            PARTITION BY mu.user_id
-            ORDER BY m.created_at DESC, m.id DESC
-            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-          ) as cumulative_change_from_now
+          m.id as match_pk
         FROM match_users mu
         JOIN matches m ON mu.match_id = m.id
+        JOIN relevant_users ru ON mu.user_id = ru.user_id
         WHERE m.queue_id = $1 AND m.winning_team IS NOT NULL
+      ),
+      match_elo_changes AS (
+        SELECT
+          aum.match_id,
+          aum.user_id,
+          aum.elo_change,
+          SUM(aum.elo_change) OVER (
+            PARTITION BY aum.user_id
+            ORDER BY aum.created_at DESC, aum.match_pk DESC
+            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+          ) as cumulative_change_from_now
+        FROM all_user_matches aum
       ),
       match_elo_at_time AS (
         SELECT
@@ -64,43 +114,24 @@ export async function getOverallHistory(
         JOIN user_current_elo uce ON mec.user_id = uce.user_id
       )
       SELECT
-        m.id as match_id,
-        m.winning_team,
-        m.deck,
-        m.stake,
-        m.best_of_3,
-        m.best_of_5,
-        m.created_at,
+        fm.id as match_id,
+        fm.winning_team,
+        fm.deck,
+        fm.stake,
+        fm.best_of_3,
+        fm.best_of_5,
+        fm.created_at,
         mu.user_id,
         u.display_name as player_name,
         mu.team,
         mu.elo_change,
         meat.elo_after_match as mmr_after
-      FROM matches m
-      LEFT JOIN match_users mu ON m.id = mu.match_id
+      FROM filtered_matches fm
+      LEFT JOIN match_users mu ON fm.id = mu.match_id
       LEFT JOIN users u ON mu.user_id = u.user_id
       LEFT JOIN match_elo_at_time meat ON mu.match_id = meat.match_id AND mu.user_id = meat.user_id
-      WHERE m.queue_id = $1 AND m.winning_team IS NOT NULL
+      ORDER BY fm.created_at DESC, mu.team, mu.user_id
     `
-
-    const params: any[] = [queueId]
-
-    // Add date range filters if provided
-    if (startDate) {
-      query += ` AND m.created_at >= $${params.length + 1}`
-      params.push(startDate)
-    }
-    if (endDate) {
-      query += ` AND m.created_at <= $${params.length + 1}`
-      params.push(endDate)
-    }
-
-    query += ` ORDER BY m.created_at DESC, mu.team, mu.user_id`
-
-    if (limit) {
-      query += ` LIMIT $${params.length + 1}`
-      params.push(limit)
-    }
 
     const result = await pool.query(query, params)
 
