@@ -74,7 +74,15 @@ export default {
             try {
               const paste = await getCopyPasteByName(pasteName)
               if (paste) {
-                await message.channel.send(paste.content)
+                // If this message is a reply, reply to the referenced message
+                if (message.reference) {
+                  const referencedMessage = await message.channel.messages.fetch(
+                    message.reference.messageId,
+                  )
+                  await referencedMessage.reply(paste.content)
+                } else {
+                  await message.channel.send(paste.content)
+                }
                 return
               }
             } catch (err) {
