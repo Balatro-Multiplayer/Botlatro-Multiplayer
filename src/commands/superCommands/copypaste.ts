@@ -7,7 +7,6 @@ import {
 } from 'discord.js'
 import {
   getAllCopyPastes,
-  getCopyPasteByName,
   upsertCopyPaste,
   deleteCopyPaste as dbDeleteCopyPaste,
   searchCopyPastesByName,
@@ -16,7 +15,7 @@ import {
 export default {
   data: new SlashCommandBuilder()
     .setName('copypaste')
-    .setDescription('[ADMIN] Manage copy-pastes')
+    .setDescription('[HELPER] Manage copy-pastes')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
 
     .addSubcommand((sub) =>
@@ -34,26 +33,6 @@ export default {
           option
             .setName('content')
             .setDescription('Content of the copy-paste')
-            .setRequired(true)
-            .setMaxLength(2000),
-        ),
-    )
-
-    .addSubcommand((sub) =>
-      sub
-        .setName('edit')
-        .setDescription('Edit an existing copy-paste')
-        .addStringOption((option) =>
-          option
-            .setName('name')
-            .setDescription('Name of the copy-paste to edit')
-            .setRequired(true)
-            .setAutocomplete(true),
-        )
-        .addStringOption((option) =>
-          option
-            .setName('content')
-            .setDescription('New content for the copy-paste')
             .setRequired(true)
             .setMaxLength(2000),
         ),
@@ -88,24 +67,6 @@ export default {
 
         await interaction.reply({
           content: `Copy-paste **${name}** has been created/updated!`,
-          flags: MessageFlags.Ephemeral,
-        })
-      } else if (subcommand === 'edit') {
-        const name = interaction.options.getString('name', true).toLowerCase()
-        const content = interaction.options.getString('content', true)
-
-        const existing = await getCopyPasteByName(name)
-        if (!existing) {
-          return await interaction.reply({
-            content: `Copy-paste **${name}** not found!`,
-            flags: MessageFlags.Ephemeral,
-          })
-        }
-
-        await upsertCopyPaste(name, content, interaction.user.id)
-
-        await interaction.reply({
-          content: `Copy-paste **${name}** has been updated!`,
           flags: MessageFlags.Ephemeral,
         })
       } else if (subcommand === 'delete') {
