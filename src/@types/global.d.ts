@@ -210,4 +210,13 @@ declare module 'psqlDB' {
     log_id: string | null
     reason: string | null
   }
+
+  export interface CopyPaste {
+    id: number
+    name: string
+    content: string
+    created_by: string
+    created_at: Date
+    updated_at: Date
+  }
 }
