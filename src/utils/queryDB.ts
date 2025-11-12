@@ -2,6 +2,7 @@ import { TextChannel, VoiceChannel } from 'discord.js'
 import { pool } from '../db'
 import type { Strikes, UserRoom } from 'psqlDB'
 import {
+  CopyPaste,
   Decks,
   Matches,
   QueueRoles,
@@ -2175,4 +2176,59 @@ export async function updateUserDisplayName(
     'INSERT INTO users (user_id, display_name) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET display_name = $2',
     [userId, displayName],
   )
+}
+
+// Copy-paste functions
+
+// Get all copy-pastes
+export async function getAllCopyPastes(): Promise<CopyPaste[]> {
+  const res = await pool.query('SELECT * FROM "copy_pastes" ORDER BY name')
+  return res.rows
+}
+
+// Get copy-paste by name
+export async function getCopyPasteByName(
+  name: string,
+): Promise<CopyPaste | null> {
+  const res = await pool.query('SELECT * FROM "copy_pastes" WHERE name = $1', [
+    name,
+  ])
+  return res.rows[0] || null
+}
+
+// Create or update copy-paste
+export async function upsertCopyPaste(
+  name: string,
+  content: string,
+  userId: string,
+): Promise<CopyPaste> {
+  const res = await pool.query(
+    `INSERT INTO "copy_pastes" (name, content, created_by)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (name) DO UPDATE
+     SET content = $2, updated_at = CURRENT_TIMESTAMP
+     RETURNING *`,
+    [name, content, userId],
+  )
+  return res.rows[0]
+}
+
+// Delete copy-paste
+export async function deleteCopyPaste(name: string): Promise<boolean> {
+  const res = await pool.query(
+    'DELETE FROM "copy_pastes" WHERE name = $1 RETURNING id',
+    [name],
+  )
+  return res.rowCount !== 0
+}
+
+// Search copy-pastes by name (for autocomplete)
+export async function searchCopyPastesByName(
+  search: string,
+): Promise<CopyPaste[]> {
+  const res = await pool.query(
+    'SELECT * FROM "copy_pastes" WHERE name ILIKE $1 ORDER BY name LIMIT 25',
+    [`%${search}%`],
+  )
+  return res.rows
 }

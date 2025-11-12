@@ -1,5 +1,10 @@
 import { Events } from 'discord.js'
-import { getMatchIdFromChannel, getSettings } from '../utils/queryDB'
+import {
+  getMatchIdFromChannel,
+  getSettings,
+  getCopyPasteByName,
+  upsertCopyPaste,
+} from '../utils/queryDB'
 import { resendMatchWinVote } from '../utils/matchHelpers'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -34,6 +39,37 @@ export default {
       const attachments = message.attachments
 
       if (!guild || !channel || !category) return
+
+      // Handle !<paste_name> syntax for copy-paste creation/posting
+      if (content.startsWith('!')) {
+        const parts = content.slice(1).split(' ')
+        const pasteName = parts[0].toLowerCase()
+
+        if (pasteName) {
+          // If there's additional content after the paste name, create/update the paste
+          if (parts.length > 1) {
+            const pasteContent = parts.slice(1).join(' ')
+            try {
+              await upsertCopyPaste(pasteName, pasteContent, message.author.id)
+              await message.react('✅')
+              return
+            } catch (err) {
+              console.error('Error creating copy-paste:', err)
+            }
+          } else {
+            // Otherwise, try to post the paste
+            try {
+              const paste = await getCopyPasteByName(pasteName)
+              if (paste) {
+                await message.channel.send(paste.content)
+                return
+              }
+            } catch (err) {
+              console.error('Error posting copy-paste:', err)
+            }
+          }
+        }
+      }
 
       // check if message is in queue category
       const settings = await getSettings()
