@@ -2196,19 +2196,29 @@ export async function getCopyPasteByName(
   return res.rows[0] || null
 }
 
+// Helper function to filter out bad mentions
+function filterMentions(content: string): string {
+  return content
+    .replace(/@everyone/gi, 'nice try')
+    .replace(/@here/gi, 'nope')
+    .replace(/<@&(\d+)>/g, 'lmao')
+}
+
 // Create or update copy-paste
 export async function upsertCopyPaste(
   name: string,
   content: string,
   userId: string,
 ): Promise<CopyPaste> {
+  const sanitizedContent = filterMentions(content)
+
   const res = await pool.query(
     `INSERT INTO "copy_pastes" (name, content, created_by)
      VALUES ($1, $2, $3)
      ON CONFLICT (name) DO UPDATE
      SET content = $2, updated_at = CURRENT_TIMESTAMP
      RETURNING *`,
-    [name, content, userId],
+    [name, sanitizedContent, userId],
   )
   return res.rows[0]
 }
