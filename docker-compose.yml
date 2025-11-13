@@ -62,6 +62,8 @@ services:
       GUILD_ID: ${GUILD_ID}
       LOG_DIR: /app/data/logs
       API_TOKEN: ${API_TOKEN}
+      WEBHOOK_URL: ${WEBHOOK_URL}
+      WEBHOOK_QUERY_SECRET: ${WEBHOOK_QUERY_SECRET}
     depends_on:
       deploy-commands:
         condition: service_completed_successfully
