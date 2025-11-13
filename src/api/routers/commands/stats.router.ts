@@ -176,6 +176,17 @@ statsRouter.openapi(
             },
             example: '456',
           }),
+        match_id: z
+          .string()
+          .regex(/^\d+$/)
+          .optional()
+          .openapi({
+            param: {
+              name: 'match_id',
+              in: 'query',
+            },
+            example: '789',
+          }),
       }),
     },
     responses: {
@@ -222,8 +233,14 @@ statsRouter.openapi(
   }),
   async (c) => {
     const { queue_id } = c.req.valid('param')
-    const { limit, start_date, end_date, after_match_id, before_match_id } =
-      c.req.valid('query')
+    const {
+      limit,
+      start_date,
+      end_date,
+      after_match_id,
+      before_match_id,
+      match_id,
+    } = c.req.valid('query')
 
     try {
       const matches = await COMMAND_HANDLERS.STATS.GET_OVERALL_HISTORY(
@@ -233,6 +250,7 @@ statsRouter.openapi(
         end_date,
         after_match_id,
         before_match_id,
+        match_id,
       )
 
       return c.json({ matches }, 200)

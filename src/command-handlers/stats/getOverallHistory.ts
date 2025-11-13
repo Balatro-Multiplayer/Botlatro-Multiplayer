@@ -26,6 +26,7 @@ export type OverallHistoryEntry = {
  * @param {string} endDate - Optional end date to filter matches (ISO 8601 format).
  * @param {string} afterMatchId - Optional match ID to fetch games after (newer than) this match.
  * @param {string} beforeMatchId - Optional match ID to fetch games before (older than) this match.
+ * @param {string} matchId - Optional match ID to fetch a specific match only.
  * @return {Promise<OverallHistoryEntry[]>} A promise that resolves to an array of match history entries.
  */
 export async function getOverallHistory(
@@ -35,6 +36,7 @@ export async function getOverallHistory(
   endDate?: string,
   afterMatchId?: string,
   beforeMatchId?: string,
+  matchId?: string,
 ): Promise<OverallHistoryEntry[]> {
   try {
     // Optimized query strategy:
@@ -47,19 +49,28 @@ export async function getOverallHistory(
       'WHERE m.queue_id = $1 AND m.winning_team IS NOT NULL'
     const params: any[] = [queueId]
 
+    // Add specific match ID filter
+    if (matchId) {
+      const parsedMatchId = parseInt(matchId, 10)
+      if (!isNaN(parsedMatchId)) {
+        matchFilterConditions += ` AND m.id = $${params.length + 1}`
+        params.push(parsedMatchId)
+      }
+    }
+
     // Add match ID filters
     if (afterMatchId) {
-      const matchId = parseInt(afterMatchId, 10)
-      if (!isNaN(matchId)) {
+      const parsedAfterMatchId = parseInt(afterMatchId, 10)
+      if (!isNaN(parsedAfterMatchId)) {
         matchFilterConditions += ` AND m.id > $${params.length + 1}`
-        params.push(matchId)
+        params.push(parsedAfterMatchId)
       }
     }
     if (beforeMatchId) {
-      const matchId = parseInt(beforeMatchId, 10)
-      if (!isNaN(matchId)) {
+      const parsedBeforeMatchId = parseInt(beforeMatchId, 10)
+      if (!isNaN(parsedBeforeMatchId)) {
         matchFilterConditions += ` AND m.id < $${params.length + 1}`
-        params.push(matchId)
+        params.push(parsedBeforeMatchId)
       }
     }
 

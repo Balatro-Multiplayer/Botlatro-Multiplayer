@@ -986,6 +986,31 @@ export async function endMatch(
   // Update queue log message after everything else is done
   await updateQueueLogMessage(matchId, queueId, teamResults, false)
 
+  // Send webhook notification
+  try {
+    const webhookUrl = process.env.WEBHOOK_URL
+    const webhookSecret = process.env.WEBHOOK_QUERY_SECRET
+
+    if (webhookUrl && webhookSecret) {
+      await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${webhookSecret}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'MATCH_COMPLETED',
+          matchId,
+          queueId,
+          teamResults,
+        }),
+      })
+      console.log(`Webhook sent for match ${matchId}`)
+    }
+  } catch (err) {
+    console.error(`Failed to send webhook for match ${matchId}:`, err)
+  }
+
   return true
 }
 
