@@ -987,6 +987,17 @@ export async function endMatch(
   await updateQueueLogMessage(matchId, queueId, teamResults, false)
 
   // Send webhook notification
+  await sendWebhook('MATCH_COMPLETED', {
+    matchId,
+    queueId,
+    teamResults,
+  })
+
+  return true
+}
+
+// Send webhook notification
+export async function sendWebhook(action: string, payload: any): Promise<void> {
   try {
     const webhookUrl = process.env.WEBHOOK_URL
     const webhookSecret = process.env.WEBHOOK_QUERY_SECRET
@@ -999,19 +1010,15 @@ export async function endMatch(
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          action: 'MATCH_COMPLETED',
-          matchId,
-          queueId,
-          teamResults,
+          action,
+          ...payload,
         }),
       })
-      console.log(`Webhook sent for match ${matchId}`)
+      console.log(`Webhook sent for action: ${action}`)
     }
   } catch (err) {
-    console.error(`Failed to send webhook for match ${matchId}:`, err)
+    console.error(`Failed to send webhook for action ${action}:`, err)
   }
-
-  return true
 }
 
 // delete match channel

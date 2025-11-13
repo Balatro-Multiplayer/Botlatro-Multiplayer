@@ -26,6 +26,7 @@ import {
   applyDefaultDeckBansAndAdvance,
   endMatch,
   getTeamsInMatch,
+  sendWebhook,
 } from '../utils/matchHelpers'
 import {
   getActiveQueues,
@@ -46,7 +47,6 @@ import {
   getUserQueues,
   partyUtils,
   resetAllCurrentEloRangeForUser,
-  resetCurrentEloRangeForUser,
   setMatchBestOf,
   setMatchStakeVoteTeam,
   setPickedMatchStake,
@@ -606,6 +606,10 @@ export default {
 
         if (interaction.customId == 'leave-queue') {
           await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+
+          // Get queues user is in before removing them
+          const userQueuesBeforeLeave = await getUserQueues(interaction.user.id)
+
           // Update the user's queue status
           await pool.query(
             `
@@ -617,6 +621,13 @@ export default {
           )
 
           await resetAllCurrentEloRangeForUser(interaction.user.id)
+
+          // Send webhook notification for each queue left
+          // Just do the first queue listed, multi-queue support later
+          await sendWebhook('LEAVE_QUEUE', {
+            players_removed: [{ id: interaction.user.id }],
+            queueId: userQueuesBeforeLeave[0].id,
+          })
 
           let message = 'You left the queue!'
 

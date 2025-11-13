@@ -15,7 +15,11 @@ import {
   StringSelectMenuOptionBuilder,
   TextChannel,
 } from 'discord.js'
-import { getTeamsInMatch, sendMatchInitMessages } from './matchHelpers'
+import {
+  getTeamsInMatch,
+  sendMatchInitMessages,
+  sendWebhook,
+} from './matchHelpers'
 import {
   createQueueUser,
   getAllQueueRoles,
@@ -311,6 +315,14 @@ export async function joinQueues(
     client.release()
   }
 
+  // Send webhook notification for each queue joined
+  // For now just send the first one they joined, add multi-queue support later
+  const queueId = parseInt(selectedQueueIds[0])
+  await sendWebhook('JOIN_QUEUE', {
+    new_players: [{ id: userId }],
+    queueId,
+  })
+
   return joinedQueues
 }
 
@@ -553,6 +565,13 @@ export async function createMatch(
   // Send queue start messages
   await sendMatchInitMessages(queueId, matchId, channel)
 
+  // Send webhook notification for match started
+  await sendWebhook('MATCH_STARTED', {
+    players: userIds.map((id) => ({ id })),
+    matchId,
+    queueId,
+  })
+
   // Log match creation
   await sendQueueLog(matchId, queueId, userIds)
 
@@ -704,7 +723,6 @@ export async function sendQueueLog(
   if (!queueSettings) return
 
   const queueName = queueSettings.queue_name
-  const numberOfTeams = queueSettings.number_of_teams
 
   const matchLog = CommandFactory.build('match_created')
   if (!matchLog) return
