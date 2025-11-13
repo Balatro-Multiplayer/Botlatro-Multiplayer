@@ -24,6 +24,8 @@ export type OverallHistoryEntry = {
  * @param {number} limit - Optional maximum number of matches to return. If not provided, returns all matches.
  * @param {string} startDate - Optional start date to filter matches (ISO 8601 format).
  * @param {string} endDate - Optional end date to filter matches (ISO 8601 format).
+ * @param {string} afterMatchId - Optional match ID to fetch games after (newer than) this match.
+ * @param {string} beforeMatchId - Optional match ID to fetch games before (older than) this match.
  * @return {Promise<OverallHistoryEntry[]>} A promise that resolves to an array of match history entries.
  */
 export async function getOverallHistory(
@@ -31,6 +33,8 @@ export async function getOverallHistory(
   limit?: number,
   startDate?: string,
   endDate?: string,
+  afterMatchId?: string,
+  beforeMatchId?: string,
 ): Promise<OverallHistoryEntry[]> {
   try {
     // Optimized query strategy:
@@ -42,6 +46,22 @@ export async function getOverallHistory(
     let matchFilterConditions =
       'WHERE m.queue_id = $1 AND m.winning_team IS NOT NULL'
     const params: any[] = [queueId]
+
+    // Add match ID filters
+    if (afterMatchId) {
+      const matchId = parseInt(afterMatchId, 10)
+      if (!isNaN(matchId)) {
+        matchFilterConditions += ` AND m.id > $${params.length + 1}`
+        params.push(matchId)
+      }
+    }
+    if (beforeMatchId) {
+      const matchId = parseInt(beforeMatchId, 10)
+      if (!isNaN(matchId)) {
+        matchFilterConditions += ` AND m.id < $${params.length + 1}`
+        params.push(matchId)
+      }
+    }
 
     // Add date range filters if provided
     if (startDate) {
