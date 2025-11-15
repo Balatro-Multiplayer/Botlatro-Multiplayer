@@ -103,21 +103,28 @@ export async function getMatchHistory({
 
     query += `
       ),
+      relevant_users AS (
+        SELECT DISTINCT all_mu.user_id
+        FROM player_matches pm
+        JOIN match_users all_mu ON pm.match_id = all_mu.match_id
+      ),
       match_elo_changes AS (
         SELECT
           mu.match_id,
           mu.user_id,
           mu.elo_change,
-          pm.created_at,
-          pm.queue_id,
+          m.created_at,
+          m.queue_id,
           SUM(mu.elo_change) OVER (
-            PARTITION BY mu.user_id, pm.queue_id
-            ORDER BY pm.created_at DESC, pm.match_id DESC
+            PARTITION BY mu.user_id, m.queue_id
+            ORDER BY m.created_at DESC, m.id DESC
             ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
           ) as cumulative_change_from_now
-        FROM player_matches pm
-        JOIN match_users mu ON mu.match_id = pm.match_id
-        WHERE mu.user_id = $1 OR mu.match_id IN (SELECT match_id FROM player_matches)
+        FROM match_users mu
+        JOIN matches m ON mu.match_id = m.id
+        WHERE m.winning_team IS NOT NULL
+          AND mu.user_id IN (SELECT user_id FROM relevant_users)
+          ${queueId !== undefined ? `AND m.queue_id = $${paramIndex}` : ''}
       ),
       match_elo_at_time AS (
         SELECT
