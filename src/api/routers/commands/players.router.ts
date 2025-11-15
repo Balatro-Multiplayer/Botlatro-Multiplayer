@@ -34,6 +34,13 @@ playersRouter.openapi(
           },
           example: '10',
         }),
+        offset: numericParam.openapi({
+          param: {
+            name: 'offset',
+            in: 'query',
+          },
+          example: '5',
+        }),
         start_date: z
           .string()
           .datetime()
@@ -67,6 +74,7 @@ playersRouter.openapi(
                 z.object({
                   match_id: z.number(),
                   player_name: z.string(),
+                  player_id: z.string(),
                   mmr_after: z.number(),
                   won: z.boolean(),
                   elo_change: z.number().nullable(),
@@ -107,16 +115,18 @@ playersRouter.openapi(
   }),
   async (c) => {
     const { player_id } = c.req.valid('param')
-    const { limit, start_date, end_date, queue_id } = c.req.valid('query')
+    const { limit, start_date, end_date, queue_id, offset } =
+      c.req.valid('query')
 
     try {
-      const matches = await COMMAND_HANDLERS.STATS.GET_MATCH_HISTORY(
-        player_id,
-        queue_id,
+      const matches = await COMMAND_HANDLERS.STATS.GET_MATCH_HISTORY({
+        userId: player_id,
+        queueId: queue_id,
         limit,
-        start_date,
-        end_date,
-      )
+        startDate: start_date,
+        endDate: end_date,
+        offset,
+      })
 
       return c.json(
         {

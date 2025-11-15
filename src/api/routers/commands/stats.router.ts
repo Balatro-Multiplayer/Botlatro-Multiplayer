@@ -381,13 +381,13 @@ statsRouter.openapi(
     const { limit, start_date, end_date } = c.req.valid('query')
 
     try {
-      const matches = await COMMAND_HANDLERS.STATS.GET_MATCH_HISTORY(
-        user_id,
-        queue_id,
+      const matches = await COMMAND_HANDLERS.STATS.GET_MATCH_HISTORY({
+        userId: user_id,
+        queueId: queue_id,
         limit,
-        start_date,
-        end_date,
-      )
+        startDate: start_date,
+        endDate: end_date,
+      })
 
       return c.json(
         {

@@ -3,6 +3,7 @@ import { pool } from '../../db'
 export type MatchHistoryEntry = {
   match_id: number
   player_name: string
+  player_id: string
   mmr_after: number
   won: boolean
   elo_change: number | null
@@ -23,22 +24,24 @@ export type MatchHistoryEntry = {
 }
 
 /**
- * Gets match history for a player in a specific queue.
- *
- * @param {string} userId - The Discord user ID of the player.
- * @param {number} queueId - Optional queue ID to fetch match history for. If not provided, returns matches from all queues.
- * @param {number} limit - Optional maximum number of matches to return. If not provided, returns all matches.
- * @param {string} startDate - Optional start date to filter matches (ISO 8601 format).
- * @param {string} endDate - Optional end date to filter matches (ISO 8601 format).
- * @return {Promise<MatchHistoryEntry[]>} A promise that resolves to an array of match history entries.
+ * Gets match history for a player.
+ * @returns {Promise<MatchHistoryEntry[]>} A promise that resolves to an array of match history entries.
  */
-export async function getMatchHistory(
-  userId: string,
-  queueId?: number,
-  limit?: number,
-  startDate?: string,
-  endDate?: string,
-): Promise<MatchHistoryEntry[]> {
+export async function getMatchHistory({
+  userId,
+  queueId,
+  limit,
+  offset,
+  startDate,
+  endDate,
+}: {
+  userId: string
+  queueId?: number
+  limit?: number
+  offset?: number
+  startDate?: string
+  endDate?: string
+}): Promise<MatchHistoryEntry[]> {
   try {
     // Get match history for the player with opponent details
     // Calculate MMR after match using window functions for better performance
@@ -124,6 +127,11 @@ export async function getMatchHistory(
       params.push(limit)
     }
 
+    if (offset) {
+      query += ` OFFSET $${params.length + 1}`
+      params.push(offset)
+    }
+
     const result = await pool.query(query, params)
 
     // Group rows by match in application layer
@@ -134,6 +142,7 @@ export async function getMatchHistory(
         matchesMap.set(row.match_id, {
           match_id: row.match_id,
           player_name: row.player_name || 'Unknown',
+          player_id: userId,
           mmr_after: row.player_mmr_after,
           won: row.winning_team === row.player_team,
           elo_change: row.player_elo_change,
