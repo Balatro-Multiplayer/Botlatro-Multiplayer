@@ -787,7 +787,7 @@ export async function endMatch(
 
   console.log(`match ${matchId} results: ${teamResults.teams}`)
 
-  // Save elo_change and winstreak to database
+  // Save elo_change, mmr_after, and winstreak to database
   const updatePromises = teamResults.teams.flatMap((team) =>
     team.players.map(async (player) => {
       console.log(
@@ -796,11 +796,11 @@ export async function endMatch(
       // Update win streak
       await updatePlayerWinStreak(player.user_id, queueId, team.score == 1)
 
-      // Update elo change if it exists
+      // Update elo change and mmr_after if they exist
       if (player.elo_change !== undefined && player.elo_change !== null) {
         await pool.query(
-          `UPDATE match_users SET elo_change = $1 WHERE match_id = $2 AND user_id = $3`,
-          [player.elo_change, matchId, player.user_id],
+          `UPDATE match_users SET elo_change = $1, mmr_after = $2 WHERE match_id = $3 AND user_id = $4`,
+          [player.elo_change, player.elo, matchId, player.user_id],
         )
       }
     }),

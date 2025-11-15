@@ -13,6 +13,7 @@
     "migrate-down": "npx node-pg-migrate down",
     "migrate-neatqueue": "bun run src/scripts/import-neatqueue-data.ts",
     "migrate-strikes": "bun run src/scripts/import-strike-data.ts",
+    "backfill-mmr": "bun run src/scripts/backfill-mmr-after.ts",
     "format": "prettier --write ."
   },
   "keywords": [],

@@ -45,28 +45,68 @@ export async function getMatchHistory({
 }): Promise<MatchHistoryEntry[]> {
   try {
     // Get match history for the player with opponent details
-    // Calculate MMR after match using window functions for better performance
+    // Use cached mmr_after from match_users for performance when available
+    // Fall back to calculating via window function for old matches without mmr_after
     const params: any[] = [userId]
     let paramIndex = 2
 
     let query = `
-      WITH player_matches AS (
+      WITH user_current_elo AS (
+        SELECT user_id, elo, queue_id
+        FROM queue_users
+        WHERE user_id = $1 ${queueId !== undefined ? `AND queue_id = $${paramIndex}` : ''}
+      ),
+      match_elo_changes AS (
         SELECT
-          m.id as match_id,
-          m.winning_team,
-          m.deck,
-          m.stake,
-          m.best_of_3,
-          m.best_of_5,
+          mu.match_id,
+          mu.user_id,
+          mu.elo_change,
           m.created_at,
           m.queue_id,
-          mu.team as player_team,
-          mu.elo_change as player_elo_change,
-          u.display_name as player_name
+          SUM(mu.elo_change) OVER (
+            PARTITION BY mu.user_id, m.queue_id
+            ORDER BY m.created_at DESC, m.id DESC
+            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+          ) as cumulative_change_from_now
         FROM match_users mu
-        JOIN matches m ON m.id = mu.match_id
-        LEFT JOIN users u ON mu.user_id = u.user_id
-        WHERE mu.user_id = $1 AND m.winning_team IS NOT NULL ${queueId !== undefined ? `AND m.queue_id = $${paramIndex}` : ''}
+        JOIN matches m ON mu.match_id = m.id
+        WHERE m.winning_team IS NOT NULL
+          AND mu.user_id = $1
+          ${queueId !== undefined ? `AND m.queue_id = $${paramIndex}` : ''}
+      ),
+      calculated_mmr AS (
+        SELECT
+          mec.match_id,
+          mec.user_id,
+          uce.elo - mec.cumulative_change_from_now + mec.elo_change as elo_after_match
+        FROM match_elo_changes mec
+        JOIN user_current_elo uce ON mec.user_id = uce.user_id AND mec.queue_id = uce.queue_id
+      )
+      SELECT
+        m.id as match_id,
+        m.winning_team,
+        m.deck,
+        m.stake,
+        m.best_of_3,
+        m.best_of_5,
+        m.created_at,
+        m.queue_id,
+        mu.team as player_team,
+        mu.elo_change as player_elo_change,
+        COALESCE(mu.mmr_after, cm.elo_after_match) as player_mmr_after,
+        u.display_name as player_name,
+        all_mu.user_id as all_user_id,
+        all_u.display_name as all_player_name,
+        all_mu.team as all_team,
+        all_mu.elo_change as all_elo_change,
+        all_mu.mmr_after as all_mmr_after
+      FROM match_users mu
+      JOIN matches m ON m.id = mu.match_id
+      LEFT JOIN users u ON mu.user_id = u.user_id
+      LEFT JOIN calculated_mmr cm ON mu.match_id = cm.match_id AND mu.user_id = cm.user_id
+      LEFT JOIN match_users all_mu ON m.id = all_mu.match_id AND all_mu.user_id != $1
+      LEFT JOIN users all_u ON all_mu.user_id = all_u.user_id
+      WHERE mu.user_id = $1 AND m.winning_team IS NOT NULL ${queueId !== undefined ? `AND m.queue_id = $${paramIndex}` : ''}
     `
 
     if (queueId !== undefined) {
@@ -95,61 +135,6 @@ export async function getMatchHistory({
       query += ` OFFSET $${params.length + 1}`
       params.push(offset)
     }
-
-    query += `
-      ),
-      relevant_users AS (
-        SELECT DISTINCT all_mu.user_id
-        FROM player_matches pm
-        JOIN match_users all_mu ON pm.match_id = all_mu.match_id
-      ),
-      user_current_elo AS (
-        SELECT user_id, elo, queue_id
-        FROM queue_users
-        WHERE user_id IN (SELECT user_id FROM relevant_users)
-          ${queueId !== undefined ? `AND queue_id = $${paramIndex}` : ''}
-      ),
-      match_elo_changes AS (
-        SELECT
-          mu.match_id,
-          mu.user_id,
-          mu.elo_change,
-          m.created_at,
-          m.queue_id,
-          SUM(mu.elo_change) OVER (
-            PARTITION BY mu.user_id, m.queue_id
-            ORDER BY m.created_at DESC, m.id DESC
-            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-          ) as cumulative_change_from_now
-        FROM match_users mu
-        JOIN matches m ON mu.match_id = m.id
-        WHERE m.winning_team IS NOT NULL
-          AND mu.user_id IN (SELECT user_id FROM relevant_users)
-          ${queueId !== undefined ? `AND m.queue_id = $${paramIndex}` : ''}
-      ),
-      match_elo_at_time AS (
-        SELECT
-          mec.match_id,
-          mec.user_id,
-          uce.elo - mec.cumulative_change_from_now + mec.elo_change as elo_after_match
-        FROM match_elo_changes mec
-        JOIN user_current_elo uce ON mec.user_id = uce.user_id AND mec.queue_id = uce.queue_id
-      )
-      SELECT
-        pm.*,
-        meat.elo_after_match as player_mmr_after,
-        all_mu.user_id as all_user_id,
-        all_u.display_name as all_player_name,
-        all_mu.team as all_team,
-        all_mu.elo_change as all_elo_change,
-        all_meat.elo_after_match as all_mmr_after
-      FROM player_matches pm
-      LEFT JOIN match_elo_at_time meat ON pm.match_id = meat.match_id AND meat.user_id = $1
-      LEFT JOIN match_users all_mu ON pm.match_id = all_mu.match_id AND all_mu.user_id != $1
-      LEFT JOIN users all_u ON all_mu.user_id = all_u.user_id
-      LEFT JOIN match_elo_at_time all_meat ON all_mu.match_id = all_meat.match_id AND all_mu.user_id = all_meat.user_id
-      ORDER BY pm.created_at DESC
-    `
 
     const result = await pool.query(query, params)
 
