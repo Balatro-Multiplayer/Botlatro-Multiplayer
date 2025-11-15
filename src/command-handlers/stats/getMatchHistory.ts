@@ -26,7 +26,7 @@ export type MatchHistoryEntry = {
  * Gets match history for a player in a specific queue.
  *
  * @param {string} userId - The Discord user ID of the player.
- * @param {number} queueId - The queue ID to fetch match history for.
+ * @param {number} queueId - Optional queue ID to fetch match history for. If not provided, returns matches from all queues.
  * @param {number} limit - Optional maximum number of matches to return. If not provided, returns all matches.
  * @param {string} startDate - Optional start date to filter matches (ISO 8601 format).
  * @param {string} endDate - Optional end date to filter matches (ISO 8601 format).
@@ -34,7 +34,7 @@ export type MatchHistoryEntry = {
  */
 export async function getMatchHistory(
   userId: string,
-  queueId: number,
+  queueId?: number,
   limit?: number,
   startDate?: string,
   endDate?: string,
@@ -42,11 +42,14 @@ export async function getMatchHistory(
   try {
     // Get match history for the player with opponent details
     // Calculate MMR after match using window functions for better performance
+    const params: any[] = [userId]
+    let paramIndex = 2
+
     let query = `
       WITH user_current_elo AS (
-        SELECT user_id, elo
+        SELECT user_id, elo, queue_id
         FROM queue_users
-        WHERE queue_id = $2
+        ${queueId !== undefined ? `WHERE queue_id = $${paramIndex}` : ''}
       ),
       match_elo_changes AS (
         SELECT
@@ -54,14 +57,15 @@ export async function getMatchHistory(
           mu.user_id,
           mu.elo_change,
           m.created_at,
+          m.queue_id,
           SUM(mu.elo_change) OVER (
-            PARTITION BY mu.user_id
+            PARTITION BY mu.user_id, m.queue_id
             ORDER BY m.created_at DESC, m.id DESC
             ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
           ) as cumulative_change_from_now
         FROM match_users mu
         JOIN matches m ON mu.match_id = m.id
-        WHERE m.queue_id = $2 AND m.winning_team IS NOT NULL
+        WHERE m.winning_team IS NOT NULL ${queueId !== undefined ? `AND m.queue_id = $${paramIndex}` : ''}
       ),
       match_elo_at_time AS (
         SELECT
@@ -69,7 +73,7 @@ export async function getMatchHistory(
           mec.user_id,
           uce.elo - mec.cumulative_change_from_now + mec.elo_change as elo_after_match
         FROM match_elo_changes mec
-        JOIN user_current_elo uce ON mec.user_id = uce.user_id
+        JOIN user_current_elo uce ON mec.user_id = uce.user_id AND mec.queue_id = uce.queue_id
       )
       SELECT
         m.id as match_id,
@@ -95,10 +99,13 @@ export async function getMatchHistory(
       LEFT JOIN match_users all_mu ON m.id = all_mu.match_id
       LEFT JOIN users all_u ON all_mu.user_id = all_u.user_id
       LEFT JOIN match_elo_at_time all_meat ON all_mu.match_id = all_meat.match_id AND all_mu.user_id = all_meat.user_id
-      WHERE mu.user_id = $1 AND m.queue_id = $2 AND m.winning_team IS NOT NULL
+      WHERE mu.user_id = $1 AND m.winning_team IS NOT NULL ${queueId !== undefined ? `AND m.queue_id = $${paramIndex}` : ''}
     `
 
-    const params: any[] = [userId, queueId]
+    if (queueId !== undefined) {
+      params.push(queueId)
+      paramIndex++
+    }
 
     // Add date range filters if provided
     if (startDate) {
