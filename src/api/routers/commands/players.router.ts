@@ -94,6 +94,7 @@ playersRouter.openapi(
                   best_of_5: z.boolean(),
                   created_at: z.string(),
                   winning_team: z.number().nullable(),
+                  queue_id: z.number(),
                 }),
               ),
             }),

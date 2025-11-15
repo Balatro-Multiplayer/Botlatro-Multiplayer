@@ -21,6 +21,7 @@ export type MatchHistoryEntry = {
   best_of_5: boolean
   created_at: string
   winning_team: number | null
+  queue_id: number
 }
 
 /**
@@ -86,6 +87,7 @@ export async function getMatchHistory({
         m.best_of_3,
         m.best_of_5,
         m.created_at,
+        m.queue_id,
         mu.team as player_team,
         mu.elo_change as player_elo_change,
         u.display_name as player_name,
@@ -154,6 +156,7 @@ export async function getMatchHistory({
           best_of_5: row.best_of_5,
           created_at: row.created_at.toISOString(),
           winning_team: row.winning_team,
+          queue_id: row.queue_id,
         })
       }
 
