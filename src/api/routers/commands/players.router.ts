@@ -11,7 +11,7 @@ playersRouter.openapi(
     description: "Get a player's match history.",
     request: {
       params: z.object({
-        user_id: z.string().openapi({
+        player_id: z.string().openapi({
           param: {
             name: 'player_id',
             in: 'path',
@@ -106,12 +106,12 @@ playersRouter.openapi(
     },
   }),
   async (c) => {
-    const { user_id } = c.req.valid('param')
+    const { player_id } = c.req.valid('param')
     const { limit, start_date, end_date, queue_id } = c.req.valid('query')
 
     try {
       const matches = await COMMAND_HANDLERS.STATS.GET_MATCH_HISTORY(
-        user_id,
+        player_id,
         queue_id,
         limit,
         start_date,
