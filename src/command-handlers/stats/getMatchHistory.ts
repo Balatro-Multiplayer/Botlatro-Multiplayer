@@ -50,12 +50,7 @@ export async function getMatchHistory({
     let paramIndex = 2
 
     let query = `
-      WITH user_current_elo AS (
-        SELECT user_id, elo, queue_id
-        FROM queue_users
-        WHERE user_id = $1 ${queueId !== undefined ? `AND queue_id = $${paramIndex}` : ''}
-      ),
-      player_matches AS (
+      WITH player_matches AS (
         SELECT
           m.id as match_id,
           m.winning_team,
@@ -107,6 +102,12 @@ export async function getMatchHistory({
         SELECT DISTINCT all_mu.user_id
         FROM player_matches pm
         JOIN match_users all_mu ON pm.match_id = all_mu.match_id
+      ),
+      user_current_elo AS (
+        SELECT user_id, elo, queue_id
+        FROM queue_users
+        WHERE user_id IN (SELECT user_id FROM relevant_users)
+          ${queueId !== undefined ? `AND queue_id = $${paramIndex}` : ''}
       ),
       match_elo_changes AS (
         SELECT
