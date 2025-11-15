@@ -1,5 +1,6 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { COMMAND_HANDLERS } from '../../../command-handlers'
+import { numericParam } from '../../../utils/validation-utils'
 
 const playersRouter = new OpenAPIHono()
 
@@ -19,30 +20,20 @@ playersRouter.openapi(
         }),
       }),
       query: z.object({
-        queue_id: z
-          .string()
-          .regex(/^\d+$/)
-          .transform(Number)
-          .optional()
-          .openapi({
-            param: {
-              name: 'queue_id',
-              in: 'path',
-            },
-            example: '1',
-          }),
-        limit: z
-          .string()
-          .regex(/^\d+$/)
-          .transform(Number)
-          .optional()
-          .openapi({
-            param: {
-              name: 'limit',
-              in: 'query',
-            },
-            example: '10',
-          }),
+        queue_id: numericParam.optional().openapi({
+          param: {
+            name: 'queue_id',
+            in: 'path',
+          },
+          example: '1',
+        }),
+        limit: numericParam.openapi({
+          param: {
+            name: 'limit',
+            in: 'query',
+          },
+          example: '10',
+        }),
         start_date: z
           .string()
           .datetime()
