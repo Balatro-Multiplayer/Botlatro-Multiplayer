@@ -7,7 +7,7 @@ const playersRouter = new OpenAPIHono()
 playersRouter.openapi(
   createRoute({
     method: 'get',
-    path: '{player_id}/matches',
+    path: '/{player_id}/matches',
     description: "Get a player's match history.",
     request: {
       params: z.object({
