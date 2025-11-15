@@ -45,43 +45,11 @@ export async function getMatchHistory({
 }): Promise<MatchHistoryEntry[]> {
   try {
     // Get match history for the player with opponent details
-    // Use cached mmr_after from match_users for performance when available
-    // Fall back to calculating via window function for old matches without mmr_after
+    // Uses cached mmr_after from match_users for performance
     const params: any[] = [userId]
     let paramIndex = 2
 
     let query = `
-      WITH user_current_elo AS (
-        SELECT user_id, elo, queue_id
-        FROM queue_users
-        WHERE user_id = $1 ${queueId !== undefined ? `AND queue_id = $${paramIndex}` : ''}
-      ),
-      match_elo_changes AS (
-        SELECT
-          mu.match_id,
-          mu.user_id,
-          mu.elo_change,
-          m.created_at,
-          m.queue_id,
-          SUM(mu.elo_change) OVER (
-            PARTITION BY mu.user_id, m.queue_id
-            ORDER BY m.created_at DESC, m.id DESC
-            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-          ) as cumulative_change_from_now
-        FROM match_users mu
-        JOIN matches m ON mu.match_id = m.id
-        WHERE m.winning_team IS NOT NULL
-          AND mu.user_id = $1
-          ${queueId !== undefined ? `AND m.queue_id = $${paramIndex}` : ''}
-      ),
-      calculated_mmr AS (
-        SELECT
-          mec.match_id,
-          mec.user_id,
-          uce.elo - mec.cumulative_change_from_now + mec.elo_change as elo_after_match
-        FROM match_elo_changes mec
-        JOIN user_current_elo uce ON mec.user_id = uce.user_id AND mec.queue_id = uce.queue_id
-      )
       SELECT
         m.id as match_id,
         m.winning_team,
@@ -93,7 +61,7 @@ export async function getMatchHistory({
         m.queue_id,
         mu.team as player_team,
         mu.elo_change as player_elo_change,
-        COALESCE(mu.mmr_after, cm.elo_after_match) as player_mmr_after,
+        mu.mmr_after as player_mmr_after,
         u.display_name as player_name,
         all_mu.user_id as all_user_id,
         all_u.display_name as all_player_name,
@@ -103,10 +71,12 @@ export async function getMatchHistory({
       FROM match_users mu
       JOIN matches m ON m.id = mu.match_id
       LEFT JOIN users u ON mu.user_id = u.user_id
-      LEFT JOIN calculated_mmr cm ON mu.match_id = cm.match_id AND mu.user_id = cm.user_id
       LEFT JOIN match_users all_mu ON m.id = all_mu.match_id AND all_mu.user_id != $1
       LEFT JOIN users all_u ON all_mu.user_id = all_u.user_id
-      WHERE mu.user_id = $1 AND m.winning_team IS NOT NULL ${queueId !== undefined ? `AND m.queue_id = $${paramIndex}` : ''}
+      WHERE mu.user_id = $1
+        AND m.winning_team IS NOT NULL
+        AND mu.mmr_after IS NOT NULL
+        ${queueId !== undefined ? `AND m.queue_id = $${paramIndex}` : ''}
     `
 
     if (queueId !== undefined) {
