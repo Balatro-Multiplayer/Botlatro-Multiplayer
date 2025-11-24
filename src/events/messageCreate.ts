@@ -1,9 +1,4 @@
-import {
-  Events,
-  GuildMember,
-  MessageFlags,
-  PermissionFlagsBits,
-} from 'discord.js'
+import { Events, GuildMember, PermissionFlagsBits } from 'discord.js'
 import {
   getMatchIdFromChannel,
   getSettings,
@@ -52,15 +47,15 @@ export default {
         const botSettings = await getSettings()
         const member = message.member as GuildMember
 
-        if (pasteName) {
+        if (
+          pasteName &&
+          member &&
+          (member.roles.cache.has(botSettings.helper_role_id) ||
+            member.roles.cache.has(botSettings.queue_helper_role_id) ||
+            member.permissions.has(PermissionFlagsBits.Administrator))
+        ) {
           // If there's additional content after the paste name, create/update the paste
-          if (
-            parts.length > 1 &&
-            member &&
-            (member.roles.cache.has(botSettings.helper_role_id) ||
-              member.roles.cache.has(botSettings.queue_helper_role_id) ||
-              member.permissions.has(PermissionFlagsBits.Administrator))
-          ) {
+          if (parts.length > 1) {
             const pasteContent = parts.slice(1).join(' ')
             try {
               await upsertCopyPaste(pasteName, pasteContent, message.author.id)
@@ -76,9 +71,10 @@ export default {
               if (paste) {
                 // If this message is a reply, reply to the referenced message
                 if (message.reference) {
-                  const referencedMessage = await message.channel.messages.fetch(
-                    message.reference.messageId,
-                  )
+                  const referencedMessage =
+                    await message.channel.messages.fetch(
+                      message.reference.messageId,
+                    )
                   await referencedMessage.reply(paste.content)
                 } else {
                   await message.channel.send(paste.content)
