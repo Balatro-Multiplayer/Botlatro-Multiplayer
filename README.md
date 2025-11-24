@@ -1,4 +1,4 @@
-<img src="https://cdn.discordapp.com/attachments/1226193437192360070/1429930718624219197/egg.png?ex=68f7ee42&is=68f69cc2&hm=1564d9e1420ac5051fcc72209a9534d1c7f974a47f67c12800accb6fdc7f9a03&" alt="" height="100">
+<img src="/logo.png" alt="" height="100">
 
 # Botlatro Multiplayer 
 
