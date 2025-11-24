@@ -1,3 +1,2 @@
 .github/workflows/manual-deploy.yml @Casjb
 .github/CODEOWNERS @Casjb
-.github/workflows/restart-server.yml @Casjb
