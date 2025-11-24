@@ -1,0 +1,41 @@
+name: Manual Deploy
+
+# Trigger via actions tab
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to deploy'
+        required: true
+        default: 'main'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # Step 2: Connect to server via SSH and deploy
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            # Move to your project directory
+            cd /root/balatro-multiplayer
+
+            # Update the selected branch
+            git fetch --all
+            git checkout ${{ github.event.inputs.branch }}
+            git pull
+
+            # Build and start containers 
+            docker compose up --build --remove-orphans -d
