@@ -1,4 +1,4 @@
 export async function health() {
-  console.log('healthy')
+  console.log('server is healthy')
   return 'healthy'
 }
