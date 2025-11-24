@@ -35,4 +35,4 @@ jobs:
             git pull
 
             # Build and start container
-            docker compose up --build --remove-orphans -d
+            docker compose up --build --force-recreate --remove-orphans -d
