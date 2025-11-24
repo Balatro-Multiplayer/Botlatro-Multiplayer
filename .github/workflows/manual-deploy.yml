@@ -24,7 +24,15 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
+          
+            # Crash out on error
             set -e
+          
+            # CD to correct dir
             cd /root/newQueue/Botlatro-Multiplayer
+
+            # Pull changes
             git pull
+
+            # Build and start container
             docker compose up --build --remove-orphans -d
