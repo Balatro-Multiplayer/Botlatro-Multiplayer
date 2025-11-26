@@ -10,7 +10,7 @@ import { setUserQueueRole } from 'utils/queueHelpers'
 import { clamp } from 'lodash-es'
 
 // MMR formula constants
-const C_MMR_CHANGE = 25 // Base MMR change value
+const C_MMR_CHANGE = 17.5 // Base MMR change value
 const V_VARIANCE = 1200 // MMR variance
 
 // Function is from Owen, named Elowen, blame him if anything goes wrong
