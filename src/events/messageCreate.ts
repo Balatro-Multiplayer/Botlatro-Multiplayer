@@ -53,7 +53,7 @@ export default {
           (member.roles.cache.has(botSettings.helper_role_id) ||
             member.roles.cache.has(botSettings.queue_helper_role_id) ||
             member.permissions.has(PermissionFlagsBits.Administrator) ||
-           member.roles.cache.has(1385308935400980561))
+           member.roles.cache.has('1385308935400980561'))
         ) {
           // If there's additional content after the paste name, create/update the paste
           if (parts.length > 1) {
