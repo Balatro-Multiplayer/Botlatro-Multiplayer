@@ -71,6 +71,8 @@ declare module 'psqlDB' {
     user_id: string
     priority_queue_id: number
     joined_party_id?: string | null
+    display_name?: string | null
+    stat_background?: string | null
   }
 
   export interface QueueUsers {
@@ -80,9 +82,6 @@ declare module 'psqlDB' {
     id: number
     user_id: string
     peak_elo: number
-    wins: number
-    losses: number
-    games_played: number
     win_streak: number
     peak_win_streak: number
     current_elo_range: number
@@ -90,6 +89,9 @@ declare module 'psqlDB' {
     is_decay: boolean
     next_decay_at: Date | null
     decaying_since: Date | null
+    wins: number
+    losses: number
+    games_played: number
   }
 
   export interface MatchUsers extends QueueUsers {
