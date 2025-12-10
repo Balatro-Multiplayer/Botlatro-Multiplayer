@@ -15,12 +15,15 @@ export default {
       const targetUser = interaction.options.getUser('user') || interaction.user
       const byDate =
         interaction.options.getString('by-date') === 'yes' ? true : false
+      const showDots =
+        interaction.options.getString('dots') === 'yes' ? true : false
       const queueId = await getQueueIdFromName(queueName)
       const playerStats = await getStatsCanvasUserData(targetUser.id, queueId)
       const statFile = await drawPlayerStatsCanvas(
         queueName,
         playerStats,
         byDate,
+        showDots,
       )
       const viewStatsButtons = setupViewStatsButtons(queueName)
 

@@ -855,7 +855,7 @@ export async function endMatch(
   try {
     // build results embed
     const resultsEmbed = new EmbedBuilder()
-      .setTitle(`🏆 ${queueSettings.queue_name} Match #${matchId} 🏆`)
+      .setTitle(`${queueSettings.queue_name} Match #${matchId} 🏆`)
       .setColor(queueSettings.color as any)
 
     const guild =

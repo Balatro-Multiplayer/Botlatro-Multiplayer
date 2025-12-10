@@ -33,6 +33,13 @@ export default {
             .setDescription('Sort the stats by date')
             .addChoices([{ name: 'yes', value: 'yes' }])
             .setRequired(false),
+        )
+        .addStringOption((option) =>
+          option
+            .setName('dots')
+            .setDescription('Show dots for each individual game on the graph')
+            .addChoices([{ name: 'yes', value: 'yes' }])
+            .setRequired(false),
         ),
     ),
   async execute(interaction: ChatInputCommandInteraction) {
