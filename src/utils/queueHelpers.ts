@@ -543,7 +543,17 @@ export async function createMatch(
        VALUES ($1, $2, $3)`,
       [userId, matchId, userIds.indexOf(userId) + 1],
     )
+  }
 
+  await updateQueueMessage()
+
+  // Wait 2 seconds for channel to fully propagate in Discord's API
+  await new Promise((resolve) => setTimeout(resolve, 2000))
+
+  // Send queue start messages
+  await sendMatchInitMessages(queueId, matchId, channel)
+
+  for (const userId of userIds) {
     const member = await guild.members.fetch(userId)
     try {
       await member.send({
@@ -556,14 +566,6 @@ export async function createMatch(
       })
     } catch (err) {}
   }
-
-  await updateQueueMessage()
-
-  // Wait 2 seconds for channel to fully propagate in Discord's API
-  await new Promise((resolve) => setTimeout(resolve, 2000))
-
-  // Send queue start messages
-  await sendMatchInitMessages(queueId, matchId, channel)
 
   // Send webhook notification for match started
   await sendWebhook('MATCH_STARTED', {

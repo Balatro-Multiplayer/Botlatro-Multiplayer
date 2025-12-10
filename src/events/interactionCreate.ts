@@ -822,7 +822,8 @@ export default {
             )
 
           await interaction.reply({
-            content: 'Are you sure you want to call helpers into this match?',
+            content:
+              'Are you sure you want to call helpers into this match?\nIf your opponent is AFK, please do not call helpers until 5 minutes after the lobby has been made.',
             components: [confirmRow],
             flags: MessageFlags.Ephemeral,
           })
