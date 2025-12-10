@@ -471,7 +471,7 @@ export async function createMatch(
 
   // get global settings
   const queue: QueryResult<Queues> = await pool.query(
-    'SELECT id FROM queues WHERE id = $1',
+    'SELECT id, queue_name FROM queues WHERE id = $1',
     [queueId],
   )
   const settings = await getSettings()
@@ -521,7 +521,7 @@ export async function createMatch(
   const channelCount = category.children.cache.size
 
   const channel = await guild.channels.create({
-    name: `match-${matchId}`,
+    name: `${queue.rows[0].queue_name.toLowerCase()}-${matchId}`,
     type: ChannelType.GuildText,
     parent: channelCount > 45 ? backupCat : categoryId,
     permissionOverwrites: permissionOverwrites,
