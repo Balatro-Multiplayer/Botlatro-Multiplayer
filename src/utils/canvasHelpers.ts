@@ -30,10 +30,15 @@ const config = {
     win: '#00ff38',
     lose: '#ff3636',
     stone: '#868687',
+    pebble: '#b0b3b8',
     steel: '#c3dee0',
+    ferrite: '#546e7a',
     gold: '#ffd081',
+    pyrite: '#ffd081',
     lucky: '#ffefc4',
+    clover: '#2ecc71',
     glass: '#7debf3',
+    crystal: '#3498db',
     chips: '#0093FF',
     mult: '#FF4C40',
   },
@@ -48,7 +53,8 @@ const config = {
     mini: `12px ${font}`,
     gameList: `20px ${font}`,
   },
-  eloSplits: [250, 320, 460, 620],
+  eloSplits: [230, 320, 460, 620],
+  smallworldEloSplits: [225, 325, 425, 550],
 }
 
 function timeAgo(date: Date) {
@@ -409,6 +415,7 @@ function normalizeDataPosition(
 function createGraph(
   ctx: CanvasRenderingContext2D,
   playerData: StatsCanvasPlayerData,
+  queueName: string,
   x: number,
   y: number,
   xlen: number,
@@ -455,14 +462,26 @@ function createGraph(
     maxRating,
     minRating,
   ]
-  const eloSplits = config.eloSplits
-  const eloColors = [
+  let eloSplits = config.eloSplits
+  let eloColors = [
     config.colors.stone,
     config.colors.steel,
     config.colors.gold,
     config.colors.lucky,
     config.colors.glass,
   ]
+
+  if (queueName == 'Smallworld') {
+    eloSplits = config.smallworldEloSplits
+    eloColors = [
+      config.colors.pebble,
+      config.colors.ferrite,
+      config.colors.pyrite,
+      config.colors.clover,
+      config.colors.crystal,
+    ]
+  }
+
   ctx.lineWidth = 0.5
 
   function convertToCanvasSpace(y: number) {
@@ -531,25 +550,48 @@ function createGraph(
     const yPos =
       graphY + graphYLen - ((r - minRating) / ratingRange) * graphYLen
 
-    if (r == maxRating) {
-      ctx.strokeStyle = config.colors.win
-    } else if (r == 620) {
-      ctx.strokeStyle = config.colors.glass
-    } else if (r == 460) {
-      ctx.strokeStyle = config.colors.lucky
-    } else if (r == 320) {
-      ctx.strokeStyle = config.colors.gold
-    } else if (r == 250) {
-      ctx.strokeStyle = config.colors.steel
-    } else if (r == 200 && maxRating > 185 && maxRating > 215) {
-      ctx.strokeStyle = config.colors.stone
-    } else if (
-      !(
-        (r < maxRating + 15 && r > maxRating - 15) ||
-        (r < minRating + 15 && r > minRating - 15)
-      )
-    ) {
-      ctx.strokeStyle = config.colors.stone
+    if (queueName != 'Smallworld') {
+      if (r == maxRating) {
+        ctx.strokeStyle = config.colors.win
+      } else if (r == 620) {
+        ctx.strokeStyle = config.colors.glass
+      } else if (r == 460) {
+        ctx.strokeStyle = config.colors.lucky
+      } else if (r == 320) {
+        ctx.strokeStyle = config.colors.gold
+      } else if (r == 250) {
+        ctx.strokeStyle = config.colors.steel
+      } else if (r == 200 && maxRating > 185 && maxRating > 215) {
+        ctx.strokeStyle = config.colors.stone
+      } else if (
+        !(
+          (r < maxRating + 15 && r > maxRating - 15) ||
+          (r < minRating + 15 && r > minRating - 15)
+        )
+      ) {
+        ctx.strokeStyle = config.colors.stone
+      }
+    } else {
+      if (r == maxRating) {
+        ctx.strokeStyle = config.colors.win
+      } else if (r == 550) {
+        ctx.strokeStyle = config.colors.crystal
+      } else if (r == 425) {
+        ctx.strokeStyle = config.colors.clover
+      } else if (r == 325) {
+        ctx.strokeStyle = config.colors.pyrite
+      } else if (r == 225) {
+        ctx.strokeStyle = config.colors.ferrite
+      } else if (r == 200 && maxRating > 185 && maxRating > 215) {
+        ctx.strokeStyle = config.colors.pebble
+      } else if (
+        !(
+          (r < maxRating + 15 && r > maxRating - 15) ||
+          (r < minRating + 15 && r > minRating - 15)
+        )
+      ) {
+        ctx.strokeStyle = config.colors.pebble
+      }
     }
 
     ctx.beginPath()
@@ -1114,7 +1156,7 @@ export async function drawPlayerStatsCanvas(
 
   //graph
   await addBlackBox(ctx, 270, 170, 470, 370)
-  createGraph(ctx, playerData, 280, 180, 450, 350, byDate)
+  createGraph(ctx, playerData, queueName, 280, 180, 450, 350, byDate)
 
   // Export with high quality settings
   return await canvas.toBuffer('png', {
