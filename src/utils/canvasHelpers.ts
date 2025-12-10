@@ -421,6 +421,7 @@ function createGraph(
   xlen: number,
   ylen: number,
   byDate: boolean = false,
+  showDots: boolean = false,
 ) {
   /**
    * Draws normalizedPoints to ctx. The top left of the graph is at x,y, and the graph should be xlen across and ylen down
@@ -667,6 +668,22 @@ function createGraph(
   }
 
   ctx.restore()
+
+  // Draw dots at each data point if enabled
+  if (showDots) {
+    for (let i = 0; i < normalizedPoints.length; i++) {
+      const p = normalizedPoints[i]
+      const x = graphX + ((p.xVar - minX) / xRange) * graphXLen
+      const y = convertToCanvasSpace(p.rating)
+      const color = getColor(p.rating)
+
+      // Draw dot
+      ctx.beginPath()
+      ctx.arc(x, y, 4, 0, Math.PI * 2)
+      ctx.fillStyle = color
+      ctx.fill()
+    }
+  }
 
   // Add y level labels
 
@@ -1103,6 +1120,7 @@ export async function drawPlayerStatsCanvas(
   queueName: string,
   playerData: StatsCanvasPlayerData,
   byDate: boolean,
+  showDots: boolean = false,
 ) {
   // Render at higher resolution for sharper text (2x, 4x, etc.)
   // Higher scale = more anti-aliasing but larger file size
@@ -1156,7 +1174,7 @@ export async function drawPlayerStatsCanvas(
 
   //graph
   await addBlackBox(ctx, 270, 170, 470, 370)
-  createGraph(ctx, playerData, queueName, 280, 180, 450, 350, byDate)
+  createGraph(ctx, playerData, queueName, 280, 180, 450, 350, byDate, showDots)
 
   // Export with high quality settings
   return await canvas.toBuffer('png', {
