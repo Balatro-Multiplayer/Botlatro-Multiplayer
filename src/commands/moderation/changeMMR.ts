@@ -3,9 +3,16 @@ import {
   ChatInputCommandInteraction,
   MessageFlags,
 } from 'discord.js'
-import { getQueueNames, updatePlayerElo } from '../../utils/queryDB'
+import {
+  getLeaderboardPosition,
+  getQueueNames,
+  updatePlayerElo,
+} from '../../utils/queryDB'
 import { pool } from '../../db'
-import { setUserQueueRole } from 'utils/queueHelpers'
+import {
+  setUserQueueRole,
+  updateAllLeaderboardRoles,
+} from 'utils/queueHelpers'
 import { getGuild } from '../../client'
 
 export default {
@@ -25,8 +32,19 @@ export default {
       const member = await guild.members.fetch(user.id)
 
       if (queueRes && queueRes.rowCount != 0) {
-        await updatePlayerElo(queueRes.rows[0].id, user.id, newElo)
-        await setUserQueueRole(queueRes.rows[0].id, user.id)
+        const queueId = queueRes.rows[0].id
+        const oldRank = await getLeaderboardPosition(queueId, user.id)
+
+        await updatePlayerElo(queueId, user.id, newElo)
+        await setUserQueueRole(queueId, user.id)
+
+        const newRank = await getLeaderboardPosition(queueId, user.id)
+
+        if (oldRank !== null && newRank !== null && oldRank !== newRank) {
+          updateAllLeaderboardRoles(queueId).catch((err) =>
+            console.error('Background leaderboard role update failed:', err),
+          )
+        }
 
         await interaction.reply({
           content: `Set **${member.displayName}**'s MMR in **${queueName}** to **${newElo}**.`,

@@ -410,15 +410,16 @@ export async function getLeaderboardQueueRole(
 ): Promise<QueueRoles | null> {
   const rank = await getLeaderboardPosition(queueId, userId)
 
+  if (rank === null) return null
+
   const roleRes = await pool.query(
-    `
-    SELECT *
-    FROM queue_roles
-    WHERE queue_id = $1
-      AND leaderboard_min >= $2
-      AND leaderboard_max <= $2
-    LIMIT 1
-    `,
+    `SELECT *
+     FROM queue_roles
+     WHERE queue_id = $1
+       AND leaderboard_max <= $2
+       AND leaderboard_min >= $2
+     ORDER BY (leaderboard_min - leaderboard_max) ASC
+     LIMIT 1`,
     [queueId, rank],
   )
 

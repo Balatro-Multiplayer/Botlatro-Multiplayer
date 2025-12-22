@@ -6,7 +6,7 @@ import {
   getLeaderboardPosition,
 } from '../queryDB'
 import type { Queues, teamResults } from 'psqlDB'
-import { setUserQueueRole } from 'utils/queueHelpers'
+import { setUserQueueRole, updateAllLeaderboardRoles } from 'utils/queueHelpers'
 import { clamp } from 'lodash-es'
 
 // MMR formula constants
@@ -219,6 +219,19 @@ export async function calculateNewMMR(
     if (roleUpdateUsers.length > 0) {
       await Promise.all(
         roleUpdateUsers.map((userId) => setUserQueueRole(queueId, userId)),
+      )
+    }
+
+    const leaderboardRanksChanged = playerMMRChanges.some(
+      (player) =>
+        player.oldRank !== null &&
+        player.newRank !== null &&
+        player.oldRank !== player.newRank,
+    )
+
+    if (leaderboardRanksChanged) {
+      updateAllLeaderboardRoles(queueId).catch((err) =>
+        console.error('Background leaderboard role update failed:', err),
       )
     }
 

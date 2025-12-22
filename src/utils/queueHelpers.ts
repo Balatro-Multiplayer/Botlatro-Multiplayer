@@ -599,21 +599,96 @@ export async function timeSpentInQueue(
   return `<t:${timeSpent}:R>`
 }
 
+const leaderboardUpdateLocks = new Set<number>()
+const leaderboardUpdatePending = new Set<number>()
+
+export async function updateAllLeaderboardRoles(
+  queueId: number,
+): Promise<void> {
+  if (leaderboardUpdateLocks.has(queueId)) {
+    leaderboardUpdatePending.add(queueId)
+    return
+  }
+
+  leaderboardUpdateLocks.add(queueId)
+
+  try {
+    const roles = await pool.query(
+      `SELECT * FROM queue_roles
+       WHERE queue_id = $1 AND leaderboard_min IS NOT NULL
+       ORDER BY leaderboard_min`,
+      [queueId],
+    )
+
+    if (roles.rowCount === 0) return
+
+    const maxPos = Math.max(...roles.rows.map((r) => r.leaderboard_max))
+    const users = await pool.query(
+      `SELECT user_id FROM (
+         SELECT user_id, ROW_NUMBER() OVER (ORDER BY elo DESC) as rank
+         FROM queue_users WHERE queue_id = $1
+       ) ranked WHERE rank <= $2`,
+      [queueId, maxPos + 10],
+    )
+
+    if (users.rowCount === 0) return
+
+    const guild = await getGuild()
+    const roleIds = roles.rows.map((r) => r.role_id)
+
+    for (let i = 0; i < users.rows.length; i += 5) {
+      await Promise.all(
+        users.rows.slice(i, i + 5).map(async ({ user_id }) => {
+          try {
+            const expected = await getLeaderboardQueueRole(queueId, user_id)
+            const member = await guild.members.fetch({ user: user_id, force: true })
+            const current = member.roles.cache.filter((r) =>
+              roleIds.includes(r.id),
+            )
+
+            const needsUpdate =
+              (expected && !current.has(expected.role_id)) ||
+              (current.size > 0 &&
+                (!expected || !current.has(expected.role_id)))
+
+            if (needsUpdate) await setUserQueueRole(queueId, user_id)
+          } catch (err) {
+            console.error(`Failed to update roles for ${user_id}:`, err)
+          }
+        }),
+      )
+
+      if (i + 5 < users.rows.length) {
+        await new Promise((resolve) => setTimeout(resolve, 2000))
+      }
+    }
+  } catch (err) {
+    console.error(`Error updating leaderboard roles for queue ${queueId}:`, err)
+  } finally {
+    leaderboardUpdateLocks.delete(queueId)
+
+    if (leaderboardUpdatePending.has(queueId)) {
+      leaderboardUpdatePending.delete(queueId)
+      updateAllLeaderboardRoles(queueId).catch((err) =>
+        console.error(`Failed to re-run leaderboard update:`, err),
+      )
+    }
+  }
+}
+
 // set queue roles
 export async function setUserQueueRole(
   queueId: number,
   userId: string,
 ): Promise<void> {
-  console.log(`setting queue role for user ${userId} in queue ${queueId}`)
   const currentRole = await getUserQueueRole(queueId, userId)
   const allQueueRoles = await getAllQueueRoles(queueId, false)
   const leaderboardRole = await getLeaderboardQueueRole(queueId, userId)
 
   const guild = await getGuild()
-  const member = await guild.members.fetch(userId)
+  const member = await guild.members.fetch({ user: userId, force: true })
   const currentRoleIds = member.roles.cache.map((role) => role.id)
 
-  // Determine which queue roles should be added/removed
   const mmrRoles = allQueueRoles.filter((role) => role.mmr_threshold !== null)
   const leaderboardRoles = allQueueRoles.filter(
     (role) => role.leaderboard_min !== null,
@@ -622,7 +697,6 @@ export async function setUserQueueRole(
   const rolesToRemove: string[] = []
   const rolesToAdd: string[] = []
 
-  // Check leaderboard roles
   for (const role of leaderboardRoles) {
     const expectedRole =
       leaderboardRole && role.role_id === leaderboardRole.role_id
@@ -634,11 +708,9 @@ export async function setUserQueueRole(
     }
   }
 
-  // Check MMR roles
   for (const role of mmrRoles) {
     const expectedRole = currentRole && role.role_id === currentRole.role_id
 
-    // If the user has the expected role, check if they are within the MMR range
     if (expectedRole && !currentRoleIds.includes(role.role_id)) {
       rolesToAdd.push(role.role_id)
     } else if (!expectedRole && currentRoleIds.includes(role.role_id)) {
@@ -646,45 +718,18 @@ export async function setUserQueueRole(
     }
   }
 
-  console.log(
-    `roles to remove: ${rolesToRemove.join(', ')}, roles to add: ${rolesToAdd.join(', ')}`,
-  )
-
-  // Do nothing if no role changes are needed
   if (rolesToRemove.length === 0 && rolesToAdd.length === 0) {
-    console.log(`No role changes needed for user ${userId}`)
     return
   }
 
   try {
-    if (rolesToRemove.length > 0) {
-      console.log(`Attempting to remove roles: ${rolesToRemove.join(', ')}`)
-      for (const roleId of rolesToRemove) {
-        try {
-          await member.roles.remove(roleId)
-          console.log(`Successfully removed role ${roleId} from user ${userId}`)
-        } catch (roleErr) {
-          console.error(
-            `Failed to remove role ${roleId} from user ${userId}:`,
-            roleErr,
-          )
-        }
-      }
-    }
-    if (rolesToAdd.length > 0) {
-      console.log(`Attempting to add roles: ${rolesToAdd.join(', ')}`)
-      for (const roleId of rolesToAdd) {
-        try {
-          await member.roles.add(roleId)
-          console.log(`Successfully added role ${roleId} to user ${userId}`)
-        } catch (roleErr) {
-          console.error(
-            `Failed to add role ${roleId} to user ${userId}:`,
-            roleErr,
-          )
-        }
-      }
-    }
+    const currentRoles = Array.from(member.roles.cache.keys())
+
+    const newRoles = currentRoles
+      .filter((roleId) => !rolesToRemove.includes(roleId))
+      .concat(rolesToAdd.filter((roleId) => !currentRoles.includes(roleId)))
+
+    await member.roles.set(newRoles)
   } catch (err) {
     console.error(`Failed to update roles for user ${userId}:`, err)
   }
