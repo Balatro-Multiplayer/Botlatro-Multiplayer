@@ -4,7 +4,7 @@ import { health } from '../../../testCron'
 
 const cronRouter = new OpenAPIHono()
 
-const CRON_SECRET = process.env.CRON_SECRET || 'test-secrt'
+const CRON_SECRET = process.env.CRON_SECRET || 'test-secret'
 
 cronRouter.post('/run-task', async (c) => {
   const key = c.req.header('x-cron-key')
