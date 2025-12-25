@@ -4,6 +4,9 @@ import {
   getSettings,
   getCopyPasteByName,
   upsertCopyPaste,
+  getMatchData,
+  getDeckByName,
+  setPickedMatchDeck,
 } from '../utils/queryDB'
 import { resendMatchWinVote } from '../utils/matchHelpers'
 import * as fs from 'fs'
@@ -108,6 +111,26 @@ export default {
       // Check if this is a match channel
       const matchId = await getMatchIdFromChannel(channel.id)
       if (matchId) {
+        // Automatic Cocktail Deck assignment
+        const cocktailKeywords = ['cocktail', 'cocktail deck', 'cock']
+        const lowerContent = content.toLowerCase()
+        if (
+          cocktailKeywords.some((keyword) => lowerContent.includes(keyword))
+        ) {
+          try {
+            const matchData = await getMatchData(matchId)
+            // UNLESS a random deck has been chosen (deck is not null), or a deck has been voted (deck_vote_ended is true)
+            if (!matchData.deck && !matchData.deck_vote_ended) {
+              const cocktailDeck = await getDeckByName('Cocktail Deck')
+              if (cocktailDeck) {
+                await setPickedMatchDeck(matchId, cocktailDeck.deck_name)
+              }
+            }
+          } catch (err) {
+            console.error('Error setting cocktail deck:', err)
+          }
+        }
+
         // Increment message count
         const currentCount = channelMessageCounts.get(channel.id) || 0
         const newCount = currentCount + 1
