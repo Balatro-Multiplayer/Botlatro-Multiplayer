@@ -120,7 +120,7 @@ export default {
           try {
             const matchData = await getMatchData(matchId)
             // UNLESS a random deck has been chosen (deck is not null), or a deck has been voted (deck_vote_ended is true)
-            if (!matchData.deck && !matchData.deck_vote_ended) {
+            if (!matchData.deck) {
               const cocktailDeck = await getDeckByName('Cocktail Deck')
               if (cocktailDeck) {
                 await setPickedMatchDeck(matchId, cocktailDeck.deck_name)
