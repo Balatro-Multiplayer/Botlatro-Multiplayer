@@ -32,6 +32,10 @@ export default {
             id: user.id,
             allow: ['ViewChannel', 'SendMessages'],
           },
+          {
+            id: '1357254086575128697',
+            allow: ['ViewChannel', 'SendMessages'],
+          },
         ],
       })
       if (!channel || !channel.id) {
