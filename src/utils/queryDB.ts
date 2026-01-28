@@ -64,6 +64,17 @@ export async function getQueueNames(): Promise<string[]> {
   return res.rows.map((row) => row.queue_name)
 }
 
+// Get the queue ids of all queues that exist
+export async function getQueueIds(): Promise<{ id: number; name: string }[]> {
+  const res = await pool.query('SELECT id, queue_name FROM queues ORDER BY id')
+  return res.rows.map((row) => {
+    return {
+      id: row.id,
+      name: row.queue_name,
+    }
+  })
+}
+
 export async function getQueueIdFromName(queueName: string): Promise<number> {
   const res = await pool.query(
     `
