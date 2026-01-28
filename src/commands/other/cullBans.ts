@@ -3,7 +3,7 @@ import {
   MessageFlags,
   SlashCommandBuilder,
 } from 'discord.js'
-import { checkBans } from '../../../utils/automaticUnbans'
+import { checkBans } from '../../utils/automaticUnbans'
 
 export default {
   data: new SlashCommandBuilder()
