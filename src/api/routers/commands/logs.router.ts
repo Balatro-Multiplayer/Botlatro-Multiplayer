@@ -34,7 +34,7 @@ logsRouter.openapi(
   }),
   async (c) => {
     const { id } = c.req.valid('param')
-    //todo: add error handling
+    // todo: add error handling
     const success = await COMMAND_HANDLERS.STATS.GET_MATCH_LOGS(id)
     if (success) {
       return c.json(
