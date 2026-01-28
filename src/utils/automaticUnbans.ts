@@ -5,7 +5,8 @@ import { createEmbedType, logStrike } from './logCommandUse'
 
 export async function automaticUnban(ban: Bans) {
   // remove ban
-  await pool.query(`DELETE FROM bans WHERE user_id = ${ban.user_id}`)
+  const userId = ban.user_id.toString()
+  await pool.query(`DELETE FROM "bans" WHERE user_id = $1`, [userId])
 
   // log ban removal
   const embedType = createEmbedType(
