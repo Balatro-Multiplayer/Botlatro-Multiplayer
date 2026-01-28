@@ -13,7 +13,7 @@ export default {
       const timespanMs = timespan * 24 * 60 * 60 * 1000
 
       // add that to current time to get expiry time
-      const expiryTime = Date.now() + timespanMs
+      const expiryTime = new Date(Date.now() + timespanMs)
 
       // Ban user in db
       const res = await pool.query(
@@ -23,6 +23,8 @@ export default {
       `,
         [user.id, reason, [], expiryTime, []], // related strikes are not used as its a manual ban, and date is set manually for the same reason. todo: add individual queue ban logic
       )
+
+      await interaction.editReply(`User <@${user}> banned for ${timespan} days`)
     } catch (err: any) {
       console.error(err)
     }
