@@ -12,7 +12,6 @@ import { resendMatchWinVote } from '../utils/matchHelpers'
 import * as fs from 'fs'
 import * as path from 'path'
 import { getGuild } from '../client'
-import { checkBans } from '../utils/automaticUnbans'
 
 // Track message count per channel
 const channelMessageCounts = new Map<string, number>()
@@ -43,10 +42,6 @@ export default {
       const attachments = message.attachments
 
       if (!guild || !channel || !category) return
-
-      if (content == 'testingthisrq') {
-        await checkBans()
-      }
 
       // Handle !<paste_name> syntax for copy-paste creation/posting
       if (content.startsWith('!')) {
