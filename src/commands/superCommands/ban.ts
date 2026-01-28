@@ -45,8 +45,26 @@ export default {
             .setDescription('The reason to ban this user from the queue')
             .setRequired(false),
         ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('remove')
+        .setDescription('Remove a queue ban from a user.')
+        .addStringOption((option) =>
+          option
+            .setName('user')
+            .setDescription('The user to lift the ban from')
+            .setRequired(true),
+        )
+        .addStringOption((option) =>
+          option
+            .setName('reason')
+            .setDescription('The reason to unban this user from the queue')
+            .setRequired(false),
+        ),
     ),
 
+  // todo: add autocomplete and execution for subcommand 'remove'
   async execute(interaction: ChatInputCommandInteraction) {
     if (interaction.options.getSubcommand() === 'add') {
       await banUser.execute(interaction)
@@ -54,7 +72,9 @@ export default {
   },
 
   async autocomplete(interaction: AutocompleteInteraction) {
-    await queue.autocomplete(interaction)
+    if (interaction.options.getSubcommand() === 'add') {
+      await queue.autocomplete(interaction)
+    }
   },
 }
 // this supercommand should only be usable by helper+
