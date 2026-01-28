@@ -19,7 +19,7 @@ export default {
       const res = await pool.query(
         `
         INSERT INTO "bans" (user_id, reason, allowed_queue_ids, expires_at, related_strike_ids) 
-        VALUES ($1, $2, $4, $5, $6)
+        VALUES ($1, $2, $3, $4, $5)
       `,
         [user.id, reason, [], expiryTime, []], // related strikes are not used as its a manual ban, and date is set manually for the same reason. todo: add individual queue ban logic
       )
