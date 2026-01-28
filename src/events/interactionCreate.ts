@@ -29,6 +29,7 @@ import {
   sendWebhook,
 } from '../utils/matchHelpers'
 import {
+  checkUserBanned,
   getActiveQueues,
   getDeckList,
   getHelperRoleId,
@@ -159,7 +160,10 @@ export default {
 
             // TEMPORARY BAN CHECK
             if (member) {
-              if (member.roles.cache.has('1354296037094854788')) {
+              if (
+                member.roles.cache.has('1354296037094854788') ||
+                (await checkUserBanned(member))
+              ) {
                 return await interaction.followUp({
                   content:
                     'You are queue blacklisted, and cannot join the queue.',

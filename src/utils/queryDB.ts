@@ -1,4 +1,4 @@
-import { TextChannel, VoiceChannel } from 'discord.js'
+import { GuildMember, TextChannel, VoiceChannel } from 'discord.js'
 import { pool } from '../db'
 import type { Strikes, UserRoom } from 'psqlDB'
 import {
@@ -62,6 +62,26 @@ export async function setQueueRoleLock(
 export async function getQueueNames(): Promise<string[]> {
   const res = await pool.query('SELECT queue_name FROM queues ORDER BY id')
   return res.rows.map((row) => row.queue_name)
+}
+
+// Get the queue ids of all queues that exist
+export async function getQueueIds(): Promise<{ id: number; name: string }[]> {
+  const res = await pool.query('SELECT id, queue_name FROM queues ORDER BY id')
+  return res.rows.map((row) => {
+    return {
+      id: row.id,
+      name: row.queue_name,
+    }
+  })
+}
+
+// check if a user is banned todo: add handling for individual queue bans when we add that
+export async function checkUserBanned(member: GuildMember) {
+  const res = await pool.query(`SELECT * FROM bans WHERE user_id = $1`, [
+    member.id,
+  ])
+  
+  return res.rowCount !== 0
 }
 
 export async function getQueueIdFromName(queueName: string): Promise<number> {
