@@ -15,7 +15,7 @@ import {
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
     try {
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+      await interaction.deferReply()
       const discordChannel = interaction.channel
       const user = interaction.options.getUser('user', true)
       let amount = interaction.options.getInteger('strikes', true)
@@ -76,7 +76,7 @@ export default {
       )
       await logStrike('add_strike', embed, undefined, `<@${user.id ?? 1234}>`)
 
-      await interaction.followUp(
+      await interaction.editReply(
         `User ${username} given ${amount} strikes ${reason == 'No reason provided' ? `for ${reason}` : ``}`,
       )
     } catch (err: any) {
