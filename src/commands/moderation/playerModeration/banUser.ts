@@ -25,7 +25,7 @@ export default {
         [user.id, reason, [], expiryTime, []], // related strikes are not used as its a manual ban, and date is set manually for the same reason. todo: add individual queue ban logic
       )
 
-      await interaction.editReply(`User <@${user}> banned for ${timespan} days`)
+      await interaction.editReply(`User ${user} banned for ${timespan} days`)
     } catch (err: any) {
       console.error(err)
     }

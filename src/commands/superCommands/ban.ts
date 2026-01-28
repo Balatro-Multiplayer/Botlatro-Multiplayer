@@ -1,6 +1,7 @@
 import {
   AutocompleteInteraction,
   ChatInputCommandInteraction,
+  PermissionFlagsBits,
   SlashCommandBuilder,
 } from 'discord.js'
 import queue from './queue'
@@ -10,6 +11,7 @@ export default {
   data: new SlashCommandBuilder()
     .setName('ban')
     .setDescription('Manage user bans in a queue. (Helper+ Only)')
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
 
     .addSubcommand((sub) =>
       sub
