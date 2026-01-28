@@ -21,26 +21,27 @@ export default {
             .setDescription('The user to ban from the queue')
             .setRequired(true),
         )
-        .addStringOption((option) =>
-          option
-            .setName('queue')
-            .setDescription(
-              'The queue you would like to ban the user from (blank = all queues)',
-            )
-            .setRequired(true)
-            .setAutocomplete(false),
-        )
-        .addStringOption((option) =>
-          option
-            .setName('reason')
-            .setDescription('The reason to ban this user from the queue')
-            .setRequired(false),
-        )
         .addNumberOption((option) =>
           option
             .setName('length')
             .setDescription('The length of the ban in days')
             .setRequired(true),
+        )
+        // todo: add this back in when we can be arsed
+        // .addStringOption((option) =>
+        //   option
+        //     .setName('queue')
+        //     .setDescription(
+        //       'The queue you would like to ban the user from (blank = all queues)',
+        //     )
+        //     .setRequired(true)
+        //     .setAutocomplete(false),
+        // )
+        .addStringOption((option) =>
+          option
+            .setName('reason')
+            .setDescription('The reason to ban this user from the queue')
+            .setRequired(false),
         ),
     ),
 
