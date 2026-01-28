@@ -76,7 +76,7 @@ export default {
       )
       await logStrike('add_strike', embed, undefined, `<@${user.id ?? 1234}>`)
 
-      await interaction.editReply(
+      await interaction.followUp(
         `User ${username} given ${amount} strikes ${reason == 'No reason provided' ? `for ${reason}` : ``}`,
       )
     } catch (err: any) {
