@@ -6,7 +6,8 @@ export default {
     try {
       await interaction.deferReply()
       const user = interaction.options.getUser('user', true)
-      const reason = interaction.options.getString('reason', false)
+      const reason =
+        interaction.options.getString('reason', false) ?? 'No reason provided'
       const timespan = interaction.options.getNumber('length', true)
 
       // calculate expiry time in ms from days
