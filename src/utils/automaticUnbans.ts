@@ -4,9 +4,12 @@ import type { Bans } from 'psqlDB'
 import { createEmbedType, logStrike } from './logCommandUse'
 
 export async function automaticUnban(ban: Bans) {
+  // remove ban
+  await pool.query(`DELETE FROM bans WHERE user_id = ${ban.user_id}`)
+
   // log ban removal
   const embedType = createEmbedType(
-    `Ban removed for <@${ban.user_id}>`,
+    `Ban removed for ${ban.user_id}`,
     '',
     16776960, // green
     [

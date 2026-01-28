@@ -35,6 +35,7 @@ import {
 import { Queues } from 'psqlDB'
 import { QueryResult } from 'pg'
 import { client, getGuild } from '../client'
+import { checkBans } from './automaticUnbans'
 
 // Updates or sends a new queue message for the specified text channel
 export async function updateQueueMessage(): Promise<Message | undefined> {
@@ -465,6 +466,9 @@ export async function createMatch(
   userIds: string[],
   queueId: number,
 ): Promise<any> {
+  // putting this here for now todo: replace with api cronjob
+  await checkBans()
+
   if (userIds.length === 0 || !queueId) {
     console.error('Wrong parameters provided for creating a match')
   }
@@ -641,7 +645,10 @@ export async function updateAllLeaderboardRoles(
         users.rows.slice(i, i + 5).map(async ({ user_id }) => {
           try {
             const expected = await getLeaderboardQueueRole(queueId, user_id)
-            const member = await guild.members.fetch({ user: user_id, force: true })
+            const member = await guild.members.fetch({
+              user: user_id,
+              force: true,
+            })
             const current = member.roles.cache.filter((r) =>
               roleIds.includes(r.id),
             )
