@@ -1,5 +1,6 @@
 import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
 import { pool } from '../../../db'
+import { createEmbedType, logStrike } from '../../../utils/logCommandUse'
 
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
@@ -16,6 +17,23 @@ export default {
       `,
         [user],
       )
+
+      // log unban
+      const embedType = createEmbedType(
+        `Ban removed for ${user}`,
+        '',
+        65280, // green
+        [
+          {
+            name: 'Reason:',
+            value: reason ?? 'No reason provided',
+            inline: true,
+          },
+        ],
+        null,
+        `${interaction.user.displayName}`,
+      )
+      await logStrike('general', embedType)
 
       await interaction.editReply(
         `User ${user} unbanned ${reason ? `for ${reason}` : ''}`,
