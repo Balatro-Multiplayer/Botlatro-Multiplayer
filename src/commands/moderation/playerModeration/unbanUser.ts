@@ -18,6 +18,12 @@ export default {
         [user],
       )
 
+      if (res.rowCount === 0) {
+        return await interaction.editReply(
+          `User ${user} can not be found with a valid ban to remove.`,
+        )
+      }
+
       // log unban
       const embedType = createEmbedType(
         `Ban removed for ${user}`,

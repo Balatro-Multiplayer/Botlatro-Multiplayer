@@ -6,6 +6,7 @@ import {
 } from 'discord.js'
 import banUser from '../moderation/playerModeration/banUser'
 import { getBannedUsers } from '../../utils/queryDB'
+import unbanUser from '../moderation/playerModeration/unbanUser'
 
 export default {
   data: new SlashCommandBuilder()
