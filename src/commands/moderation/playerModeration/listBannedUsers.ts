@@ -5,7 +5,7 @@ import { Bans } from 'psqlDB'
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
     try {
-      await interaction.deferReply()
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
       const bannedUsers: Bans[] = (await pool.query(`SELECT * FROM "bans"`))
         .rows
@@ -15,7 +15,7 @@ export default {
         response += `${user.user_id} - ${user.reason} (expires ${user.expires_at?.getDate() ?? 'never'})\n`
       }
 
-      await interaction.editReply(``)
+      await interaction.editReply(response)
     } catch (err: any) {
       console.error(err)
     }
