@@ -7,6 +7,7 @@ import {
 import banUser from '../moderation/playerModeration/banUser'
 import { getBannedUsers } from '../../utils/queryDB'
 import unbanUser from '../moderation/playerModeration/unbanUser'
+import listBannedUsers from '../moderation/playerModeration/listBannedUsers'
 
 export default {
   data: new SlashCommandBuilder()
@@ -64,6 +65,9 @@ export default {
             .setDescription('The reason to unban this user from the queue')
             .setRequired(false),
         ),
+    )
+    .addSubcommand((sub) =>
+      sub.setName('list').setDescription('List all users with a queue ban'),
     ),
 
   // todo: add autocomplete and execution for subcommand 'remove'
@@ -72,6 +76,8 @@ export default {
       await banUser.execute(interaction)
     } else if (interaction.options.getSubcommand() === 'remove') {
       await unbanUser.execute(interaction)
+    } else if (interaction.options.getSubcommand() === 'list') {
+      await listBannedUsers.execute(interaction)
     }
   },
 
