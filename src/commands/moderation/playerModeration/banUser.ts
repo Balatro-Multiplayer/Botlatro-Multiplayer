@@ -1,5 +1,6 @@
 import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
 import { pool } from '../../../db'
+import { createEmbedType, logStrike } from '../../../utils/logCommandUse'
 
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
@@ -24,6 +25,23 @@ export default {
       `,
         [user.id, reason, [], expiryTime, []], // related strikes are not used as its a manual ban, and date is set manually for the same reason. todo: add individual queue ban logic
       )
+
+      // log ban
+      const embedType = createEmbedType(
+        `Ban added for ${user.id} for ${timespan} days.`,
+        '',
+        16711680, // red
+        [
+          {
+            name: 'Reason:',
+            value: reason ?? 'No reason provided',
+            inline: true,
+          },
+        ],
+        null,
+        `${interaction.user.displayName}`,
+      )
+      await logStrike('general', embedType)
 
       await interaction.editReply(`User ${user} banned for ${timespan} days`)
     } catch (err: any) {
