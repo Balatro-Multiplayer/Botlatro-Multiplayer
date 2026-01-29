@@ -1,6 +1,6 @@
 import { GuildMember, TextChannel, VoiceChannel } from 'discord.js'
 import { pool } from '../db'
-import type { Strikes, UserRoom } from 'psqlDB'
+import type { Bans, Strikes, UserRoom } from 'psqlDB'
 import {
   CopyPaste,
   Decks,
@@ -80,8 +80,15 @@ export async function checkUserBanned(member: GuildMember) {
   const res = await pool.query(`SELECT * FROM bans WHERE user_id = $1`, [
     member.id,
   ])
-  
+
   return res.rowCount !== 0
+}
+
+// get all banned users
+export async function getBannedUsers(): Promise<Bans[]> {
+  const res = await pool.query(`SELECT * FROM bans`)
+
+  return res.rows
 }
 
 export async function getQueueIdFromName(queueName: string): Promise<number> {
