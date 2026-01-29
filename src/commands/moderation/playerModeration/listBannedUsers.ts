@@ -12,7 +12,7 @@ export default {
 
       let response = `Banned Users:\n`
       for (const user of bannedUsers) {
-        response += `${user.user_id} - ${user.reason} (expires ${user.expires_at?.getDate() ?? 'never'})\n`
+        response += `<@${user.user_id}> - ${user.reason} - ${user.expires_at?.toLocaleDateString() ?? 'never'}\n`
       }
 
       await interaction.editReply(response)
