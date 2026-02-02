@@ -897,9 +897,9 @@ export async function endMatch(
             if (queueRole) {
               const role = await guild.roles.fetch(queueRole.role_id)
               if (role) {
-                emoteText = queueRole.emote ? `${queueRole.emote} ` : ''
+                emoteText = queueRole.emote ? ` ${queueRole.emote}` : ''
                 if (playerNameList.length == 1) {
-                  label = `${label} ${emoteText}`
+                  label = `${label}${emoteText}`
                 }
               }
             }
