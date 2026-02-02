@@ -1,15 +1,21 @@
 import {
   ActionRowBuilder,
+  AttachmentBuilder,
   ButtonBuilder,
   ButtonStyle,
   ChannelType,
+  ContainerBuilder,
   EmbedBuilder,
+  MessageFlags,
   PermissionsBitField,
+  SeparatorSpacingSize,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
   TextChannel,
   VoiceChannel,
 } from 'discord.js'
+import * as fs from 'fs'
+import * as path from 'path'
 import { pool } from '../db'
 import { shuffle } from 'lodash-es'
 import {
@@ -720,6 +726,11 @@ export async function endMatch(
   const matchTeams = await getTeamsInMatch(matchId)
   const queueId = await getQueueIdFromMatch(matchId)
 
+  // Capture channel info before it gets deleted (needed for transcript file path)
+  const matchChannel = await getMatchChannel(matchId)
+  const matchChannelName = matchChannel?.name ?? null
+  const matchChannelId = matchChannel?.id ?? null
+
   if (cancelled) {
     console.log(`Match ${matchId} cancelled.`)
     const wasSuccessfullyDeleted = await deleteMatchChannel(matchId)
@@ -737,23 +748,14 @@ export async function endMatch(
       )
     }
 
+    // Post transcript to queue logs channel
+    if (matchChannelName && matchChannelId) {
+      postMatchTranscript(matchId, matchChannelName, matchChannelId)
+    }
+
     return true
   }
 
-  // build results button row
-  const resultsButtonRow: ActionRowBuilder<ButtonBuilder> =
-    new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`rematch-${matchId}`)
-        .setLabel('Rematch')
-        .setEmoji('⚔️')
-        .setStyle(ButtonStyle.Primary),
-      new ButtonBuilder()
-        .setCustomId(`match-contest-${matchId}`)
-        .setLabel('Contest Match')
-        .setEmoji('📩')
-        .setStyle(ButtonStyle.Secondary),
-    )
   const winningTeamId = await getWinningTeamFromMatch(matchId)
   if (!winningTeamId) {
     console.error(`No winning team found for match ${matchId}`)
@@ -853,44 +855,48 @@ export async function endMatch(
   }
 
   try {
-    // build results embed
-    const resultsEmbed = new EmbedBuilder()
-      .setTitle(`${queueSettings.queue_name} Match #${matchId} 🏆`)
-      .setColor(queueSettings.color as any)
-
     const guild =
       client.guilds.cache.get(process.env.GUILD_ID!) ??
       (await client.guilds.fetch(process.env.GUILD_ID!))
 
-    // running for every team then combining at the end
-    const embedFields = await Promise.all(
+    // Compute title with deck/stake info
+    let titleText = `${queueSettings.queue_name} Match #${matchId} 🏆`
+    if (matchData.deck || matchData.stake) {
+      const matchInfoParts: string[] = []
+      if (matchData.deck) {
+        const deckData = await getDeckByName(matchData.deck)
+        if (deckData) matchInfoParts.push(`${deckData.deck_emote}`)
+      }
+      if (matchData.stake) {
+        const stakeData = await getStakeByName(matchData.stake)
+        if (stakeData) matchInfoParts.push(`${stakeData.stake_emote}`)
+      }
+      if (matchInfoParts.length > 0) {
+        titleText = `${queueSettings.queue_name} Match #${matchId} ${matchInfoParts.join('')}`
+      }
+    }
+
+    // Build team display data
+    const teamDisplayData = await Promise.all(
       (teamResults?.teams ?? []).map(async (team) => {
         const playerList = await Promise.all(
           team.players.map((player) => guild.members.fetch(player.user_id)),
         )
-        const playerNameList = playerList.map((user) => user.displayName)
+        const playerNameList = playerList.map((user) => `${team.score === 1 ? `__${user.displayName}__` : user.displayName}`);
 
-        // show name for every player in team
         let label =
           team.score === 1
-            ? `__${playerNameList.join('\n')}__`
+            ? `${playerNameList.join('\n')}`
             : `${playerNameList.join('\n')}`
 
-        // show id, elo change, new elo, and queue role for every player in team
         const description = await Promise.all(
           team.players.map(async (player) => {
-            // Get the player's queue role
             const queueRole = await getUserQueueRole(queueId, player.user_id)
             let emoteText = ''
 
             if (queueRole) {
-              // Fetch the role from Discord to get the name
-              const guild =
-                client.guilds.cache.get(process.env.GUILD_ID!) ??
-                (await client.guilds.fetch(process.env.GUILD_ID!))
               const role = await guild.roles.fetch(queueRole.role_id)
               if (role) {
-                // Include emote if it exists
                 emoteText = queueRole.emote ? `${queueRole.emote} ` : ''
                 if (playerNameList.length == 1) {
                   label = `${label} ${emoteText}`
@@ -902,7 +908,6 @@ export async function endMatch(
           }),
         )
 
-        // return array of objects to embedFields
         return {
           isWinningTeam: team.score === 1,
           label,
@@ -911,51 +916,50 @@ export async function endMatch(
       }),
     )
 
-    // initialize arrays to hold fields
-    const winUserLabels: string[] = []
-    const winUserDescs: string[] = []
-    const lossUserLabels: string[] = []
-    const lossUserDescs: string[] = []
+    // Build winners and losers text
+    const winnersLines: string[] = []
+    const losersLines: string[] = []
 
-    // separate winning and losing teams
-    for (const field of embedFields) {
-      if (field.isWinningTeam) {
-        winUserLabels.push(field.label)
-        winUserDescs.push(field.description)
+    for (const team of teamDisplayData) {
+      const teamText = `${team.label}\n${team.description}`
+      if (team.isWinningTeam) {
+        winnersLines.push(`${teamText}`)
       } else {
-        lossUserLabels.push(field.label)
-        lossUserDescs.push(field.description)
+        losersLines.push(teamText)
       }
     }
 
-    resultsEmbed.addFields(
-      {
-        name: winUserLabels.join(' / '),
-        value: winUserDescs.join('\n'),
-        inline: true,
-      },
-      {
-        name: lossUserLabels.join(' / '),
-        value: lossUserDescs.join('\n'),
-        inline: true,
-      },
-    )
-
-    // Add deck and stake information if available
-    if (matchData.deck || matchData.stake) {
-      const matchInfoParts: string[] = []
-      if (matchData.deck) {
-        const deckData = await getDeckByName(matchData.deck)
-        if (deckData) matchInfoParts.push(`${deckData.deck_emote}`)
-      }
-      if (matchData.stake) {
-        const stakeData = await getStakeByName(matchData.stake)
-        if (stakeData) matchInfoParts.push(`${stakeData.stake_emote}`)
-      }
-      resultsEmbed.setTitle(
-        `${queueSettings.queue_name} Match #${matchId} ${matchInfoParts.join('')}`,
+    // Build results container using Components v2
+    const resultsContainer = new ContainerBuilder()
+      .setAccentColor(parseInt(queueSettings.color.replace('#', ''), 16))
+      .addTextDisplayComponents((td) =>
+        td.setContent(`## ${titleText}`),
       )
-    }
+      .addSeparatorComponents((sep) => sep.setDivider(true))
+      .addTextDisplayComponents((td) =>
+        td.setContent(`### ${winnersLines.join('\n')}`),
+      )
+      .addSeparatorComponents((sep) =>
+        sep.setDivider(false).setSpacing(SeparatorSpacingSize.Small),
+      )
+      .addTextDisplayComponents((td) =>
+        td.setContent(`### ${losersLines.join('\n')}`),
+      )
+      .addSeparatorComponents((sep) => sep.setDivider(true))
+      .addActionRowComponents((row) =>
+        row.addComponents(
+          new ButtonBuilder()
+            .setCustomId(`rematch-${matchId}`)
+            .setLabel('Rematch')
+            .setEmoji('⚔️')
+            .setStyle(ButtonStyle.Primary),
+          new ButtonBuilder()
+            .setCustomId(`match-contest-${matchId}`)
+            .setLabel('Contest Match')
+            .setEmoji('📩')
+            .setStyle(ButtonStyle.Secondary),
+        ),
+      )
 
     const resultsChannel = await getMatchResultsChannel()
     if (!resultsChannel) {
@@ -969,12 +973,16 @@ export async function endMatch(
       const existingResultsMsg =
         await resultsChannel.messages.fetch(existingResultsMsgId)
       if (existingResultsMsg) {
-        await existingResultsMsg.edit({ embeds: [resultsEmbed] })
+        await existingResultsMsg.edit({
+          embeds: [],
+          components: [resultsContainer],
+          flags: MessageFlags.IsComponentsV2,
+        })
       }
     } else {
       const resultsMsg = await resultsChannel.send({
-        embeds: [resultsEmbed],
-        components: [resultsButtonRow],
+        components: [resultsContainer],
+        flags: MessageFlags.IsComponentsV2,
       })
       await setMatchResultsMessageId(matchId, resultsMsg.id)
     }
@@ -992,6 +1000,11 @@ export async function endMatch(
     queueId,
     teamResults,
   })
+
+  // Post transcript to queue logs channel
+  if (matchChannelName && matchChannelId) {
+    postMatchTranscript(matchId, matchChannelName, matchChannelId)
+  }
 
   return true
 }
@@ -1018,6 +1031,50 @@ export async function sendWebhook(action: string, payload: any): Promise<void> {
     }
   } catch (err) {
     console.error(`Failed to send webhook for action ${action}:`, err)
+  }
+}
+
+// Post match transcript to the queue logs channel as a .txt attachment
+async function postMatchTranscript(
+  matchId: number,
+  channelName: string,
+  channelId: string,
+): Promise<void> {
+  try {
+    const safe = (s: string) => s.replace(/[^\w.\-]+/g, '-')
+    const logDir = process.env.LOG_DIR || path.join(process.cwd(), 'logs')
+    const logFilePath = path.join(logDir, `${safe(channelName)}_${channelId}.log`)
+
+    if (!fs.existsSync(logFilePath)) return
+
+    const logContent = fs.readFileSync(logFilePath, 'utf8')
+    if (!logContent.trim()) {
+      fs.unlinkSync(logFilePath)
+      return
+    }
+
+    const settings = await getSettings()
+    if (!settings.queue_logs_channel_id) return
+
+    const logsChannel = (await client.channels.fetch(
+      settings.queue_logs_channel_id,
+    )) as TextChannel
+    if (!logsChannel) return
+
+    const queueLogMsgId = await getMatchQueueLogMessageId(matchId)
+
+    const attachment = new AttachmentBuilder(Buffer.from(logContent, 'utf-8'), {
+      name: `match-${matchId}-transcript.txt`,
+    })
+
+    await logsChannel.send({
+      content: `## Match ${matchId} Transcript`,
+      files: [attachment],
+      ...(queueLogMsgId && { reply: { messageReference: queueLogMsgId } }),
+    })
+    fs.unlinkSync(logFilePath)
+  } catch (err) {
+    console.error(`Failed to post transcript for match ${matchId}:`, err)
   }
 }
 

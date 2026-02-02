@@ -60,8 +60,12 @@ import {
 } from '../utils/queryDB'
 import {
   getBestOfMatchScores,
+  getVotesForMatch,
+  getUserVote,
   handleTwoPlayerMatchVoting,
   handleVoting,
+  removeUserVote,
+  setUserVote,
 } from '../utils/voteHelpers'
 import { drawPlayerStatsCanvas } from '../utils/canvasHelpers'
 import { generateBackgroundPreview } from '../commands/queues/setStatsBackground'
@@ -1005,22 +1009,75 @@ export default {
             t.players.map((u) => u.user_id),
           )
 
-          await handleVoting(interaction, {
-            voteType: 'Rematch Votes',
-            embedFieldIndex: 2,
-            participants: matchUsersArray,
-            matchId: matchId,
-            resendMessage: false,
-            onComplete: async (interaction, { embed }) => {
-              if (!interaction) return
-              await interaction.update({
-                content: 'A Rematch for this matchup has begun!',
-                embeds: [embed],
-                components: [],
-              })
-              await createMatch(matchUsersArray, matchData.queue_id)
-            },
-          })
+          if (!matchUsersArray.includes(interaction.user.id)) {
+            await interaction.reply({
+              content: 'You are not allowed to vote for a rematch.',
+              flags: MessageFlags.Ephemeral,
+            })
+            return
+          }
+
+          const currentVote = await getUserVote(matchId, interaction.user.id)
+          if (currentVote && currentVote.vote_type === 'Rematch Votes') {
+            await removeUserVote(matchId, interaction.user.id)
+          } else {
+            await setUserVote(matchId, interaction.user.id, 'Rematch Votes')
+          }
+
+          const votes = await getVotesForMatch(matchId, 'Rematch Votes')
+
+          if (votes.length === matchUsersArray.length) {
+            await interaction.update({
+              content: 'A Rematch for this matchup has begun!',
+              components: [],
+              flags: MessageFlags.IsComponentsV2,
+            })
+            await createMatch(matchUsersArray, matchData.queue_id)
+          } else {
+            // Update the container to show vote progress
+            const rawComponents = interaction.message.components.map((c) =>
+              c.toJSON(),
+            )
+            const container = rawComponents[0] as any
+            if (container?.components) {
+              const voteText =
+                votes.length > 0
+                  ? `**Rematch Votes:** ${votes.map((v) => `<@${v}>`).join(', ')} (${votes.length}/${matchUsersArray.length})`
+                  : ''
+
+              // Find existing vote text display
+              const existingVoteIndex = container.components.findIndex(
+                (c: any) =>
+                  c.type === 10 &&
+                  c.content?.startsWith('**Rematch Votes:**'),
+              )
+
+              if (existingVoteIndex !== -1) {
+                if (voteText) {
+                  container.components[existingVoteIndex].content = voteText
+                } else {
+                  container.components.splice(existingVoteIndex, 1)
+                }
+              } else if (voteText) {
+                // Insert before the last separator + action row
+                const lastActionRowIndex =
+                  container.components.findLastIndex(
+                    (c: any) => c.type === 1,
+                  )
+                if (lastActionRowIndex !== -1) {
+                  container.components.splice(lastActionRowIndex, 0, {
+                    type: 10,
+                    content: voteText,
+                  })
+                }
+              }
+            }
+
+            await interaction.update({
+              components: rawComponents,
+              flags: MessageFlags.IsComponentsV2,
+            })
+          }
         }
 
         if (interaction.customId.startsWith('match-contest-')) {

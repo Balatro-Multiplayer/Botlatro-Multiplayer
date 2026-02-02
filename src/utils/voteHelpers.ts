@@ -23,7 +23,7 @@ async function getMatchIdFromMessage(
   return result.rows[0]?.id || null
 }
 
-async function getUserVote(
+export async function getUserVote(
   matchId: number,
   userId: string,
 ): Promise<{ vote_type: string; vote_value: number | null } | null> {
@@ -34,7 +34,7 @@ async function getUserVote(
   return result.rows[0] || null
 }
 
-async function setUserVote(
+export async function setUserVote(
   matchId: number,
   userId: string,
   voteType: string,
@@ -49,14 +49,14 @@ async function setUserVote(
   )
 }
 
-async function removeUserVote(matchId: number, userId: string): Promise<void> {
+export async function removeUserVote(matchId: number, userId: string): Promise<void> {
   await pool.query('DELETE FROM votes WHERE match_id = $1 AND user_id = $2', [
     matchId,
     userId,
   ])
 }
 
-async function getVotesForMatch(
+export async function getVotesForMatch(
   matchId: number,
   voteType: string,
 ): Promise<string[]> {

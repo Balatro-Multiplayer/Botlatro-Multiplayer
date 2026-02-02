@@ -114,7 +114,6 @@ export async function updateQueueMessage(): Promise<Message | undefined> {
 
   const buttonRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
     leaveQueue,
-    setPriorityQueue,
     checkQueued,
   )
 
