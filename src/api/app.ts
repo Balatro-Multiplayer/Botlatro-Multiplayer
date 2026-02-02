@@ -6,6 +6,7 @@ import { queuesRouter } from './routers/commands/queues.router'
 import { cronRouter } from './routers/commands/cron.router'
 import { statsRouter } from './routers/commands/stats.router'
 import { playersRouter } from './routers/commands/players.router'
+import { transcriptsRouter } from './routers/commands/transcriptsRouter'
 
 const app = new OpenAPIHono({ strict: false })
 const token = process.env.API_TOKEN
@@ -33,8 +34,10 @@ app.route('/api/players', playersRouter)
 app.use('/api/matches/*', bearerAuth({ token }))
 app.use('/api/queues/*', bearerAuth({ token }))
 app.use('/api/cron/*', bearerAuth({ token }))
+app.use('/api/transcripts/*', bearerAuth({ token }))
 
 app.route('/api/matches', matchesRouter)
 app.route('/api/queues', queuesRouter)
 app.route('/api/cron', cronRouter)
+app.route('/api/transcripts', transcriptsRouter)
 export { app }
