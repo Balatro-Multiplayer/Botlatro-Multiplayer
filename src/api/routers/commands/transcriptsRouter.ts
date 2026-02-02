@@ -1,18 +1,18 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
-import { COMMAND_HANDLERS } from '../../../command-handlers'
+import { getMatchTranscript } from '../../../utils/exportTranscripts'
 
-const logsRouter = new OpenAPIHono()
+const transcriptsRouter = new OpenAPIHono()
 
-logsRouter.openapi(
+transcriptsRouter.openapi(
   createRoute({
     method: 'get',
-    path: '/log/{id}',
+    path: '/log/{matchId}',
     description: 'Get the transcript for a match.',
     request: {
       params: z.object({
-        id: z.number().openapi({
+        matchId: z.number().openapi({
           param: {
-            name: 'id',
+            name: 'matchId',
             in: 'path',
           },
           example: '1212121',
@@ -33,13 +33,14 @@ logsRouter.openapi(
     },
   }),
   async (c) => {
-    const { id } = c.req.valid('param')
-    // todo: add error handling
-    const success = await COMMAND_HANDLERS.STATS.GET_MATCH_LOGS(id)
-    if (success) {
+    const { matchId } = c.req.valid('param')
+
+    const res = await getMatchTranscript(matchId)
+    if (res) {
       return c.json(
         {
           success: true as const,
+          transcript: res.transcript,
         },
         200,
       )
@@ -53,4 +54,4 @@ logsRouter.openapi(
   },
 )
 
-export { logsRouter }
+export { transcriptsRouter }
