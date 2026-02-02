@@ -1030,9 +1030,8 @@ export default {
             await interaction.update({
               content: 'A Rematch for this matchup has begun!',
               components: [],
-              flags:
-                MessageFlags.IsComponentsV2 |
-                MessageFlags.SuppressNotifications,
+              flags: MessageFlags.IsComponentsV2,
+              allowedMentions: { parse: [] },
             })
             await createMatch(matchUsersArray, matchData.queue_id)
           } else {
@@ -1075,9 +1074,7 @@ export default {
 
             await interaction.update({
               components: rawComponents,
-              flags:
-                MessageFlags.IsComponentsV2 |
-                MessageFlags.SuppressNotifications,
+              flags: MessageFlags.IsComponentsV2,
             })
           }
         }

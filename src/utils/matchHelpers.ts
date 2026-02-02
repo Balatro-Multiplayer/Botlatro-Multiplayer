@@ -977,14 +977,14 @@ export async function endMatch(
         await existingResultsMsg.edit({
           embeds: [],
           components: [resultsContainer],
-          flags:
-            MessageFlags.IsComponentsV2 | MessageFlags.SuppressNotifications,
+          flags: MessageFlags.IsComponentsV2,
         })
       }
     } else {
       const resultsMsg = await resultsChannel.send({
         components: [resultsContainer],
-        flags: MessageFlags.IsComponentsV2 | MessageFlags.SuppressNotifications,
+        flags: MessageFlags.IsComponentsV2,
+        allowedMentions: { parse: [] },
       })
       await setMatchResultsMessageId(matchId, resultsMsg.id)
     }
