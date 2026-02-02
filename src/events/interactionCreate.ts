@@ -1030,7 +1030,9 @@ export default {
             await interaction.update({
               content: 'A Rematch for this matchup has begun!',
               components: [],
-              flags: MessageFlags.IsComponentsV2,
+              flags:
+                MessageFlags.IsComponentsV2 |
+                MessageFlags.SuppressNotifications,
             })
             await createMatch(matchUsersArray, matchData.queue_id)
           } else {
@@ -1048,8 +1050,7 @@ export default {
               // Find existing vote text display
               const existingVoteIndex = container.components.findIndex(
                 (c: any) =>
-                  c.type === 10 &&
-                  c.content?.startsWith('**Rematch Votes:**'),
+                  c.type === 10 && c.content?.startsWith('**Rematch Votes:**'),
               )
 
               if (existingVoteIndex !== -1) {
@@ -1060,10 +1061,9 @@ export default {
                 }
               } else if (voteText) {
                 // Insert before the last separator + action row
-                const lastActionRowIndex =
-                  container.components.findLastIndex(
-                    (c: any) => c.type === 1,
-                  )
+                const lastActionRowIndex = container.components.findLastIndex(
+                  (c: any) => c.type === 1,
+                )
                 if (lastActionRowIndex !== -1) {
                   container.components.splice(lastActionRowIndex, 0, {
                     type: 10,
@@ -1075,7 +1075,9 @@ export default {
 
             await interaction.update({
               components: rawComponents,
-              flags: MessageFlags.IsComponentsV2,
+              flags:
+                MessageFlags.IsComponentsV2 |
+                MessageFlags.SuppressNotifications,
             })
           }
         }

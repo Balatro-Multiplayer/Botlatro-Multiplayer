@@ -882,7 +882,10 @@ export async function endMatch(
         const playerList = await Promise.all(
           team.players.map((player) => guild.members.fetch(player.user_id)),
         )
-        const playerNameList = playerList.map((user) => `${team.score === 1 ? `__${user.displayName}__` : user.displayName}`);
+        const playerNameList = playerList.map(
+          (user) =>
+            `${team.score === 1 ? `__${user.displayName}__` : user.displayName}`,
+        )
 
         let label =
           team.score === 1
@@ -932,9 +935,7 @@ export async function endMatch(
     // Build results container using Components v2
     const resultsContainer = new ContainerBuilder()
       .setAccentColor(parseInt(queueSettings.color.replace('#', ''), 16))
-      .addTextDisplayComponents((td) =>
-        td.setContent(`## ${titleText}`),
-      )
+      .addTextDisplayComponents((td) => td.setContent(`## ${titleText}`))
       .addSeparatorComponents((sep) => sep.setDivider(true))
       .addTextDisplayComponents((td) =>
         td.setContent(`### ${winnersLines.join('\n')}`),
@@ -976,13 +977,14 @@ export async function endMatch(
         await existingResultsMsg.edit({
           embeds: [],
           components: [resultsContainer],
-          flags: MessageFlags.IsComponentsV2,
+          flags:
+            MessageFlags.IsComponentsV2 | MessageFlags.SuppressNotifications,
         })
       }
     } else {
       const resultsMsg = await resultsChannel.send({
         components: [resultsContainer],
-        flags: MessageFlags.IsComponentsV2,
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.SuppressNotifications,
       })
       await setMatchResultsMessageId(matchId, resultsMsg.id)
     }
@@ -1043,7 +1045,10 @@ async function postMatchTranscript(
   try {
     const safe = (s: string) => s.replace(/[^\w.\-]+/g, '-')
     const logDir = process.env.LOG_DIR || path.join(process.cwd(), 'logs')
-    const logFilePath = path.join(logDir, `${safe(channelName)}_${channelId}.log`)
+    const logFilePath = path.join(
+      logDir,
+      `${safe(channelName)}_${channelId}.log`,
+    )
 
     if (!fs.existsSync(logFilePath)) return
 
