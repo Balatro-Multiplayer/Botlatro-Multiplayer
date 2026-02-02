@@ -691,7 +691,7 @@ export async function updateQueueLogMessage(
     const leaderboardBtn = new ButtonBuilder()
       .setLabel('View Transcripts')
       .setStyle(ButtonStyle.Link)
-      .setURL(`https://balatromp.com/transcripts/${matchId}`)
+      .setURL(`https://balatromp.com/transcript/${matchId}`)
 
     const transcriptRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
       leaderboardBtn,
