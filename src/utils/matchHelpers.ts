@@ -750,7 +750,7 @@ export async function endMatch(
 
     // Post transcript to queue logs channel
     if (matchChannelName && matchChannelId) {
-      postMatchTranscript(matchId, matchChannelName, matchChannelId)
+      await postMatchTranscript(matchId, matchChannelName, matchChannelId)
     }
 
     return true
@@ -1005,7 +1005,7 @@ export async function endMatch(
 
   // Post transcript to queue logs channel
   if (matchChannelName && matchChannelId) {
-    postMatchTranscript(matchId, matchChannelName, matchChannelId)
+    await postMatchTranscript(matchId, matchChannelName, matchChannelId)
   }
 
   return true
