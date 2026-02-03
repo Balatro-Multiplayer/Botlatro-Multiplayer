@@ -6,7 +6,7 @@ const transcriptsRouter = new OpenAPIHono()
 transcriptsRouter.openapi(
   createRoute({
     method: 'get',
-    path: '/transcripts/{matchId}',
+    path: '/view/{matchId}',
     description: 'Get the transcript for a match.',
     request: {
       params: z.object({
@@ -35,7 +35,7 @@ transcriptsRouter.openapi(
   async (c) => {
     const { matchId } = c.req.valid('param')
 
-    const res = await getMatchTranscript(matchId)
+    const res = await getMatchTranscript(Number(matchId))
     if (res) {
       return c.json(
         {
