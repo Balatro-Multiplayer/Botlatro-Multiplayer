@@ -15,7 +15,7 @@ transcriptsRouter.openapi(
             name: 'matchId',
             in: 'path',
           },
-          example: '1212121',
+          example: 301808,
         }),
       }),
     },
@@ -35,7 +35,7 @@ transcriptsRouter.openapi(
   async (c) => {
     const { matchId } = c.req.valid('param')
 
-    const res = await getMatchTranscript(Number(matchId))
+    const res = await getMatchTranscript(matchId)
     if (res) {
       return c.json(
         {
