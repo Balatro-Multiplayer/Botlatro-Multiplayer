@@ -6,6 +6,7 @@ import fs from 'fs/promises'
 export async function getMatchTranscript(
   matchId: number,
 ): Promise<{ matchId: number; transcript: string } | void> {
+  console.log(`transcript fetch triggered for matchId: ${matchId}`)
   // get the channelId from the matchId
   const match = await pool.query(
     `
@@ -19,6 +20,7 @@ export async function getMatchTranscript(
   }
 
   const channelId = String(match.rows[0].channel_id)
+  console.log(`channelId: ${channelId}`)
 
   const logDir = process.env.LOG_DIR || path.join(process.cwd(), 'logs')
 
