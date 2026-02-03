@@ -19,8 +19,8 @@ export default {
       )
 
       // get username from user id
-      const username =
-        (await interaction.guild?.members.fetch(user))?.displayName ?? user
+      const member = await interaction.guild?.members.fetch(user)
+      const username = member?.displayName ?? user
 
       if (res.rowCount === 0) {
         return await interaction.editReply(
@@ -46,7 +46,7 @@ export default {
       await logStrike('general', embedType)
 
       await interaction.editReply(
-        `User ${user} unbanned ${reason ? `for ${reason}` : ''}`,
+        `User ${member?.user ?? username} unbanned ${reason ? `for ${reason}` : ''}`,
       )
     } catch (err: any) {
       console.error(err)
