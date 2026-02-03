@@ -724,11 +724,11 @@ export async function endMatch(
 ): Promise<boolean> {
   console.log(`Attempting to close match ${matchId}`)
 
-  // const matchCheck = await getMatchStatus(matchId)
-  // if (!matchCheck) {
-  //   console.log(`match ${matchId} already closed, aborting`)
-  //   return true
-  // }
+  const matchCheck = await getMatchStatus(matchId)
+  if (!matchCheck) {
+    console.log(`match ${matchId} already closed, aborting`)
+    return true
+  }
 
   await closeMatch(matchId)
   console.log(`Ending match ${matchId}, cancelled: ${cancelled}`)
