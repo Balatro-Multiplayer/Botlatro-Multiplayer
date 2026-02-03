@@ -1,6 +1,5 @@
 import {
   ActionRowBuilder,
-  AttachmentBuilder,
   ButtonBuilder,
   ButtonStyle,
   ChannelType,
@@ -14,8 +13,6 @@ import {
   TextChannel,
   VoiceChannel,
 } from 'discord.js'
-import * as fs from 'fs'
-import * as path from 'path'
 import { pool } from '../db'
 import { shuffle } from 'lodash-es'
 import {
@@ -690,12 +687,26 @@ export async function updateQueueLogMessage(
       inline: false,
     })
 
+    // create transcript button and add to embed
+    const leaderboardBtn = new ButtonBuilder()
+      .setLabel('View Transcripts')
+      .setStyle(ButtonStyle.Link)
+      .setURL(`https://balatromp.com/transcript/${matchId}`)
+
+    const transcriptRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      leaderboardBtn,
+    )
+
     const updatedEmbed = EmbedBuilder.from(queueLogMsg.embeds[0])
       .setFields(logFields)
       .setColor(cancelled ? '#ff0000' : '#2ECD71')
 
+    // add action row
+    const components = [...(queueLogMsg.components ?? []), transcriptRow]
+
     await queueLogMsg.edit({
       embeds: [updatedEmbed],
+      components,
     })
 
     console.log(`Updated queue log message for match ${matchId}`)
@@ -746,11 +757,6 @@ export async function endMatch(
         `Failed to update queue log message for match ${matchId}:`,
         err,
       )
-    }
-
-    // Post transcript to queue logs channel
-    if (matchChannelName && matchChannelId) {
-      await postMatchTranscript(matchId, matchChannelName, matchChannelId)
     }
 
     return true
@@ -1003,11 +1009,6 @@ export async function endMatch(
     teamResults,
   })
 
-  // Post transcript to queue logs channel
-  if (matchChannelName && matchChannelId) {
-    await postMatchTranscript(matchId, matchChannelName, matchChannelId)
-  }
-
   return true
 }
 
@@ -1033,53 +1034,6 @@ export async function sendWebhook(action: string, payload: any): Promise<void> {
     }
   } catch (err) {
     console.error(`Failed to send webhook for action ${action}:`, err)
-  }
-}
-
-// Post match transcript to the queue logs channel as a .txt attachment
-async function postMatchTranscript(
-  matchId: number,
-  channelName: string,
-  channelId: string,
-): Promise<void> {
-  try {
-    const safe = (s: string) => s.replace(/[^\w.\-]+/g, '-')
-    const logDir = process.env.LOG_DIR || path.join(process.cwd(), 'logs')
-    const logFilePath = path.join(
-      logDir,
-      `${safe(channelName)}_${channelId}.log`,
-    )
-
-    if (!fs.existsSync(logFilePath)) return
-
-    const logContent = fs.readFileSync(logFilePath, 'utf8')
-    if (!logContent.trim()) {
-      fs.unlinkSync(logFilePath)
-      return
-    }
-
-    const settings = await getSettings()
-    if (!settings.queue_logs_channel_id) return
-
-    const logsChannel = (await client.channels.fetch(
-      settings.queue_logs_channel_id,
-    )) as TextChannel
-    if (!logsChannel) return
-
-    const queueLogMsgId = await getMatchQueueLogMessageId(matchId)
-
-    const attachment = new AttachmentBuilder(Buffer.from(logContent, 'utf-8'), {
-      name: `match-${matchId}-transcript.txt`,
-    })
-
-    await logsChannel.send({
-      content: `## Match ${matchId} Transcript`,
-      files: [attachment],
-      ...(queueLogMsgId && { reply: { messageReference: queueLogMsgId } }),
-    })
-    fs.unlinkSync(logFilePath)
-  } catch (err) {
-    console.error(`Failed to post transcript for match ${matchId}:`, err)
   }
 }
 
