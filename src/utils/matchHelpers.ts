@@ -708,7 +708,9 @@ export async function updateQueueLogMessage(
           ),
       ) ?? false
 
-    if (transcriptButtonExists) {
+    // todo: get this logic working somehow to prevent duplicate transcript buttons
+    console.log(`transcriptButtonExists: ${transcriptButtonExists}`)
+    if (true) {
       const leaderboardBtn = new ButtonBuilder()
         .setLabel('View Transcripts')
         .setStyle(ButtonStyle.Link)
