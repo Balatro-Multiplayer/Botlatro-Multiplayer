@@ -26,6 +26,7 @@ import {
   getMatchQueueLogMessageId,
   getMatchResultsChannel,
   getMatchResultsMessageId,
+  getMatchStatus,
   getQueueIdFromMatch,
   getQueueSettings,
   getSettings,
@@ -42,8 +43,7 @@ import {
 } from './queryDB'
 import { Decks, MatchUsers, Stakes, teamResults } from 'psqlDB'
 import dotenv from 'dotenv'
-import { QueryResult } from 'pg'
-// import * as fs from 'fs'
+import { QueryResult } from 'pg' // import * as fs from 'fs'
 // import * as path from 'path'
 // import { glob } from 'glob'
 // import { parseLogLines } from './transcriptHelpers'
