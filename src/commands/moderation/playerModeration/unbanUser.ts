@@ -8,7 +8,7 @@ export default {
       await interaction.deferReply()
       const user = interaction.options.getString('user', true)
       const reason =
-        interaction.options.getString('reason', false) ?? 'No reason provided'
+        interaction.options.getString('reason', false) ?? 'None provided'
 
       // Unban user in db todo: add an active flag to ban so we arent removing any log of the original ban
       const res = await pool.query(
@@ -46,7 +46,7 @@ export default {
       await logStrike('general', embedType)
 
       await interaction.editReply(
-        `User ${member?.user ?? username} unbanned ${reason ? `for ${reason}` : ''}`,
+        `User ${member?.user ?? username} unbanned - reason: ${reason}`,
       )
     } catch (err: any) {
       console.error(err)

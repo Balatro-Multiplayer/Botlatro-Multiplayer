@@ -8,7 +8,7 @@ export default {
       await interaction.deferReply()
       const user = interaction.options.getUser('user', true)
       const reason =
-        interaction.options.getString('reason', false) ?? 'No reason provided'
+        interaction.options.getString('reason', false) ?? 'None provided'
       const timespan = interaction.options.getNumber('length', true)
 
       // calculate expiry time in ms from days
@@ -43,7 +43,9 @@ export default {
       )
       await logStrike('general', embedType)
 
-      await interaction.editReply(`User ${user} banned for ${timespan} days`)
+      await interaction.editReply(
+        `User ${user} banned for ${timespan} days - reason: ${reason}`,
+      )
     } catch (err: any) {
       console.error(err)
     }
