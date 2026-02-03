@@ -696,9 +696,19 @@ export async function updateQueueLogMessage(
     })
 
     // only add the transcript if the match is ending for the first time
-    const matchCheck = await getMatchStatus(matchId)
-    if (matchCheck) {
-      // create transcript button and add to embed, only if match hasn't ended yet to prevent multiple buttons if a winner is changed
+    const transcriptButtonExists =
+      queueLogMsg.components?.some(
+        (row) =>
+          row.type === 1 &&
+          row.components?.some(
+            (component) =>
+              component.type === 2 &&
+              'label' in component &&
+              component.label === 'View Transcripts',
+          ),
+      ) ?? false
+
+    if (transcriptButtonExists) {
       const leaderboardBtn = new ButtonBuilder()
         .setLabel('View Transcripts')
         .setStyle(ButtonStyle.Link)
