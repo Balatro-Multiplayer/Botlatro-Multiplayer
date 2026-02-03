@@ -18,15 +18,19 @@ export default {
         [user],
       )
 
+      // get username from user id
+      const username =
+        (await interaction.guild?.members.fetch(user))?.displayName ?? user
+
       if (res.rowCount === 0) {
         return await interaction.editReply(
-          `User ${user} can not be found with a valid ban to remove.`,
+          `User ${username} can not be found with a valid ban to remove.`,
         )
       }
 
       // log unban
       const embedType = createEmbedType(
-        `Ban removed for ${user}`,
+        `Ban removed for ${username}`,
         '',
         65280, // green
         [

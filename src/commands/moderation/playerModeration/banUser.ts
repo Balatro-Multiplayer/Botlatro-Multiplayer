@@ -28,7 +28,7 @@ export default {
 
       // log ban
       const embedType = createEmbedType(
-        `Ban added for ${user.id} for ${timespan} days.`,
+        `Ban added for ${user.displayName} for ${timespan} days.`,
         '',
         16711680, // red
         [
