@@ -12,6 +12,7 @@ import {
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
   TextChannel,
+  TextDisplayBuilder,
 } from 'discord.js'
 import { pool } from '../db'
 import {
@@ -60,8 +61,8 @@ import {
 } from '../utils/queryDB'
 import {
   getBestOfMatchScores,
-  getVotesForMatch,
   getUserVote,
+  getVotesForMatch,
   handleTwoPlayerMatchVoting,
   handleVoting,
   removeUserVote,
@@ -1027,9 +1028,12 @@ export default {
           const votes = await getVotesForMatch(matchId, 'Rematch Votes')
 
           if (votes.length === matchUsersArray.length) {
+            const textDisplay = new TextDisplayBuilder().setContent(
+              'A Rematch for this matchup has begun!',
+            )
+
             await interaction.update({
-              content: 'A Rematch for this matchup has begun!',
-              components: [],
+              components: [textDisplay],
               flags: MessageFlags.IsComponentsV2,
               allowedMentions: { parse: [] },
             })
