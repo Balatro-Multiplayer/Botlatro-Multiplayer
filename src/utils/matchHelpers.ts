@@ -726,8 +726,7 @@ export async function endMatch(
 
   const matchCheck = await getMatchStatus(matchId)
   if (!matchCheck) {
-    console.log(`match ${matchId} already closed, aborting`)
-    return true
+    console.log(`match ${matchId} already closed, running change winner logic`)
   }
 
   await closeMatch(matchId)
@@ -737,14 +736,18 @@ export async function endMatch(
   const matchTeams = await getTeamsInMatch(matchId)
   const queueId = await getQueueIdFromMatch(matchId)
 
-  // Capture channel info before it gets deleted (needed for transcript file path)
-  const matchChannel = await getMatchChannel(matchId)
-  const matchChannelName = matchChannel?.name ?? null
-  const matchChannelId = matchChannel?.id ?? null
+  // Capture channel info before it gets deleted (needed for transcript file path) - only run if match hasn't been closed yet
+  if (matchCheck) {
+    var matchChannel = await getMatchChannel(matchId)
+    var matchChannelName = matchChannel?.name ?? null
+    var matchChannelId = matchChannel?.id ?? null
+  }
 
   if (cancelled) {
     console.log(`Match ${matchId} cancelled.`)
-    const wasSuccessfullyDeleted = await deleteMatchChannel(matchId)
+    const wasSuccessfullyDeleted = await deleteMatchChannel(matchId).catch(
+      () => null,
+    )
     if (!wasSuccessfullyDeleted) {
       console.log(`Channel id not found / failed to delete match ${matchId}`)
     }
