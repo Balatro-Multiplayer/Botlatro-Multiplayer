@@ -687,27 +687,34 @@ export async function updateQueueLogMessage(
       inline: false,
     })
 
-    // create transcript button and add to embed
-    const leaderboardBtn = new ButtonBuilder()
-      .setLabel('View Transcripts')
-      .setStyle(ButtonStyle.Link)
-      .setURL(`https://balatromp.com/transcript/${matchId}`)
-
-    const transcriptRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-      leaderboardBtn,
-    )
-
     const updatedEmbed = EmbedBuilder.from(queueLogMsg.embeds[0])
       .setFields(logFields)
       .setColor(cancelled ? '#ff0000' : '#2ECD71')
 
-    // add action row
-    const components = [...(queueLogMsg.components ?? []), transcriptRow]
-
     await queueLogMsg.edit({
       embeds: [updatedEmbed],
-      components,
     })
+
+    // only add the transcript if the match is ending for the first time
+    const matchCheck = await getMatchStatus(matchId)
+    if (matchCheck) {
+      // create transcript button and add to embed, only if match hasn't ended yet to prevent multiple buttons if a winner is changed
+      const leaderboardBtn = new ButtonBuilder()
+        .setLabel('View Transcripts')
+        .setStyle(ButtonStyle.Link)
+        .setURL(`https://balatromp.com/transcript/${matchId}`)
+
+      const transcriptRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        leaderboardBtn,
+      )
+
+      // add action row to exising rows
+      const components = [...(queueLogMsg.components ?? []), transcriptRow]
+
+      await queueLogMsg.edit({
+        components,
+      })
+    }
 
     console.log(`Updated queue log message for match ${matchId}`)
   } catch (err) {
