@@ -10,7 +10,7 @@ transcriptsRouter.openapi(
     description: 'Get the transcript for a match.',
     request: {
       params: z.object({
-        matchId: z.number().openapi({
+        matchId: z.coerce.number().openapi({
           param: {
             name: 'matchId',
             in: 'path',
