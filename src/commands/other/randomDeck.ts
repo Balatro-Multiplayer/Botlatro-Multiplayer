@@ -6,18 +6,34 @@ import {
   getDecksInQueue,
   setPickedMatchDeck,
   getMatchData,
+  getQueueIdFromName,
+  getDeckList,
 } from '../../utils/queryDB'
+import { Decks } from 'psqlDB'
 
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
     try {
+      // Check if filtering by specific queue
+      const queueName = interaction.options.getString('queue-filter', false)
+      let queueId
+      let allowedDecks: Decks[] = []
+      if (queueName?.toLowerCase() == 'all decks')
+        allowedDecks = await getDeckList(true)
+
+      if (queueName && allowedDecks.length == 0) {
+        queueId = await getQueueIdFromName(queueName)
+        allowedDecks = await getDecksInQueue(queueId)
+      }
+
       // Check if we're in a match channel
       const matchId = await getMatchIdFromChannel(interaction.channelId)
 
       if (matchId) {
         // In a match channel - only pick from allowed decks in this queue
-        const queueId = await getQueueIdFromMatch(matchId)
-        const allowedDecks = await getDecksInQueue(queueId)
+        queueId = await getQueueIdFromMatch(matchId)
+        if (allowedDecks.length == 0)
+          allowedDecks = await getDecksInQueue(queueId)
         const matchData = await getMatchData(matchId)
 
         if (allowedDecks.length === 0) {
@@ -38,7 +54,10 @@ export default {
         await interaction.reply({ content: deckStr })
       } else {
         // Not in a match channel - use normal logic
-        const deckChoice = await getRandomDeck(true)
+        const deckChoice =
+          allowedDecks.length == 0
+            ? await getRandomDeck(true)
+            : allowedDecks[Math.floor(Math.random() * allowedDecks.length)]
         const deckStr = `${deckChoice.deck_emote} ${deckChoice.deck_name}`
         await interaction.reply({ content: deckStr })
       }
