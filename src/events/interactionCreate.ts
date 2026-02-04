@@ -587,6 +587,78 @@ export default {
           })
         }
 
+        if (interaction.customId.startsWith('random-deck-select-')) {
+          // Format: random-deck-select-{step}-{matchId}-{startingTeamId}-{amount}
+          const parts = interaction.customId.split('-')
+          const step = parseInt(parts[3])
+          const matchId = parseInt(parts[4])
+          const startingTeamId = parseInt(parts[5])
+          const amount = parseInt(parts[6])
+
+          await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+
+          const channel = interaction.channel as TextChannel
+          const matchTeams = await getTeamsInMatch(matchId)
+          const activeTeamId = (startingTeamId + step) % 2
+
+          // Check if it's the user's turn
+          if (
+            interaction.user.id !==
+            matchTeams.teams[activeTeamId].players[0].user_id
+          ) {
+            await interaction.followUp({
+              content: `It's not your turn to select decks!`,
+              flags: MessageFlags.Ephemeral,
+            })
+            return
+          }
+
+          // Get available deck IDs from the select menu in the same message
+          const messageComponents = interaction.message.components
+          const selectMenuRow = messageComponents.find(
+            (row) => 'components' in row && row.components?.[0]?.type === 3,
+          )
+          if (
+            !selectMenuRow ||
+            !('components' in selectMenuRow) ||
+            !selectMenuRow.components?.[0]
+          ) {
+            await interaction.followUp({
+              content: `Could not find deck selection menu.`,
+              flags: MessageFlags.Ephemeral,
+            })
+            return
+          }
+
+          const selectMenu = selectMenuRow.components[0] as any
+
+          // Extract deck IDs from select menu options
+          const availableDeckIds = selectMenu.options.map((opt: any) =>
+            parseInt(opt.value),
+          )
+
+          // Randomly select from available decks
+          const shuffled = [...availableDeckIds].sort(() => Math.random() - 0.5)
+          const selectedDeckIds = shuffled.slice(
+            0,
+            Math.min(amount, shuffled.length),
+          )
+
+          await advanceDeckBanStep(
+            selectedDeckIds,
+            step,
+            matchId,
+            startingTeamId,
+            channel,
+          )
+
+          await interaction.message.delete()
+          await interaction.followUp({
+            content: `🎲 Randomly selected ${selectedDeckIds.length} deck${selectedDeckIds.length > 1 ? 's' : ''}!`,
+            flags: MessageFlags.Ephemeral,
+          })
+        }
+
         if (interaction.customId.startsWith('view-stats-')) {
           try {
             await interaction.deferReply()
