@@ -851,8 +851,16 @@ export async function sendQueueLog(
     .setLabel('Cancel Match')
     .setStyle(ButtonStyle.Danger)
 
+  const transcriptBtn = new ButtonBuilder()
+    .setLabel('View Transcripts')
+    .setStyle(ButtonStyle.Link)
+    .setURL(`https://balatromp.com/transcript/${matchId}`)
+    .setDisabled(true)
+
+
   const buttonRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
     cancelButton,
+    transcriptBtn
   )
 
   // Send to logging channel

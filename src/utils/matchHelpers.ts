@@ -691,42 +691,23 @@ export async function updateQueueLogMessage(
       .setFields(logFields)
       .setColor(cancelled ? '#ff0000' : '#2ECD71')
 
-    await queueLogMsg.edit({
-      embeds: [updatedEmbed],
+    const components = queueLogMsg.components.map((row) => {
+      const updatedRow = ActionRowBuilder.from(row.toJSON() as any)
+      updatedRow.components.forEach((component) => {
+        if (
+          component.data.type === 2 &&
+          (component.data as any).label === 'View Transcripts'
+        ) {
+          ;(component as any).setDisabled(false)
+        }
+      })
+      return updatedRow
     })
 
-    // only add the transcript if the match is ending for the first time
-    const transcriptButtonExists =
-      queueLogMsg.components?.some(
-        (row) =>
-          row.type === 1 &&
-          row.components?.some(
-            (component) =>
-              component.type === 2 &&
-              'label' in component &&
-              component.label === 'View Transcripts',
-          ),
-      ) ?? false
-
-    // todo: get this logic working somehow to prevent duplicate transcript buttons
-    console.log(`transcriptButtonExists: ${transcriptButtonExists}`)
-    if (true) {
-      const leaderboardBtn = new ButtonBuilder()
-        .setLabel('View Transcripts')
-        .setStyle(ButtonStyle.Link)
-        .setURL(`https://balatromp.com/transcript/${matchId}`)
-
-      const transcriptRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        leaderboardBtn,
-      )
-
-      // add action row to exising rows
-      const components = [...(queueLogMsg.components ?? []), transcriptRow]
-
-      await queueLogMsg.edit({
-        components,
-      })
-    }
+    await queueLogMsg.edit({
+      embeds: [updatedEmbed],
+      components: components as any,
+    })
 
     console.log(`Updated queue log message for match ${matchId}`)
   } catch (err) {
@@ -754,13 +735,6 @@ export async function endMatch(
   // Get teams early so we can use for both cancelled and completed matches
   const matchTeams = await getTeamsInMatch(matchId)
   const queueId = await getQueueIdFromMatch(matchId)
-
-  // Capture channel info before it gets deleted (needed for transcript file path) - only run if match hasn't been closed yet
-  if (matchCheck) {
-    var matchChannel = await getMatchChannel(matchId)
-    var matchChannelName = matchChannel?.name ?? null
-    var matchChannelId = matchChannel?.id ?? null
-  }
 
   if (cancelled) {
     console.log(`Match ${matchId} cancelled.`)
@@ -843,27 +817,6 @@ export async function endMatch(
   try {
     // close match in DB
     console.log(`Ending match ${matchId}, cancelled: ${cancelled}`)
-
-    // get log file using glob library
-    // const pattern = path
-    //   .join(__dirname, '..', 'logs', `match-${matchId}_*.log`)
-    //   .replace(/\\/g, '/')
-    // const files = await glob(pattern)
-    // const file: string | null = files[0] ?? null
-
-    // TODO: Re-add this and send it to the website
-    // if (file) {
-    //   // format and send transcript
-    //   const logContent = fs.readFileSync(file, 'utf8')
-    //   const logLines = logContent
-    //     .split('\n')
-    //     .filter((line) => line.trim() !== '')
-    //   const parsedLogLines = await parseLogLines(logLines)
-    //   console.log(parsedLogLines) // json body
-    //
-    //   // delete the log file after transcript is sent
-    //   fs.unlinkSync(file)
-    // }
 
     // delete match channel
     try {
