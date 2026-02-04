@@ -5,7 +5,7 @@ import {
   ActionRowBuilder,
   ButtonStyle,
 } from 'discord.js'
-import { partyUtils } from '../../utils/queryDB'
+import { getUserDmsEnabled, partyUtils } from '../../utils/queryDB'
 
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
@@ -35,6 +35,12 @@ export default {
       }
 
       try {
+        if (!(await getUserDmsEnabled(member.id))) {
+          await interaction.editReply({
+            content: `Failed to send invite to ${member.username}. They have bot DMs disabled.`,
+          })
+          return
+        }
         await member.send({
           content: `You have been invited to join **${interaction.user.displayName}**'s party.`,
           components: [row],

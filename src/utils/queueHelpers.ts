@@ -26,6 +26,7 @@ import {
   getLeaderboardQueueRole,
   getQueueSettings,
   getSettings,
+  getUserDmsEnabled,
   getUserQueueRole,
   getUsersInQueue,
   setMatchQueueLogMessageId,
@@ -557,6 +558,7 @@ export async function createMatch(
   await sendMatchInitMessages(queueId, matchId, channel)
 
   for (const userId of userIds) {
+    if (!(await getUserDmsEnabled(userId))) continue
     const member = await guild.members.fetch(userId)
     try {
       await member.send({

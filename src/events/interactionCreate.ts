@@ -46,6 +46,7 @@ import {
   getStake,
   getStakeByName,
   getStatsCanvasUserData,
+  getUserDmsEnabled,
   getUserQueues,
   partyUtils,
   resetAllCurrentEloRangeForUser,
@@ -1336,9 +1337,11 @@ export default {
             content: `Joined ${partyName}!`,
             flags: MessageFlags.Ephemeral,
           })
-          await member.send({
-            content: `**${interaction.user.displayName}** has joined your party!`,
-          })
+          if (await getUserDmsEnabled(member.user.id)) {
+            await member.send({
+              content: `**${interaction.user.displayName}** has joined your party!`,
+            })
+          }
         }
       } catch (err) {
         console.error(err)

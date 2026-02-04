@@ -8,6 +8,7 @@ import setDefaultDeckBans from '../queues/setDefaultDeckBans'
 import setPriorityQueue from '../queues/setPriorityQueue'
 import queue from './queue'
 import setStatsBackground from '../queues/setStatsBackground'
+import toggleDms from '../queues/toggleDms'
 
 export default {
   data: new SlashCommandBuilder()
@@ -46,6 +47,12 @@ export default {
       sub
         .setName('stats-background')
         .setDescription('Choose a background for your stats card'),
+    )
+
+    .addSubcommand((sub) =>
+      sub
+        .setName('toggle-dms')
+        .setDescription('Set if you would like to be sent DMs by the bot when you get into a match'),
     ),
 
   async execute(interaction: ChatInputCommandInteraction) {
@@ -55,6 +62,8 @@ export default {
       await setDefaultDeckBans.execute(interaction)
     } else if (interaction.options.getSubcommand() === 'stats-background') {
       await setStatsBackground.execute(interaction)
+    } else if (interaction.options.getSubcommand() === 'toggle-dms') {
+      await toggleDms.execute(interaction)
     }
   },
 

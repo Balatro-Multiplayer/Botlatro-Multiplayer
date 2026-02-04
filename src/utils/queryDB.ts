@@ -174,6 +174,49 @@ export async function setUserPriorityQueue(
   return response.rowCount !== 0
 }
 
+// Set DMs on or off for a user
+export async function toggleUserDms(userId: string): Promise<boolean> {
+  const response = await pool.query(
+    `
+    UPDATE users
+    SET dms_enabled = NOT dms_enabled
+    WHERE user_id = $1
+    RETURNING dms_enabled
+  `,
+    [userId],
+  )
+
+  if (response.rows.length < 1) {
+    const insertRes = await pool.query(
+      `INSERT INTO users (user_id, dms_enabled)
+        VALUES ($1, $2)
+        RETURNING dms_enabled`,
+      [userId, false], // If they didn't exist, we assume they want to toggle from default (true) to false
+    )
+    return insertRes.rows[0].dms_enabled
+  }
+
+  return response.rows[0].dms_enabled
+}
+
+// Get the DM setting for a user
+export async function getUserDmsEnabled(userId: string): Promise<boolean> {
+  const res = await pool.query(
+    `
+    SELECT dms_enabled 
+    FROM users
+    WHERE user_id = $1
+  `,
+    [userId],
+  )
+
+  if (res.rows.length < 1) {
+    return true // Default to true if user not in DB
+  }
+
+  return res.rows[0].dms_enabled
+}
+
 // get the queue id that the user has set as their priority queue
 export async function getUserPriorityQueueId(
   userId: string,
