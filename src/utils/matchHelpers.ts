@@ -56,6 +56,7 @@ import {
   clearChannelMessageCount,
   setLastWinVoteMessage,
 } from '../events/messageCreate'
+import { generateAndStoreHtmlTranscript } from './exportTranscripts'
 
 require('dotenv').config()
 
@@ -754,6 +755,17 @@ export async function endMatch(
 
   if (cancelled) {
     console.log(`Match ${matchId} cancelled.`)
+
+    // Generate HTML transcript before deleting the channel
+    try {
+      const matchChannel = await getMatchChannel(matchId)
+      if (matchChannel) {
+        await generateAndStoreHtmlTranscript(matchId, matchChannel)
+      }
+    } catch (err) {
+      console.error(`Failed to generate transcript for cancelled match ${matchId}:`, err)
+    }
+
     const wasSuccessfullyDeleted = await deleteMatchChannel(matchId).catch(
       () => null,
     )
@@ -833,6 +845,16 @@ export async function endMatch(
   try {
     // close match in DB
     console.log(`Ending match ${matchId}, cancelled: ${cancelled}`)
+
+    // Generate HTML transcript before deleting the channel
+    try {
+      const matchChannel = await getMatchChannel(matchId)
+      if (matchChannel) {
+        await generateAndStoreHtmlTranscript(matchId, matchChannel)
+      }
+    } catch (err) {
+      console.error(`Failed to generate transcript for match ${matchId}:`, err)
+    }
 
     // delete match channel
     try {
