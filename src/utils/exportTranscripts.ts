@@ -1,6 +1,65 @@
 import { pool } from '../db'
 import path from 'node:path'
 import fs from 'fs/promises'
+import { createTranscript, ExportReturnType } from 'discord-html-transcripts'
+import { TextChannel } from 'discord.js'
+
+/**
+ * Generate an HTML transcript from a Discord text channel and store it in the database
+ * @param matchId - The match ID to associate with the transcript
+ * @param channel - The Discord text channel to generate transcript from
+ * @returns The generated HTML string, or null if failed
+ */
+export async function generateAndStoreHtmlTranscript(
+  matchId: number,
+  channel: TextChannel,
+): Promise<string | null> {
+  try {
+    // Generate HTML transcript using discord-html-transcripts
+    const transcript = await createTranscript(channel, {
+      returnType: ExportReturnType.String,
+      filename: `match-${matchId}-transcript.html`,
+      poweredBy: false,
+      footerText: `Match #${matchId} Transcript`,
+    })
+
+    // Encode as base64 before storing
+    const base64Transcript = Buffer.from(transcript).toString('base64')
+
+    // Store in database
+    await pool.query(
+      `UPDATE matches SET transcript_html = $1 WHERE id = $2`,
+      [base64Transcript, matchId],
+    )
+
+    console.log(`Generated and stored HTML transcript for match ${matchId}`)
+    return transcript as string
+  } catch (err) {
+    console.error(`Failed to generate HTML transcript for match ${matchId}:`, err)
+    return null
+  }
+}
+
+/**
+ * Retrieve the HTML transcript for a match from the database
+ * @param matchId - The match ID
+ * @returns The HTML transcript string (decoded from base64), or null if not found
+ */
+export async function getMatchHtmlTranscript(
+  matchId: number,
+): Promise<string | null> {
+  const result = await pool.query(
+    `SELECT transcript_html FROM matches WHERE id = $1`,
+    [matchId],
+  )
+
+  if (!result.rows.length || !result.rows[0].transcript_html) {
+    return null
+  }
+
+  // Decode from base64
+  return Buffer.from(result.rows[0].transcript_html, 'base64').toString('utf-8')
+}
 
 // retrieve a match transcript for a specific match given a match id
 export async function getMatchTranscript(

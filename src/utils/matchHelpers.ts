@@ -56,6 +56,7 @@ import {
   clearChannelMessageCount,
   setLastWinVoteMessage,
 } from '../events/messageCreate'
+import { generateAndStoreHtmlTranscript } from './exportTranscripts'
 
 require('dotenv').config()
 
@@ -175,9 +176,21 @@ export async function advanceDeckBanStep(
     .filter((deck) => deckChoices.includes(deck.id))
     .map((deck) => `${deck.deck_emote} - ${deck.deck_name}`)
 
+  // Add random pick button for steps 2 and 3
+  const selectAmount = nextStep === 2 ? step2Amt : 1
+  const randomButtonRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId(
+        `random-deck-select-${nextStep}-${matchId}-${startingTeamId}-${selectAmount}`,
+      )
+      .setLabel(`Random Pick${nextStep === 2 ? 's' : ''}`)
+      .setEmoji('🎲')
+      .setStyle(ButtonStyle.Secondary),
+  )
+
   await channel.send({
     content: `<@${matchTeams.teams[nextTeamId].players[0].user_id}>\n### ${step == 1 ? `Banned Decks:\n` : `Decks Picked:\n`}${deckPicks.join('\n')}`,
-    components: [deckSelMenu],
+    components: [deckSelMenu, randomButtonRow],
   })
 }
 
@@ -414,15 +427,19 @@ export async function sendMatchInitMessages(
     deckList.map((deck) => deck.id),
   )
 
-  const useDefaultBansButton =
-    new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder()
-        .setCustomId(
-          `use-default-bans-1-${matchId}-${randomTeams[1].teamIndex}`,
-        )
-        .setLabel('Use Preset Bans')
-        .setStyle(ButtonStyle.Primary),
-    )
+  const deckBanButtonsRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`use-default-bans-1-${matchId}-${randomTeams[1].teamIndex}`)
+      .setLabel('Use Preset Bans')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId(
+        `random-deck-select-1-${matchId}-${randomTeams[1].teamIndex}-${deckBanFirstNum}`,
+      )
+      .setLabel('Random Bans')
+      .setEmoji('🎲')
+      .setStyle(ButtonStyle.Secondary),
+  )
 
   await setMatchStakeVoteTeam(matchId, randomTeams[0].teamIndex)
   const stakeBanButtons = await setupStakeButtons(matchId)
@@ -432,7 +449,7 @@ export async function sendMatchInitMessages(
 
   await textChannel.send({
     embeds: [deckEmbed],
-    components: [deckSelMenu, useDefaultBansButton],
+    components: [deckSelMenu, deckBanButtonsRow],
   })
   await textChannel.send({
     content: `**Stake Bans:**\n${teamUsers}`,
@@ -738,6 +755,17 @@ export async function endMatch(
 
   if (cancelled) {
     console.log(`Match ${matchId} cancelled.`)
+
+    // Generate HTML transcript before deleting the channel
+    try {
+      const matchChannel = await getMatchChannel(matchId)
+      if (matchChannel) {
+        await generateAndStoreHtmlTranscript(matchId, matchChannel)
+      }
+    } catch (err) {
+      console.error(`Failed to generate transcript for cancelled match ${matchId}:`, err)
+    }
+
     const wasSuccessfullyDeleted = await deleteMatchChannel(matchId).catch(
       () => null,
     )
@@ -817,6 +845,16 @@ export async function endMatch(
   try {
     // close match in DB
     console.log(`Ending match ${matchId}, cancelled: ${cancelled}`)
+
+    // Generate HTML transcript before deleting the channel
+    try {
+      const matchChannel = await getMatchChannel(matchId)
+      if (matchChannel) {
+        await generateAndStoreHtmlTranscript(matchId, matchChannel)
+      }
+    } catch (err) {
+      console.error(`Failed to generate transcript for match ${matchId}:`, err)
+    }
 
     // delete match channel
     try {
