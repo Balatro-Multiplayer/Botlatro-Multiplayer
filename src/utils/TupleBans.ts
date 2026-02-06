@@ -15,7 +15,7 @@ type TupleBan = {
 /**
  * Handles generating tuple bans for a match.
  */
-class generateTupleBans {
+export class TupleBans {
   // the queue id that this instance is generating for
   queueId: number
 
