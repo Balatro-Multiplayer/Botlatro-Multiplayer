@@ -84,6 +84,7 @@ export async function setupDeckSelect(
   includeCustomDecks: boolean = false,
   bannedDecks: number[] = [],
   overrideDecks: number[] = [],
+  queueId?: number | null,
 ): Promise<ActionRowBuilder<StringSelectMenuBuilder>> {
   let deckChoices = await getDeckList(includeCustomDecks)
   deckChoices = deckChoices.filter((deck) => !bannedDecks.includes(deck.id))
@@ -92,20 +93,46 @@ export async function setupDeckSelect(
     deckChoices = deckChoices.filter((deck) => overrideDecks.includes(deck.id))
   }
 
-  const options: StringSelectMenuOptionBuilder[] = deckChoices.map(
-    (deck: Decks) => {
+  // check if current queue is using tuple bans or not
+  const useTupleBan = (
+    await pool.query(
+      `SELECT use_tuple_bans FROM queues WHERE ($1 IS NULL OR id = $1)`,
+      [queueId],
+    )
+  ).rows[0].use_tuple_bans
+
+  let options: StringSelectMenuOptionBuilder[] = []
+
+  // still use old bans if this is falsey
+  if (!useTupleBan) {
+    options = deckChoices.map((deck: Decks) => {
       return new StringSelectMenuOptionBuilder()
         .setLabel(deck.deck_name)
         .setEmoji(deck.deck_emote)
         .setValue(`${deck.id}`)
         .setDescription(deck.deck_desc)
-    },
-  )
+    })
+  }
+
+  // otherwise use new tuple bans todo: create the logic to generate these \/
+  else {
+    options = deckChoices.map((deck: Decks) => {
+      return new StringSelectMenuOptionBuilder()
+        .setLabel(deck.deck_name)
+        .setEmoji(deck.deck_emote)
+        .setValue(`${deck.id}`)
+        .setDescription(deck.deck_desc)
+    })
+  }
 
   const selectMenu = new StringSelectMenuBuilder()
     .setCustomId(customId)
     .setPlaceholder(placeholderText)
-    .addOptions(options)
+    .addOptions(
+      options ?? [
+        new StringSelectMenuOptionBuilder().setValue('an error occurred'),
+      ],
+    )
 
   if (minSelect > 1) selectMenu.setMinValues(minSelect)
   if (maxSelect > 1) selectMenu.setMaxValues(maxSelect)
@@ -763,7 +790,10 @@ export async function endMatch(
         await generateAndStoreHtmlTranscript(matchId, matchChannel)
       }
     } catch (err) {
-      console.error(`Failed to generate transcript for cancelled match ${matchId}:`, err)
+      console.error(
+        `Failed to generate transcript for cancelled match ${matchId}:`,
+        err,
+      )
     }
 
     const wasSuccessfullyDeleted = await deleteMatchChannel(matchId).catch(
