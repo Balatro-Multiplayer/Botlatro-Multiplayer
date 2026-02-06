@@ -101,7 +101,7 @@ export async function setupDeckSelect(
     )
   ).rows[0].use_tuple_bans
 
-  let options: StringSelectMenuOptionBuilder[] = []
+  let options: StringSelectMenuOptionBuilder[]
 
   // still use old bans if this is falsey
   if (!useTupleBan) {

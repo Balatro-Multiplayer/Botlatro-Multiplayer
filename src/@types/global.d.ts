@@ -155,6 +155,11 @@ declare module 'psqlDB' {
     custom: boolean
   }
 
+  export type BannedDecks = {
+    queue_id: number
+    deck_id: number
+  }
+
   export type Stakes = {
     id: number
     stake_name: string
