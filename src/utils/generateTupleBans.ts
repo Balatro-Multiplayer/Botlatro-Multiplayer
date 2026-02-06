@@ -13,42 +13,66 @@ class generateTupleBans {
 
   // todo: get specific probabilities for these based on queue settings
   // represents what stakes and decks are allowed in this match, along with their emoji and probability multipliers
-  decks: { id: number; name: string; emoji: string; multiplier: number }[] = []
-  stakes: { id?: number; name: string; emoji: string; multiplier: number }[] = [
+  decks: {
+    id: number
+    name: string
+    emoji?: string
+    multiplier: number
+    occurs?: number
+  }[] = []
+  stakes: {
+    id?: number
+    name: string
+    emoji?: string
+    multiplier: number
+    occurs?: number
+  }[] = [
     {
       name: 'White Stake',
-      emoji: '',
       multiplier: this.defaultStakeProbability,
     },
     {
       name: 'Green Stake',
-      emoji: '',
       multiplier: this.defaultStakeProbability,
     },
     {
       name: 'Black Stake',
-      emoji: '',
       multiplier: this.defaultStakeProbability,
     },
     {
       name: 'Purple Stake',
-      emoji: '',
       multiplier: this.defaultStakeProbability,
     },
     {
       name: 'Gold Stake',
-      emoji: '',
       multiplier: this.defaultStakeProbability,
     },
   ]
 
+  // a collection of all created tuple bans, generated per-match when a match starts
+  tupleBans: {
+    deckId: number
+    deckEmoji: string
+    stakeId: number
+    stakeEmoji: string
+  }[] = []
+
   /**
    * Creates an instance of the class with the specified parameters.
+   * Must be called alongside {@link init}.
    *
    * @param {number} queueId - The unique identifier for the queue.
    */
   public constructor(queueId: number) {
     this.queueId = queueId
+  }
+
+  /**
+   * Initialize async methods
+   */
+  public async init(): Promise<void> {
+    await this.constructDecks()
+    await this.constructStakes()
   }
 
   /**
