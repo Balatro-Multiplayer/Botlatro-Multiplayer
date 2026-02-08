@@ -22,6 +22,7 @@ export default {
       await interaction.editReply(`tuples generated: ${output}`)
     } catch (err: any) {
       console.error(err)
+      await interaction.editReply('error generating tuples')
     }
   },
 }
