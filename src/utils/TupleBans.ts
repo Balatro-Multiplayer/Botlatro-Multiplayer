@@ -1,7 +1,7 @@
 import { pool } from '../db'
 import { BannedDecks, Decks, Stakes } from 'psqlDB'
 
-type TupleBan = {
+export type TupleBan = {
   stakeId: number
   deckId: number
 
@@ -10,6 +10,8 @@ type TupleBan = {
 
   stakeName?: string
   deckName?: string
+
+  deckDescription: string
 }
 
 type Series = {
@@ -17,6 +19,7 @@ type Series = {
   id: number | undefined
   emoji: string | undefined
   name: string
+  description?: string
 }
 
 /**
@@ -41,6 +44,7 @@ export class TupleBans {
     emoji?: string
     multiplier: number
     occurs?: number
+    description?: string
   }[] = []
   stakes: {
     id?: number
@@ -135,6 +139,7 @@ export class TupleBans {
         emoji: allowedDeck.deck_emote,
         name: allowedDeck.deck_name,
         multiplier: this.defaultDeckProbability,
+        description: allowedDeck.deck_desc,
       })
     }
   }
@@ -196,6 +201,7 @@ export class TupleBans {
         id: deck.id,
         emoji: deck.emoji,
         name: deck.name,
+        description: deck.description ?? 'No description.',
       }
     })
 
@@ -247,6 +253,8 @@ export class TupleBans {
 
       stakeName: chosenStake?.name ?? '',
       deckName: chosenDeck?.name ?? '',
+
+      deckDescription: chosenDeck?.description ?? 'No description.',
     })
   }
 
