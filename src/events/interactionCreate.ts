@@ -706,7 +706,7 @@ export default {
 
           // Send webhook notification for each queue left
           // Just do the first queue listed, multi-queue support later
-          await sendWebhook('LEAVE_QUEUE', {
+          sendWebhook('LEAVE_QUEUE', {
             players_removed: [{ id: interaction.user.id }],
             queueId: userQueuesBeforeLeave[0].id,
           })

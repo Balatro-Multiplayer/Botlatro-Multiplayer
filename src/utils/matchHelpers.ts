@@ -1055,7 +1055,7 @@ export async function endMatch(
   await updateQueueLogMessage(matchId, queueId, teamResults, false)
 
   // Send webhook notification
-  await sendWebhook('MATCH_COMPLETED', {
+  sendWebhook('MATCH_COMPLETED', {
     matchId,
     queueId,
     teamResults,
@@ -1064,29 +1064,37 @@ export async function endMatch(
   return true
 }
 
-// Send webhook notification
-export async function sendWebhook(action: string, payload: any): Promise<void> {
-  try {
-    const webhookUrl = process.env.WEBHOOK_URL
-    const webhookSecret = process.env.WEBHOOK_QUERY_SECRET
+// Send webhook notification (fire-and-forget, never throws)
+export function sendWebhook(action: string, payload: any): void {
+  const webhookUrl = process.env.WEBHOOK_URL
+  const webhookSecret = process.env.WEBHOOK_QUERY_SECRET
 
-    if (webhookUrl && webhookSecret) {
-      await fetch(webhookUrl, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${webhookSecret}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action,
-          ...payload,
-        }),
-      })
+  if (!webhookUrl || !webhookSecret) return
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 5000)
+
+  fetch(webhookUrl, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${webhookSecret}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      action,
+      ...payload,
+    }),
+    signal: controller.signal,
+  })
+    .then(() => {
       console.log(`Webhook sent for action: ${action}`)
-    }
-  } catch (err) {
-    console.error(`Failed to send webhook for action ${action}:`, err)
-  }
+    })
+    .catch((err) => {
+      console.error(`Failed to send webhook for action ${action}:`, err)
+    })
+    .finally(() => {
+      clearTimeout(timeout)
+    })
 }
 
 // delete match channel

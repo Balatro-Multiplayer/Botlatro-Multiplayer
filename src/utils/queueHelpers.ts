@@ -319,7 +319,7 @@ export async function joinQueues(
   // Send webhook notification for each queue joined
   // For now just send the first one they joined, add multi-queue support later
   const queueId = parseInt(selectedQueueIds[0])
-  await sendWebhook('JOIN_QUEUE', {
+  sendWebhook('JOIN_QUEUE', {
     new_players: [{ id: userId }],
     queueId,
   })
@@ -573,7 +573,7 @@ export async function createMatch(
   }
 
   // Send webhook notification for match started
-  await sendWebhook('MATCH_STARTED', {
+  sendWebhook('MATCH_STARTED', {
     players: userIds.map((id) => ({ id })),
     matchId,
     queueId,
