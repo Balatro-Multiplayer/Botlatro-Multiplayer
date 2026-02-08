@@ -57,6 +57,7 @@ import {
   setLastWinVoteMessage,
 } from '../events/messageCreate'
 import { generateAndStoreHtmlTranscript } from './exportTranscripts'
+import { TupleBan, TupleBans } from './TupleBans'
 
 require('dotenv').config()
 
@@ -94,17 +95,20 @@ export async function setupDeckSelect(
   }
 
   // check if current queue is using tuple bans or not
-  const useTupleBan = (
-    await pool.query(
-      `SELECT use_tuple_bans FROM queues WHERE ($1 IS NULL OR id = $1)`,
-      [queueId],
-    )
-  ).rows[0].use_tuple_bans
+  let useTupleBan = false
+  if (queueId) {
+    console.log('queueId: ', queueId)
+    useTupleBan = (
+      await pool.query(`SELECT use_tuple_bans FROM queues WHERE id = $1`, [
+        queueId,
+      ])
+    ).rows[0].use_tuple_bans
+  }
 
   let options: StringSelectMenuOptionBuilder[]
 
   // still use old bans if this is falsey
-  if (!useTupleBan) {
+  if (!useTupleBan || !queueId) {
     options = deckChoices.map((deck: Decks) => {
       return new StringSelectMenuOptionBuilder()
         .setLabel(deck.deck_name)
@@ -116,12 +120,15 @@ export async function setupDeckSelect(
 
   // otherwise use new tuple bans todo: create the logic to generate these \/
   else {
-    options = deckChoices.map((deck: Decks) => {
+    const tupleGen = new TupleBans(queueId)
+    await tupleGen.init()
+    const tupleBans = tupleGen.getTupleBans()
+    options = tupleBans.map((tuple: TupleBan) => {
       return new StringSelectMenuOptionBuilder()
-        .setLabel(deck.deck_name)
-        .setEmoji(deck.deck_emote)
-        .setValue(`${deck.id}`)
-        .setDescription(deck.deck_desc)
+        .setLabel(tuple.deckName ?? 'unknown deck')
+        .setEmoji(tuple.stakeEmoji ?? '')
+        .setValue(`${tuple.deckId}_${tuple.stakeId}`)
+        .setDescription(tuple.deckDescription)
     })
   }
 
@@ -197,6 +204,7 @@ export async function advanceDeckBanStep(
     true,
     nextStep === 3 ? [] : deckChoices,
     nextStep === 3 ? deckChoices : deckOptions.map((deck) => deck.id),
+    queueId,
   )
 
   const deckPicks = deckOptions
@@ -452,6 +460,7 @@ export async function sendMatchInitMessages(
     true,
     [],
     deckList.map((deck) => deck.id),
+    queueId,
   )
 
   const deckBanButtonsRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
