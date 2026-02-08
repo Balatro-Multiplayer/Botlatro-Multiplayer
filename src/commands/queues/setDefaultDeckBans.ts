@@ -1,10 +1,10 @@
 import {
-  ChatInputCommandInteraction,
-  MessageFlags,
-  AutocompleteInteraction,
   ActionRowBuilder,
+  AutocompleteInteraction,
   ButtonBuilder,
   ButtonStyle,
+  ChatInputCommandInteraction,
+  MessageFlags,
 } from 'discord.js'
 import {
   getBannedDeckIds,
