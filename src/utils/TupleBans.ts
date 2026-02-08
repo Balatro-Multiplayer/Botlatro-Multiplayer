@@ -12,6 +12,13 @@ type TupleBan = {
   deckName?: string
 }
 
+type Series = {
+  count: number
+  id: number | undefined
+  emoji: string | undefined
+  name: string
+}
+
 /**
  * Handles generating tuple bans for a match.
  */
@@ -133,6 +140,23 @@ export class TupleBans {
   }
 
   /**
+   * Selects a deck or stake from a provided {@link Series} array based on a random number.
+   * @param items
+   * @param ran
+   */
+  private selectDeckStake = (items: Series[], ran: number) => {
+    let chosenItem: Series | undefined = undefined
+    for (const item of items) {
+      if (ran >= item.count) {
+        chosenItem = item
+      } else {
+        break
+      }
+    }
+    return chosenItem ?? items[0]
+  }
+
+  /**
    * Generates a single tuple ban based on the {@link decks} and {@link stakes} arrays
    * @private
    */
@@ -157,53 +181,37 @@ export class TupleBans {
     const stakeSeries = this.stakes.map((stake) => {
       stakeCount += stake.multiplier * stakePart
       return {
-        stakeCount,
-        stakeId: stake.id,
-        stakeEmoji: stake.emoji,
-        stakeName: stake.name,
+        count: stakeCount,
+        id: stake.id,
+        emoji: stake.emoji,
+        name: stake.name,
       }
     })
 
     let deckCount = 0
-    const deckSeries = this.decks.map((deck) => {
+    const deckSeries: Series[] = this.decks.map((deck) => {
       deckCount += deck.multiplier * deckPart
       return {
-        deckCount,
-        deckId: deck.id,
-        deckEmoji: deck.emoji,
-        deckName: deck.name,
+        count: deckCount,
+        id: deck.id,
+        emoji: deck.emoji,
+        name: deck.name,
       }
     })
 
     // uses math.random to select a random area in probability, and picks the deck / stake that owns that area
 
-    let chosenStake:
-      | {
-          stakeCount: number
-          stakeId: number | undefined
-          stakeEmoji: string | undefined
-          stakeName: string
-        }
-      | undefined
-    let chosenDeck:
-      | {
-          deckCount: number
-          deckId: number
-          deckEmoji: string | undefined
-          deckName: string
-        }
-      | undefined
+    let chosenStake: Series | undefined
+    let chosenDeck: Series | undefined
 
     // generate stakes and decks until one that is within the occurrence limit is generated
 
     let succeeded = false
     while (!succeeded) {
-      chosenStake = stakeSeries.findLast(
-        (stake) => Math.random() <= stake.stakeCount,
-      )
+      chosenStake = this.selectDeckStake(stakeSeries, Math.random())
       if (
         this.tupleBans.filter(
-          (tupleBan) => tupleBan.stakeId === chosenStake?.stakeId,
+          (tupleBan) => tupleBan.stakeId === chosenStake?.id,
         ).length <
         (this.tupleCount - 1) / 2
       ) {
@@ -213,14 +221,16 @@ export class TupleBans {
 
     succeeded = false
     while (!succeeded) {
-      chosenDeck = deckSeries.findLast(
-        (stake) => Math.random() <= stake.deckCount,
-      )
+      chosenDeck = this.selectDeckStake(deckSeries, Math.random())
       if (
-        this.tupleBans.filter(
-          (tupleBan) => tupleBan.deckId === chosenDeck?.deckId,
-        ).length <
-        (this.tupleCount - 1) / 2
+        this.tupleBans.filter((tupleBan) => tupleBan.deckId === chosenDeck?.id)
+          .length <
+          (this.tupleCount - 1) / 2 &&
+        !this.tupleBans.some(
+          (tupleBan) =>
+            tupleBan.deckId === chosenDeck?.id &&
+            tupleBan.stakeId === chosenStake?.id,
+        )
       ) {
         succeeded = true
       }
@@ -229,14 +239,14 @@ export class TupleBans {
     // get the tupleBan object from the chosenDeck and chosenStake object
 
     this.tupleBans.push({
-      stakeId: chosenStake?.stakeId ?? 1,
-      deckId: chosenDeck?.deckId ?? 1,
+      stakeId: chosenStake?.id ?? 1,
+      deckId: chosenDeck?.id ?? 1,
 
-      stakeEmoji: chosenStake?.stakeEmoji ?? '',
-      deckEmoji: chosenDeck?.deckEmoji ?? '',
+      stakeEmoji: chosenStake?.emoji ?? '',
+      deckEmoji: chosenDeck?.emoji ?? '',
 
-      stakeName: chosenStake?.stakeName ?? '',
-      deckName: chosenDeck?.deckName ?? '',
+      stakeName: chosenStake?.name ?? '',
+      deckName: chosenDeck?.name ?? '',
     })
   }
 
@@ -245,8 +255,14 @@ export class TupleBans {
    */
   private generateTupleBansRecurse(): void {
     this.generateTuple()
+    let fallbackCount = 0
     if (this.tupleBans.length < this.tupleCount) {
       this.generateTupleBansRecurse()
+      if (fallbackCount++ > 100) {
+        return console.error(
+          `Tuple bans stuck recursing. Aborting early with ${this.tupleBans.length} tuple bans`,
+        )
+      }
     }
   }
 
@@ -257,6 +273,7 @@ export class TupleBans {
    */
   public getTupleBans(): TupleBan[] {
     this.generateTupleBansRecurse()
+    console.table(this.tupleBans)
     return this.tupleBans
   }
 }
