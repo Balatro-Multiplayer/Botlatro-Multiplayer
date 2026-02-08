@@ -445,11 +445,10 @@ export default {
 
           await interaction.message.delete()
 
-          const deckChoices = interaction.values.map((deckId) =>
-            parseInt(deckId),
-          )
+          // Pass raw string values - advanceDeckBanStep handles parsing for both
+          // regular deck IDs ("1") and tuple format ("1_3" for deckId_stakeId)
           await advanceDeckBanStep(
-            deckChoices,
+            interaction.values,
             step,
             matchId,
             startingTeamId,
@@ -632,20 +631,20 @@ export default {
 
           const selectMenu = selectMenuRow.components[0] as any
 
-          // Extract deck IDs from select menu options
-          const availableDeckIds = selectMenu.options.map((opt: any) =>
-            parseInt(opt.value),
+          // Extract values from select menu options (could be deck IDs or tuple format)
+          const availableValues: string[] = selectMenu.options.map(
+            (opt: any) => opt.value,
           )
 
-          // Randomly select from available decks
-          const shuffled = [...availableDeckIds].sort(() => Math.random() - 0.5)
-          const selectedDeckIds = shuffled.slice(
+          // Randomly select from available options
+          const shuffled = [...availableValues].sort(() => Math.random() - 0.5)
+          const selectedValues = shuffled.slice(
             0,
             Math.min(amount, shuffled.length),
           )
 
           await advanceDeckBanStep(
-            selectedDeckIds,
+            selectedValues,
             step,
             matchId,
             startingTeamId,
@@ -654,7 +653,7 @@ export default {
 
           await interaction.message.delete()
           await interaction.followUp({
-            content: `🎲 Randomly selected ${selectedDeckIds.length} deck${selectedDeckIds.length > 1 ? 's' : ''}!`,
+            content: `🎲 Randomly selected ${selectedValues.length} option${selectedValues.length > 1 ? 's' : ''}!`,
             flags: MessageFlags.Ephemeral,
           })
         }

@@ -29,6 +29,9 @@ export class TupleBans {
   // the queue id that this instance is generating for
   queueId: number
 
+  // additional deck IDs to ban (from match step bans)
+  additionalBannedDeckIds: number[]
+
   // the amount of tuples to create
   tupleCount = 7
 
@@ -83,9 +86,11 @@ export class TupleBans {
    * Must be called alongside {@link init}.
    *
    * @param {number} queueId - The unique identifier for the queue.
+   * @param {number[]} additionalBannedDeckIds - Additional deck IDs to exclude (from match step bans).
    */
-  public constructor(queueId: number) {
+  public constructor(queueId: number, additionalBannedDeckIds: number[] = []) {
     this.queueId = queueId
+    this.additionalBannedDeckIds = additionalBannedDeckIds
   }
 
   /**
@@ -125,7 +130,11 @@ export class TupleBans {
       )
     ).rows
 
-    const bannedDeckIds = bannedDecks.map((deck) => deck.deck_id)
+    // Combine queue-banned decks with additional match-step banned decks
+    const bannedDeckIds = [
+      ...bannedDecks.map((deck) => deck.deck_id),
+      ...this.additionalBannedDeckIds,
+    ]
 
     const allowedDecks: Decks[] = (
       await pool.query<Decks>(`SELECT * FROM decks WHERE NOT (id = ANY($1))`, [
