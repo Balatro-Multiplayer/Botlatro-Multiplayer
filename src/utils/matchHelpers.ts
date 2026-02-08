@@ -118,7 +118,7 @@ export async function setupDeckSelect(
     })
   }
 
-  // otherwise use new tuple bans todo: create the logic to generate these \/
+  // otherwise use new tuple bans
   else {
     const tupleGen = new TupleBans(queueId)
     await tupleGen.init()
