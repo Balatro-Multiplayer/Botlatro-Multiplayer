@@ -70,7 +70,7 @@ export default {
 				 best_of_allowed, first_deck_ban_num, second_deck_ban_num,
 				 role_lock_id, veto_mmr_threshold, color,
 				 instaqueue_min, instaqueue_max, use_tuple_bans)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
                 `,
         [
           queueName,
