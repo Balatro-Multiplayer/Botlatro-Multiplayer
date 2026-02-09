@@ -290,7 +290,7 @@ export class TupleBans {
    */
   public getTupleBans(): TupleBan[] {
     this.generateTupleBansRecurse()
-    console.table(this.tupleBans)
+    // console.table(this.tupleBans)
     return this.tupleBans
   }
 }

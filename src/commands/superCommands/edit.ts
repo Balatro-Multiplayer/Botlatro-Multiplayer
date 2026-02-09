@@ -145,6 +145,12 @@ export default {
             )
             .setRequired(false)
             .setMinValue(0),
+        )
+        .addBooleanOption((option) =>
+          option
+            .setName('use-tuple-bans')
+            .setDescription('Whether or not this queue should use tuple bans.')
+            .setRequired(false),
         ),
     )
     .addSubcommand((sub) =>

@@ -443,7 +443,33 @@ export default {
             })
           }
 
-          await interaction.message.delete()
+          // Extract remaining tuples from the select menu options (for tuple bans)
+          // This gives us the pool of options that were available before this selection
+          let remainingTuples: string[] | undefined
+          const selectMenu = interaction.message.components[0]?.components[0]
+          if (selectMenu && 'options' in selectMenu) {
+            const options = selectMenu.options as { value: string }[]
+            // Check if this is tuple format (contains underscore)
+            if (options.length > 0 && options[0].value.includes('_')) {
+              remainingTuples = options.map((opt) => opt.value)
+            }
+          }
+
+          // For tuple bans, extract previously banned tuples from the embed (strikethrough lines)
+          let bannedTuples: string[] | undefined
+          if (remainingTuples && interaction.message.embeds[0]?.description) {
+            const embedDesc = interaction.message.embeds[0].description
+            const lines = embedDesc.split('\n')
+            bannedTuples = []
+            for (const line of lines) {
+              if (line.startsWith('~~') && line.endsWith('~~')) {
+                // This is a banned tuple - we need to match it with the original tuples
+                // For now, we'll track this by parsing the deck/stake names or by position
+                // Since we don't have a direct mapping, we'll rely on the remaining tuples
+              }
+            }
+            bannedTuples = undefined // Will be tracked internally
+          }
 
           // Pass raw string values - advanceDeckBanStep handles parsing for both
           // regular deck IDs ("1") and tuple format ("1_3" for deckId_stakeId)
@@ -453,6 +479,9 @@ export default {
             matchId,
             startingTeamId,
             channel,
+            remainingTuples,
+            bannedTuples,
+            remainingTuples ? interaction : undefined, // Pass interaction for tuple bans to update embed
           )
         }
 
@@ -636,6 +665,12 @@ export default {
             (opt: any) => opt.value,
           )
 
+          // Check if this is tuple format (contains underscore)
+          const remainingTuples =
+            availableValues.length > 0 && availableValues[0].includes('_')
+              ? availableValues
+              : undefined
+
           // Randomly select from available options
           const shuffled = [...availableValues].sort(() => Math.random() - 0.5)
           const selectedValues = shuffled.slice(
@@ -643,15 +678,25 @@ export default {
             Math.min(amount, shuffled.length),
           )
 
+          // For tuple bans, we need to defer the reply since we'll update the message
+          if (remainingTuples) {
+            await interaction.deferUpdate()
+          }
+
           await advanceDeckBanStep(
             selectedValues,
             step,
             matchId,
             startingTeamId,
             channel,
+            remainingTuples,
+            undefined, // bannedTuples
+            remainingTuples ? interaction : undefined, // Pass interaction for tuple bans
           )
 
-          await interaction.message.delete()
+          if (!remainingTuples) {
+            await interaction.message.delete()
+          }
           await interaction.followUp({
             content: `🎲 Randomly selected ${selectedValues.length} option${selectedValues.length > 1 ? 's' : ''}!`,
             flags: MessageFlags.Ephemeral,
