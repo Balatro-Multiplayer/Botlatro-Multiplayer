@@ -38,6 +38,7 @@ import {
   getWinningTeamFromMatch,
   setMatchResultsMessageId,
   setMatchStakeVoteTeam,
+  setMatchTupleBans,
   setMatchVoiceChannel,
   setPickedMatchDeck,
   setPickedMatchStake,
@@ -215,7 +216,6 @@ export async function setupDeckSelect(
  * @param startingTeamId - The team that started the banning process
  * @param channel - Text channel to send messages to
  * @param remainingTuples - For tuple bans: the remaining tuple strings before this step's bans
- * @param bannedTuples - For tuple bans: all banned tuples so far (for embed display)
  * @param interaction - Optional interaction to update instead of sending new message
  */
 export async function advanceDeckBanStep(
@@ -225,7 +225,6 @@ export async function advanceDeckBanStep(
   startingTeamId: number,
   channel: TextChannel,
   remainingTuples?: string[],
-  bannedTuples?: string[],
   interaction?: any,
 ): Promise<void> {
   const queueId = await getQueueIdFromMatch(matchId)
@@ -355,20 +354,13 @@ export async function advanceDeckBanStep(
 
   // For tuple bans with interaction, build updated embed showing remaining options
   if (useTupleBans && remainingTuples && interaction) {
-    // Combine all tuples (remaining + current choices = what was available before this step)
-    const allTupleStrings = [...remainingTuples]
-    // Current choices are being banned, so add them to track what's banned
-    const allBannedTuples = [...(bannedTuples || []), ...choices]
-
-    // Build TupleBan objects from the tuple strings for display
+    // Build display list from only the remaining (non-banned) tuples
     const tupleDisplayList = await Promise.all(
-      allTupleStrings.map(async (tupleStr, i) => {
+      (nextRemainingTuples ?? []).map(async (tupleStr, i) => {
         const [deckIdStr, stakeIdStr] = tupleStr.split('_')
         const deck = deckOptions.find((d) => d.id === parseInt(deckIdStr))
         const stake = await getStake(parseInt(stakeIdStr))
-        const isBanned = allBannedTuples.includes(tupleStr)
-        const line = `**${i + 1}.** ${deck?.deck_emote || ''} ${stake?.stake_emote || ''} ${deck?.deck_name || 'N/A'} / ${stake?.stake_name || 'N/A'}`
-        return isBanned ? `~~${line}~~` : line
+        return `**${i + 1}.** ${deck?.deck_emote || ''} ${stake?.stake_emote || ''} ${deck?.deck_name || 'N/A'} / ${stake?.stake_name || 'N/A'}`
       }),
     )
 
@@ -381,7 +373,7 @@ export async function advanceDeckBanStep(
         : nextMember.displayName
 
     const embedDescription =
-      `<@${matchTeams.teams[nextTeamId].players[0].user_id}> - **${currentTeamName}** ${isBanStep ? `bans ${selectAmount}` : 'picks 1'} option${selectAmount > 1 ? 's' : ''}.\n\n` +
+      `**${currentTeamName}** ${isBanStep ? `bans ${selectAmount}` : 'picks 1'} option${selectAmount > 1 ? 's' : ''}.\n\n` +
       `**Available Options:**\n${tupleListStr}`
 
     const updatedEmbed = new EmbedBuilder()
@@ -390,6 +382,7 @@ export async function advanceDeckBanStep(
       .setColor(0xff0000)
 
     await interaction.update({
+      content: `<@${matchTeams.teams[nextTeamId].players[0].user_id}>`,
       embeds: [updatedEmbed],
       components: [deckSelMenu, randomButtonRow],
     })
@@ -456,7 +449,6 @@ export async function applyDefaultDeckBansAndAdvance(
     startingTeamId,
     channel,
     undefined, // remainingTuples
-    undefined, // bannedTuples
     undefined, // interaction
   )
 
@@ -678,14 +670,14 @@ export async function sendMatchInitMessages(
     // Tuple ban flow: ban 1, ban 2, ban 2, pick 1
     embedTitle = `Bans - Step 1/4`
     embedDescription =
-      `<@${randomTeams[0].players[0].user_id}> - **${randomTeams[0].name}** bans 1 option.\n\n` +
+      `**${randomTeams[0].name}** bans 1 option.\n\n` +
       `**Available Options:**\n${tupleListStr}`
   } else {
     embedTitle = `Bans`
     embedDescription =
-      `**${randomTeams[0].name}** bans up to ${deckBanFirstNum} deck/stake combos.\n` +
-      `**${randomTeams[1].name}** chooses ${deckBanSecondNum} deck/stake combos.\n` +
-      `**${randomTeams[0].name}** picks a deck/stake combo to play.\n` +
+      `**${randomTeams[0].name}** bans up to ${deckBanFirstNum} deck${deckBanFirstNum > 1 ? 's' : ''}.\n` +
+      `**${randomTeams[1].name}** chooses ${deckBanSecondNum} deck${deckBanSecondNum > 1 ? 's' : ''}.\n` +
+      `**${randomTeams[0].name}** picks a deck to play.\n` +
       `Vote using the dropdown below!\n\nAlternately, you can use random deck and random stake`
   }
 
@@ -693,6 +685,12 @@ export async function sendMatchInitMessages(
     .setTitle(embedTitle)
     .setDescription(embedDescription)
     .setColor(0xff0000)
+
+  // For tuple bans, store original tuples in DB for tracking across steps
+  if (useTupleBans && generatedTuples.length > 0) {
+    const tupleStrings = generatedTuples.map((t) => `${t.deckId}_${t.stakeId}`)
+    await setMatchTupleBans(matchId, tupleStrings)
+  }
 
   // For tuple bans: step 1 bans 1, otherwise use DB value
   const step1BanAmount = useTupleBans ? 1 : deckBanFirstNum
@@ -731,6 +729,7 @@ export async function sendMatchInitMessages(
   //   .join('\n')
 
   await textChannel.send({
+    content: useTupleBans ? `<@${randomTeams[0].players[0].user_id}>` : undefined,
     embeds: [deckEmbed],
     components: [deckSelMenu, deckBanButtonsRow],
   })
