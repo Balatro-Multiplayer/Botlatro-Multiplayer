@@ -49,7 +49,10 @@ export async function setUserVote(
   )
 }
 
-export async function removeUserVote(matchId: number, userId: string): Promise<void> {
+export async function removeUserVote(
+  matchId: number,
+  userId: string,
+): Promise<void> {
   await pool.query('DELETE FROM votes WHERE match_id = $1 AND user_id = $2', [
     matchId,
     userId,
@@ -135,8 +138,7 @@ export async function handleVoting(
       return console.error('No message found in interaction')
     const embed = interaction.message.embeds[0]
     if (!embed) return console.error('No embed found in message')
-    const fields = embed.data.fields
-    if (!fields) return console.error('No fields found in embed')
+    let fields = [...(embed.data.fields || [])]
 
     const settings = await getSettings()
 
@@ -188,6 +190,7 @@ export async function handleVoting(
       fields[embedFieldIndex].value =
         votesMentions.length > 0 ? votesMentions.join('\n') : '-'
 
+      embed.data.fields = fields
       interaction.message.embeds[0] = embed
       try {
         await interaction.update({ embeds: interaction.message.embeds })
@@ -214,6 +217,7 @@ export async function handleVoting(
     if (participants.length > 0 && votesFromDb.length === participants.length) {
       if (interaction.message) {
         fields.splice(embedFieldIndex, 1)
+        embed.data.fields = fields
         interaction.message.embeds[0] = embed
 
         await onComplete(interaction, { votes: votesMentions, embed })
@@ -222,6 +226,7 @@ export async function handleVoting(
     }
 
     // Update embed with new votes
+    embed.data.fields = fields
     interaction.message.embeds[0] = embed
 
     if (resendMessage) {

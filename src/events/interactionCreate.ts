@@ -4,6 +4,7 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  EmbedBuilder,
   Events,
   GuildMember,
   Interaction,
@@ -28,7 +29,9 @@ import {
   endMatch,
   getTeamsInMatch,
   sendWebhook,
+  setupDeckSelect,
 } from '../utils/matchHelpers'
+import { TupleBans } from '../utils/TupleBans'
 import {
   checkUserBanned,
   getActiveQueues,
@@ -53,6 +56,7 @@ import {
   setMatchBestOf,
   setMatchStakeVoteTeam,
   setPickedMatchStake,
+  setMatchTupleBans,
   setQueueDeckBans,
   setUserDefaultDeckBans,
   setUserPriorityQueue,
@@ -72,12 +76,15 @@ import {
 import { drawPlayerStatsCanvas } from '../utils/canvasHelpers'
 import { generateBackgroundPreview } from '../commands/queues/setStatsBackground'
 import { getBackgroundById } from '../utils/backgroundManager'
+import { client } from '../client'
 
 // Track users currently processing queue joins to prevent duplicates
 const processingQueueJoins = new Set<string>()
 
 // Track matches currently being ended to prevent duplicate processing
 const processingMatchEnds = new Set<number>()
+// Track matches that have consumed their one-time tuple reroll
+const tupleRerollUsed = new Set<number>()
 
 export default {
   name: Events.InteractionCreate,
@@ -443,17 +450,36 @@ export default {
             })
           }
 
-          await interaction.message.delete()
+          // Extract remaining tuples from the select menu options (for tuple bans)
+          // This gives us the pool of options that were available before this selection
+          let remainingTuples: string[] | undefined
+          const firstRow = interaction.message.components[0]
+          if (firstRow && 'components' in firstRow) {
+            const selectMenu = firstRow.components[0]
+            if (selectMenu && 'options' in selectMenu) {
+              const options = selectMenu.options as { value: string }[]
+              // Check if this is tuple format (contains underscore)
+              if (options.length > 0 && options[0].value.includes('_')) {
+                remainingTuples = options.map((opt) => opt.value)
+              }
+            }
+          }
 
-          const deckChoices = interaction.values.map((deckId) =>
-            parseInt(deckId),
-          )
+          // Pass raw string values - advanceDeckBanStep handles parsing for both
+          // regular deck IDs ("1") and tuple format ("1_3" for deckId_stakeId)
+          // Original tuples are fetched from DB inside advanceDeckBanStep
+          if (!remainingTuples) {
+            await interaction.deferUpdate()
+            await interaction.message.delete().catch(() => {})
+          }
           await advanceDeckBanStep(
-            deckChoices,
+            interaction.values,
             step,
             matchId,
             startingTeamId,
             channel,
+            remainingTuples,
+            remainingTuples ? interaction : undefined, // Pass interaction for tuple bans to update embed
           )
         }
 
@@ -587,6 +613,117 @@ export default {
           })
         }
 
+        if (interaction.customId.startsWith('reroll-tuples-')) {
+          const matchId = parseInt(interaction.customId.split('-')[2])
+          const matchTeams = await getTeamsInMatch(matchId)
+          const matchUsersArray = matchTeams.teams.flatMap((t) =>
+            t.players.map((u) => u.user_id),
+          )
+
+          // Check if reroll already used
+          if (tupleRerollUsed.has(matchId)) {
+            await interaction.reply({
+              content: 'Reroll has already been used for this match.',
+              flags: MessageFlags.Ephemeral,
+            })
+            return
+          }
+
+          // Use handleVoting for reroll
+          await handleVoting(interaction, {
+            voteType: 'Reroll Votes',
+            embedFieldIndex: 0, // Add it as first field if no fields exist
+            participants: matchUsersArray,
+            matchId: matchId,
+            onComplete: async (interaction, { embed }) => {
+              if (!interaction) return
+
+              tupleRerollUsed.add(matchId)
+              const queueId = await getQueueIdFromMatch(matchId)
+
+              // Regenerate tuples
+              const tupleGen = new TupleBans(queueId, [])
+              await tupleGen.init()
+              const generatedTuples = tupleGen.getTupleBans()
+
+              // Update match tuple bans in DB
+              const tupleStrings = generatedTuples.map(
+                (t) => `${t.deckId}_${t.stakeId}`,
+              )
+              await setMatchTupleBans(matchId, tupleStrings)
+
+              const messageComponents = interaction.message.components
+              const selectMenuRow = messageComponents.find(
+                (row) => 'components' in row && row.components?.[0]?.type === 3,
+              )
+              const selectMenu = selectMenuRow?.components?.[0] as any
+              const selectMenuCustomId = selectMenu?.customId || ''
+              const selectParts = selectMenuCustomId.split('-')
+              const opponentTeamIndex = parseInt(selectParts[4])
+              const activeTeamIndex = 1 - opponentTeamIndex
+
+              const activeTeamName =
+                matchTeams.teams[activeTeamIndex].players.length === 1
+                  ? (
+                      await client.users.fetch(
+                        matchTeams.teams[activeTeamIndex].players[0].user_id,
+                      )
+                    ).displayName
+                  : `Team ${matchTeams.teams[activeTeamIndex].id}`
+
+              // Build new embed description
+              const tupleListStr = generatedTuples
+                .map(
+                  (t, i) =>
+                    `**${i + 1}.** ${t.deckEmoji} ${t.stakeEmoji} ${t.deckName} / ${t.stakeName}`,
+                )
+                .join('\n')
+
+              const newEmbed = EmbedBuilder.from(embed as any).setDescription(
+                `**${activeTeamName}** bans 1 option.\n\n` +
+                  `**Available Options:**\n${tupleListStr}`,
+              )
+
+              // Remove the voting field if it was added
+              const fields = newEmbed.data.fields || []
+              const voteFieldIndex = fields.findIndex(
+                (f) => f.name === 'Reroll Votes:',
+              )
+              if (voteFieldIndex !== -1) {
+                fields.splice(voteFieldIndex, 1)
+              }
+
+              // Build new select menu
+              const deckSelMenu = await setupDeckSelect(
+                selectMenuCustomId,
+                `${activeTeamName}: Select 1 option to ban.`,
+                1,
+                1,
+                true,
+                [],
+                [],
+                queueId,
+                undefined,
+                generatedTuples,
+              )
+
+              // Build new buttons (removing reroll button)
+              const deckBanButtonsRow = ActionRowBuilder.from(
+                interaction.message.components[1] as any,
+              ) as ActionRowBuilder<ButtonBuilder>
+              deckBanButtonsRow.components =
+                deckBanButtonsRow.components.filter(
+                  (c) => !c.data.custom_id?.startsWith('reroll-tuples-'),
+                )
+
+              await interaction.update({
+                embeds: [newEmbed],
+                components: [deckSelMenu, deckBanButtonsRow],
+              })
+            },
+          })
+        }
+
         if (interaction.customId.startsWith('random-deck-select-')) {
           // Format: random-deck-select-{step}-{matchId}-{startingTeamId}-{amount}
           const parts = interaction.customId.split('-')
@@ -595,66 +732,97 @@ export default {
           const startingTeamId = parseInt(parts[5])
           const amount = parseInt(parts[6])
 
-          await interaction.deferReply({ flags: MessageFlags.Ephemeral })
-
           const channel = interaction.channel as TextChannel
           const matchTeams = await getTeamsInMatch(matchId)
           const activeTeamId = (startingTeamId + step) % 2
-
-          // Check if it's the user's turn
-          if (
-            interaction.user.id !==
-            matchTeams.teams[activeTeamId].players[0].user_id
-          ) {
-            await interaction.followUp({
-              content: `It's not your turn to select decks!`,
-              flags: MessageFlags.Ephemeral,
-            })
-            return
-          }
 
           // Get available deck IDs from the select menu in the same message
           const messageComponents = interaction.message.components
           const selectMenuRow = messageComponents.find(
             (row) => 'components' in row && row.components?.[0]?.type === 3,
           )
+
+          // Check if this is tuple format (contains underscore)
+          let remainingTuples: string[] | undefined
+          let availableValues: string[] = []
           if (
-            !selectMenuRow ||
-            !('components' in selectMenuRow) ||
-            !selectMenuRow.components?.[0]
+            selectMenuRow &&
+            'components' in selectMenuRow &&
+            selectMenuRow.components?.[0]
           ) {
-            await interaction.followUp({
-              content: `Could not find deck selection menu.`,
-              flags: MessageFlags.Ephemeral,
-            })
+            const selectMenu = selectMenuRow.components[0] as any
+            availableValues = selectMenu.options.map((opt: any) => opt.value)
+            if (
+              availableValues.length > 0 &&
+              availableValues[0].includes('_')
+            ) {
+              remainingTuples = availableValues
+            }
+          }
+
+          // For non-tuple bans, defer as ephemeral reply.
+          // For tuple bans, don't defer — advanceDeckBanStep will deferUpdate() and delete/resend.
+          if (!remainingTuples) {
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+          }
+
+          // Check if it's the user's turn
+          if (
+            interaction.user.id !==
+            matchTeams.teams[activeTeamId].players[0].user_id
+          ) {
+            if (remainingTuples) {
+              await interaction.reply({
+                content: `It's not your turn to select decks!`,
+                flags: MessageFlags.Ephemeral,
+              })
+            } else {
+              await interaction.followUp({
+                content: `It's not your turn to select decks!`,
+                flags: MessageFlags.Ephemeral,
+              })
+            }
             return
           }
 
-          const selectMenu = selectMenuRow.components[0] as any
+          if (availableValues.length === 0) {
+            if (remainingTuples) {
+              await interaction.reply({
+                content: `Could not find deck selection menu.`,
+                flags: MessageFlags.Ephemeral,
+              })
+            } else {
+              await interaction.followUp({
+                content: `Could not find deck selection menu.`,
+                flags: MessageFlags.Ephemeral,
+              })
+            }
+            return
+          }
 
-          // Extract deck IDs from select menu options
-          const availableDeckIds = selectMenu.options.map((opt: any) =>
-            parseInt(opt.value),
-          )
-
-          // Randomly select from available decks
-          const shuffled = [...availableDeckIds].sort(() => Math.random() - 0.5)
-          const selectedDeckIds = shuffled.slice(
+          // Randomly select from available options
+          const shuffled = [...availableValues].sort(() => Math.random() - 0.5)
+          const selectedValues = shuffled.slice(
             0,
             Math.min(amount, shuffled.length),
           )
 
+          // advanceDeckBanStep will deferUpdate(), delete, and resend for tuple bans
           await advanceDeckBanStep(
-            selectedDeckIds,
+            selectedValues,
             step,
             matchId,
             startingTeamId,
             channel,
+            remainingTuples,
+            remainingTuples ? interaction : undefined,
           )
 
-          await interaction.message.delete()
+          if (!remainingTuples) {
+            await interaction.message.delete()
+          }
           await interaction.followUp({
-            content: `🎲 Randomly selected ${selectedDeckIds.length} deck${selectedDeckIds.length > 1 ? 's' : ''}!`,
+            content: `🎲 Randomly selected ${selectedValues.length} option${selectedValues.length > 1 ? 's' : ''}!`,
             flags: MessageFlags.Ephemeral,
           })
         }

@@ -65,6 +65,8 @@ export default {
       false,
     )
 
+    const useTupleBans = interaction.options.getBoolean('use-tuple-bans', false)
+
     try {
       const result = await pool.query(
         `
@@ -85,7 +87,8 @@ export default {
           veto_mmr_threshold = COALESCE($14, veto_mmr_threshold),
           color = COALESCE($15, color),
           instaqueue_min = COALESCE($16, instaqueue_min),
-          instaqueue_max = COALESCE($17, instaqueue_max)
+          instaqueue_max = COALESCE($17, instaqueue_max),
+          use_tuple_bans = COALESCE($18, use_tuple_bans)
         WHERE queue_name = $1
         RETURNING queue_name
         `,
@@ -107,6 +110,7 @@ export default {
           color,
           instaqueueMin,
           instaqueueMax,
+          useTupleBans,
         ],
       )
 
