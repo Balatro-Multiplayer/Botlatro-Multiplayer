@@ -461,6 +461,10 @@ export default {
           // Pass raw string values - advanceDeckBanStep handles parsing for both
           // regular deck IDs ("1") and tuple format ("1_3" for deckId_stakeId)
           // Original tuples are fetched from DB inside advanceDeckBanStep
+          if (!remainingTuples) {
+            await interaction.deferUpdate()
+            await interaction.message.delete().catch(() => {})
+          }
           await advanceDeckBanStep(
             interaction.values,
             step,
@@ -638,7 +642,7 @@ export default {
           }
 
           // For non-tuple bans, defer as ephemeral reply.
-          // For tuple bans, don't defer — advanceDeckBanStep will call interaction.update() directly.
+          // For tuple bans, don't defer — advanceDeckBanStep will deferUpdate() and delete/resend.
           if (!remainingTuples) {
             await interaction.deferReply({ flags: MessageFlags.Ephemeral })
           }
@@ -684,7 +688,7 @@ export default {
             Math.min(amount, shuffled.length),
           )
 
-          // advanceDeckBanStep will call interaction.update() for tuple bans
+          // advanceDeckBanStep will deferUpdate(), delete, and resend for tuple bans
           await advanceDeckBanStep(
             selectedValues,
             step,

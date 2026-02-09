@@ -381,14 +381,18 @@ export async function advanceDeckBanStep(
       .setDescription(embedDescription)
       .setColor(0xff0000)
 
-    await interaction.update({
+    await interaction.deferUpdate()
+    await interaction.message.delete().catch(() => {})
+    await channel.send({
       content: `<@${matchTeams.teams[nextTeamId].players[0].user_id}>`,
       embeds: [updatedEmbed],
       components: [deckSelMenu, randomButtonRow],
     })
   } else if (useTupleBans && interaction) {
-    // Tuple bans without remainingTuples - just update components
-    await interaction.update({
+    // Tuple bans without remainingTuples - delete and resend
+    await interaction.deferUpdate()
+    await interaction.message.delete().catch(() => {})
+    await channel.send({
       components: [deckSelMenu, randomButtonRow],
     })
   } else {
