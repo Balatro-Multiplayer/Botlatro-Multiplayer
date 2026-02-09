@@ -243,7 +243,7 @@ export class TupleBans {
       if (
         this.tupleBans.filter((tupleBan) => tupleBan.deckId === chosenDeck?.id)
           .length <
-          (this.tupleCount - 1) / 2 &&
+          (this.tupleCount - 3) / 2 &&
         !this.tupleBans.some(
           (tupleBan) =>
             tupleBan.deckId === chosenDeck?.id &&
