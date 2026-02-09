@@ -159,15 +159,18 @@ export class TupleBans {
    * @param ran
    */
   private selectDeckStake = (items: Series[], ran: number) => {
-    let chosenItem: Series | undefined = undefined
+    let chosenItem: Series = items[0]
+    let count = 0
     for (const item of items) {
+      count++
       if (ran >= item.count) {
-        chosenItem = item
+        chosenItem = items[count]
+        console.log(count, item.count, ran, items.length, chosenItem.name)
       } else {
         break
       }
     }
-    return chosenItem ?? items[0]
+    return chosenItem
   }
 
   /**
@@ -240,7 +243,7 @@ export class TupleBans {
       if (
         this.tupleBans.filter((tupleBan) => tupleBan.deckId === chosenDeck?.id)
           .length <
-          (this.tupleCount - 1) / 2 &&
+          (this.tupleCount - 3) / 2 &&
         !this.tupleBans.some(
           (tupleBan) =>
             tupleBan.deckId === chosenDeck?.id &&
