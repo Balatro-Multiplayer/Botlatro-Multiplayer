@@ -654,9 +654,12 @@ export default {
 
               const messageComponents = interaction.message.components
               const selectMenuRow = messageComponents.find(
-                (row) => 'components' in row && row.components?.[0]?.type === 3,
-              )
-              const selectMenu = selectMenuRow?.components?.[0] as any
+                (row) =>
+                  row.type === 1 &&
+                  'components' in row &&
+                  row.components?.[0]?.type === 3,
+              ) as any
+              const selectMenu = selectMenuRow?.components?.[0]
               const selectMenuCustomId = selectMenu?.customId || ''
               const selectParts = selectMenuCustomId.split('-')
               const opponentTeamIndex = parseInt(selectParts[4])
@@ -711,10 +714,15 @@ export default {
               const deckBanButtonsRow = ActionRowBuilder.from(
                 interaction.message.components[1] as any,
               ) as ActionRowBuilder<ButtonBuilder>
-              deckBanButtonsRow.components =
-                deckBanButtonsRow.components.filter(
-                  (c) => !c.data.custom_id?.startsWith('reroll-tuples-'),
-                )
+              const newButtons = deckBanButtonsRow.components.filter(
+                (c: any) =>
+                  !(
+                    (c.data &&
+                      c.data.custom_id?.startsWith('reroll-tuples-')) ||
+                    (c.customId && c.customId.startsWith('reroll-tuples-'))
+                  ),
+              )
+              deckBanButtonsRow.setComponents(newButtons)
 
               await interaction.update({
                 embeds: [newEmbed],

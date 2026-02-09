@@ -165,7 +165,6 @@ export class TupleBans {
       count++
       if (ran >= item.count) {
         chosenItem = items[count]
-        console.log(count, item.count, ran, items.length, chosenItem.name)
       } else {
         break
       }

@@ -1,7 +1,8 @@
 // noinspection JSUnusedLocalSymbols
 
 import {
-  Embed,
+  APIEmbedField,
+  EmbedBuilder,
   GuildChannel,
   MessageComponentInteraction,
   MessageFlags,
@@ -128,7 +129,7 @@ export async function handleVoting(
     resendMessage = true, // whether to resend the message (false for rematches)
     onComplete = async (
       interaction: MessageComponentInteraction | null | undefined,
-      extra: { embed: Embed; votes?: string[] },
+      extra: { embed: EmbedBuilder; votes?: string[] },
     ) => {}, // callback when all participants vote
   },
 ) {
@@ -136,9 +137,10 @@ export async function handleVoting(
     if (!interaction) return console.error('no interaction found for voting')
     if (!interaction.message)
       return console.error('No message found in interaction')
-    const embed = interaction.message.embeds[0]
-    if (!embed) return console.error('No embed found in message')
-    let fields = [...(embed.data.fields || [])]
+    const originalEmbed = interaction.message.embeds[0]
+    if (!originalEmbed) return console.error('No embed found in message')
+    const embed = EmbedBuilder.from(originalEmbed)
+    let fields: APIEmbedField[] = [...(originalEmbed.data.fields || [])]
 
     const settings = await getSettings()
 
@@ -185,15 +187,16 @@ export async function handleVoting(
 
       // Ensure vote field exists
       if (!fields[embedFieldIndex]) {
-        fields[embedFieldIndex] = { name: `${voteType}:`, value: '-' }
+        fields[embedFieldIndex] = { name: `${voteType}:`, value: '-', inline: false }
       }
-      fields[embedFieldIndex].value =
-        votesMentions.length > 0 ? votesMentions.join('\n') : '-'
+      fields[embedFieldIndex] = {
+        ...fields[embedFieldIndex],
+        value: votesMentions.length > 0 ? votesMentions.join('\n') : '-',
+      }
 
-      embed.data.fields = fields
-      interaction.message.embeds[0] = embed
+      embed.setFields(fields)
       try {
-        await interaction.update({ embeds: interaction.message.embeds })
+        await interaction.update({ embeds: [embed] })
       } catch (err) {
         console.error('Failed to update interaction after vote removal:', err)
       }
@@ -209,16 +212,18 @@ export async function handleVoting(
 
     // Update embed for display
     if (!fields[embedFieldIndex]) {
-      fields[embedFieldIndex] = { name: `${voteType}:`, value: '' }
+      fields[embedFieldIndex] = { name: `${voteType}:`, value: '', inline: false }
     }
-    fields[embedFieldIndex].value = votesMentions.join('\n')
+    fields[embedFieldIndex] = {
+      ...fields[embedFieldIndex],
+      value: votesMentions.join('\n'),
+    }
 
     // Check if voting is complete
     if (participants.length > 0 && votesFromDb.length === participants.length) {
       if (interaction.message) {
         fields.splice(embedFieldIndex, 1)
-        embed.data.fields = fields
-        interaction.message.embeds[0] = embed
+        embed.setFields(fields)
 
         await onComplete(interaction, { votes: votesMentions, embed })
       }
@@ -226,8 +231,7 @@ export async function handleVoting(
     }
 
     // Update embed with new votes
-    embed.data.fields = fields
-    interaction.message.embeds[0] = embed
+    embed.setFields(fields)
 
     if (resendMessage) {
       try {
@@ -272,10 +276,11 @@ export async function handleTwoPlayerMatchVoting(
   },
 ) {
   try {
-    const embed = interaction.message.embeds[0]
-    if (!embed) return console.error('No embed found in message')
-    const fields = embed.data.fields
-    if (!fields) return console.error('No fields found in embed')
+    const originalEmbed = interaction.message.embeds[0]
+    if (!originalEmbed) return console.error('No embed found in message')
+    const embed = EmbedBuilder.from(originalEmbed)
+    const fields: APIEmbedField[] = [...(originalEmbed.data.fields || [])]
+    if (!fields.length) return console.error('No fields found in embed')
     if (!interaction)
       return console.error('no interaction found for two player voting')
 
@@ -347,11 +352,11 @@ export async function handleTwoPlayerMatchVoting(
         newValue += '\n' + voteLines.join('\n')
       }
 
-      fields[i].value = newValue || '\u200b'
+      fields[i] = { ...fields[i], value: newValue || '\u200b' }
       voteArray.push({ team_id: i, votes: voteLines })
     }
 
-    interaction.message.embeds[0] = embed
+    embed.setFields(fields)
 
     // Check if all participants voted
     const totalVotes = voteArray.reduce(
