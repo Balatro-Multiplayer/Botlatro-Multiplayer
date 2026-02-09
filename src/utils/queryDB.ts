@@ -685,6 +685,28 @@ export async function setPickedMatchStake(
   }
 }
 
+// Set the tuple bans for a match (stores the original 7 tuples)
+export async function setMatchTupleBans(
+  matchId: number,
+  tuples: string[],
+): Promise<void> {
+  await pool.query(
+    `UPDATE matches SET tuple_bans = $2 WHERE id = $1`,
+    [matchId, JSON.stringify(tuples)],
+  )
+}
+
+// Get the tuple bans for a match
+export async function getMatchTupleBans(
+  matchId: number,
+): Promise<string[] | null> {
+  const res = await pool.query(
+    `SELECT tuple_bans FROM matches WHERE id = $1`,
+    [matchId],
+  )
+  return res.rows[0]?.tuple_bans ?? null
+}
+
 // get stake voting team id
 export async function getMatchStakeVoteTeam(matchId: number): Promise<number> {
   const res = await pool.query(

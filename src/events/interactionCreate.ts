@@ -443,17 +443,32 @@ export default {
             })
           }
 
-          await interaction.message.delete()
+          // Extract remaining tuples from the select menu options (for tuple bans)
+          // This gives us the pool of options that were available before this selection
+          let remainingTuples: string[] | undefined
+          const firstRow = interaction.message.components[0]
+          if (firstRow && 'components' in firstRow) {
+            const selectMenu = firstRow.components[0]
+            if (selectMenu && 'options' in selectMenu) {
+              const options = selectMenu.options as { value: string }[]
+              // Check if this is tuple format (contains underscore)
+              if (options.length > 0 && options[0].value.includes('_')) {
+                remainingTuples = options.map((opt) => opt.value)
+              }
+            }
+          }
 
-          const deckChoices = interaction.values.map((deckId) =>
-            parseInt(deckId),
-          )
+          // Pass raw string values - advanceDeckBanStep handles parsing for both
+          // regular deck IDs ("1") and tuple format ("1_3" for deckId_stakeId)
+          // Original tuples are fetched from DB inside advanceDeckBanStep
           await advanceDeckBanStep(
-            deckChoices,
+            interaction.values,
             step,
             matchId,
             startingTeamId,
             channel,
+            remainingTuples,
+            remainingTuples ? interaction : undefined, // Pass interaction for tuple bans to update embed
           )
         }
 
@@ -595,66 +610,96 @@ export default {
           const startingTeamId = parseInt(parts[5])
           const amount = parseInt(parts[6])
 
-          await interaction.deferReply({ flags: MessageFlags.Ephemeral })
-
           const channel = interaction.channel as TextChannel
           const matchTeams = await getTeamsInMatch(matchId)
           const activeTeamId = (startingTeamId + step) % 2
-
-          // Check if it's the user's turn
-          if (
-            interaction.user.id !==
-            matchTeams.teams[activeTeamId].players[0].user_id
-          ) {
-            await interaction.followUp({
-              content: `It's not your turn to select decks!`,
-              flags: MessageFlags.Ephemeral,
-            })
-            return
-          }
 
           // Get available deck IDs from the select menu in the same message
           const messageComponents = interaction.message.components
           const selectMenuRow = messageComponents.find(
             (row) => 'components' in row && row.components?.[0]?.type === 3,
           )
+
+          // Check if this is tuple format (contains underscore)
+          let remainingTuples: string[] | undefined
+          let availableValues: string[] = []
           if (
-            !selectMenuRow ||
-            !('components' in selectMenuRow) ||
-            !selectMenuRow.components?.[0]
+            selectMenuRow &&
+            'components' in selectMenuRow &&
+            selectMenuRow.components?.[0]
           ) {
-            await interaction.followUp({
-              content: `Could not find deck selection menu.`,
-              flags: MessageFlags.Ephemeral,
-            })
+            const selectMenu = selectMenuRow.components[0] as any
+            availableValues = selectMenu.options.map(
+              (opt: any) => opt.value,
+            )
+            if (availableValues.length > 0 && availableValues[0].includes('_')) {
+              remainingTuples = availableValues
+            }
+          }
+
+          // For non-tuple bans, defer as ephemeral reply.
+          // For tuple bans, don't defer — advanceDeckBanStep will call interaction.update() directly.
+          if (!remainingTuples) {
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+          }
+
+          // Check if it's the user's turn
+          if (
+            interaction.user.id !==
+            matchTeams.teams[activeTeamId].players[0].user_id
+          ) {
+            if (remainingTuples) {
+              await interaction.reply({
+                content: `It's not your turn to select decks!`,
+                flags: MessageFlags.Ephemeral,
+              })
+            } else {
+              await interaction.followUp({
+                content: `It's not your turn to select decks!`,
+                flags: MessageFlags.Ephemeral,
+              })
+            }
             return
           }
 
-          const selectMenu = selectMenuRow.components[0] as any
+          if (availableValues.length === 0) {
+            if (remainingTuples) {
+              await interaction.reply({
+                content: `Could not find deck selection menu.`,
+                flags: MessageFlags.Ephemeral,
+              })
+            } else {
+              await interaction.followUp({
+                content: `Could not find deck selection menu.`,
+                flags: MessageFlags.Ephemeral,
+              })
+            }
+            return
+          }
 
-          // Extract deck IDs from select menu options
-          const availableDeckIds = selectMenu.options.map((opt: any) =>
-            parseInt(opt.value),
-          )
-
-          // Randomly select from available decks
-          const shuffled = [...availableDeckIds].sort(() => Math.random() - 0.5)
-          const selectedDeckIds = shuffled.slice(
+          // Randomly select from available options
+          const shuffled = [...availableValues].sort(() => Math.random() - 0.5)
+          const selectedValues = shuffled.slice(
             0,
             Math.min(amount, shuffled.length),
           )
 
+          // advanceDeckBanStep will call interaction.update() for tuple bans
           await advanceDeckBanStep(
-            selectedDeckIds,
+            selectedValues,
             step,
             matchId,
             startingTeamId,
             channel,
+            remainingTuples,
+            remainingTuples ? interaction : undefined,
           )
 
-          await interaction.message.delete()
+          if (!remainingTuples) {
+            await interaction.message.delete()
+          }
           await interaction.followUp({
-            content: `🎲 Randomly selected ${selectedDeckIds.length} deck${selectedDeckIds.length > 1 ? 's' : ''}!`,
+            content: `🎲 Randomly selected ${selectedValues.length} option${selectedValues.length > 1 ? 's' : ''}!`,
             flags: MessageFlags.Ephemeral,
           })
         }

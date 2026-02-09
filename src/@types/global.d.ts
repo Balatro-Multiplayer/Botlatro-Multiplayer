@@ -23,6 +23,7 @@ declare module 'psqlDB' {
     color: string
     instaqueue_min: number
     instaqueue_max: number
+    use_tuple_bans: boolean
   }
 
   export interface QueueRoles {
@@ -153,6 +154,11 @@ declare module 'psqlDB' {
     deck_emote: string
     deck_desc: string
     custom: boolean
+  }
+
+  export type BannedDecks = {
+    queue_id: number
+    deck_id: number
   }
 
   export type Stakes = {
