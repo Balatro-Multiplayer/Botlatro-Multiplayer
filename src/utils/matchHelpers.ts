@@ -712,11 +712,7 @@ export async function sendMatchInitMessages(
     generatedTuples, // initialTuples (pre-generated for step 1)
   )
 
-  const deckBanButtonsRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`use-default-bans-1-${matchId}-${randomTeams[1].teamIndex}`)
-      .setLabel('Use Preset Bans')
-      .setStyle(ButtonStyle.Primary),
+  const deckBanButtons = [
     new ButtonBuilder()
       .setCustomId(
         `random-deck-select-1-${matchId}-${randomTeams[1].teamIndex}-${step1BanAmount}`,
@@ -724,6 +720,27 @@ export async function sendMatchInitMessages(
       .setLabel('Random Ban')
       .setEmoji('🎲')
       .setStyle(ButtonStyle.Secondary),
+  ]
+
+  if (useTupleBans) {
+    deckBanButtons.push(
+      new ButtonBuilder()
+        .setCustomId(`reroll-tuples-${matchId}`)
+        .setLabel('Reroll Options')
+        .setEmoji('🔄')
+        .setStyle(ButtonStyle.Secondary),
+    ) 
+  } else {
+    deckBanButtons.push(
+        new ButtonBuilder()
+        .setCustomId(`use-default-bans-1-${matchId}-${randomTeams[1].teamIndex}`)
+        .setLabel('Use Preset Bans')
+        .setStyle(ButtonStyle.Primary),
+      )
+  }
+
+  const deckBanButtonsRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    ...deckBanButtons,
   )
 
   // await setMatchStakeVoteTeam(matchId, randomTeams[0].teamIndex)

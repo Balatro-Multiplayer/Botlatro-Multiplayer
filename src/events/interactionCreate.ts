@@ -4,6 +4,7 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  EmbedBuilder,
   Events,
   GuildMember,
   Interaction,
@@ -28,7 +29,9 @@ import {
   endMatch,
   getTeamsInMatch,
   sendWebhook,
+  setupDeckSelect,
 } from '../utils/matchHelpers'
+import { TupleBans } from '../utils/TupleBans'
 import {
   checkUserBanned,
   getActiveQueues,
@@ -53,6 +56,7 @@ import {
   setMatchBestOf,
   setMatchStakeVoteTeam,
   setPickedMatchStake,
+  setMatchTupleBans,
   setQueueDeckBans,
   setUserDefaultDeckBans,
   setUserPriorityQueue,
@@ -72,12 +76,15 @@ import {
 import { drawPlayerStatsCanvas } from '../utils/canvasHelpers'
 import { generateBackgroundPreview } from '../commands/queues/setStatsBackground'
 import { getBackgroundById } from '../utils/backgroundManager'
+import { client } from '../client'
 
 // Track users currently processing queue joins to prevent duplicates
 const processingQueueJoins = new Set<string>()
 
 // Track matches currently being ended to prevent duplicate processing
 const processingMatchEnds = new Set<number>()
+// Track matches that have consumed their one-time tuple reroll
+const tupleRerollUsed = new Set<number>()
 
 export default {
   name: Events.InteractionCreate,
@@ -606,6 +613,117 @@ export default {
           })
         }
 
+        if (interaction.customId.startsWith('reroll-tuples-')) {
+          const matchId = parseInt(interaction.customId.split('-')[2])
+          const matchTeams = await getTeamsInMatch(matchId)
+          const matchUsersArray = matchTeams.teams.flatMap((t) =>
+            t.players.map((u) => u.user_id),
+          )
+
+          // Check if reroll already used
+          if (tupleRerollUsed.has(matchId)) {
+            await interaction.reply({
+              content: 'Reroll has already been used for this match.',
+              flags: MessageFlags.Ephemeral,
+            })
+            return
+          }
+
+          // Use handleVoting for reroll
+          await handleVoting(interaction, {
+            voteType: 'Reroll Votes',
+            embedFieldIndex: 0, // Add it as first field if no fields exist
+            participants: matchUsersArray,
+            matchId: matchId,
+            onComplete: async (interaction, { embed }) => {
+              if (!interaction) return
+
+              tupleRerollUsed.add(matchId)
+              const queueId = await getQueueIdFromMatch(matchId)
+
+              // Regenerate tuples
+              const tupleGen = new TupleBans(queueId, [])
+              await tupleGen.init()
+              const generatedTuples = tupleGen.getTupleBans()
+
+              // Update match tuple bans in DB
+              const tupleStrings = generatedTuples.map(
+                (t) => `${t.deckId}_${t.stakeId}`,
+              )
+              await setMatchTupleBans(matchId, tupleStrings)
+
+              const messageComponents = interaction.message.components
+              const selectMenuRow = messageComponents.find(
+                (row) => 'components' in row && row.components?.[0]?.type === 3,
+              )
+              const selectMenu = selectMenuRow?.components?.[0] as any
+              const selectMenuCustomId = selectMenu?.customId || ''
+              const selectParts = selectMenuCustomId.split('-')
+              const opponentTeamIndex = parseInt(selectParts[4])
+              const activeTeamIndex = 1 - opponentTeamIndex
+
+              const activeTeamName =
+                matchTeams.teams[activeTeamIndex].players.length === 1
+                  ? (
+                      await client.users.fetch(
+                        matchTeams.teams[activeTeamIndex].players[0].user_id,
+                      )
+                    ).displayName
+                  : `Team ${matchTeams.teams[activeTeamIndex].id}`
+
+              // Build new embed description
+              const tupleListStr = generatedTuples
+                .map(
+                  (t, i) =>
+                    `**${i + 1}.** ${t.deckEmoji} ${t.stakeEmoji} ${t.deckName} / ${t.stakeName}`,
+                )
+                .join('\n')
+
+              const newEmbed = EmbedBuilder.from(embed as any).setDescription(
+                `**${activeTeamName}** bans 1 option.\n\n` +
+                  `**Available Options:**\n${tupleListStr}`,
+              )
+
+              // Remove the voting field if it was added
+              const fields = newEmbed.data.fields || []
+              const voteFieldIndex = fields.findIndex(
+                (f) => f.name === 'Reroll Votes:',
+              )
+              if (voteFieldIndex !== -1) {
+                fields.splice(voteFieldIndex, 1)
+              }
+
+              // Build new select menu
+              const deckSelMenu = await setupDeckSelect(
+                selectMenuCustomId,
+                `${activeTeamName}: Select 1 option to ban.`,
+                1,
+                1,
+                true,
+                [],
+                [],
+                queueId,
+                undefined,
+                generatedTuples,
+              )
+
+              // Build new buttons (removing reroll button)
+              const deckBanButtonsRow = ActionRowBuilder.from(
+                interaction.message.components[1] as any,
+              ) as ActionRowBuilder<ButtonBuilder>
+              deckBanButtonsRow.components =
+                deckBanButtonsRow.components.filter(
+                  (c) => !c.data.custom_id?.startsWith('reroll-tuples-'),
+                )
+
+              await interaction.update({
+                embeds: [newEmbed],
+                components: [deckSelMenu, deckBanButtonsRow],
+              })
+            },
+          })
+        }
+
         if (interaction.customId.startsWith('random-deck-select-')) {
           // Format: random-deck-select-{step}-{matchId}-{startingTeamId}-{amount}
           const parts = interaction.customId.split('-')
@@ -633,10 +751,11 @@ export default {
             selectMenuRow.components?.[0]
           ) {
             const selectMenu = selectMenuRow.components[0] as any
-            availableValues = selectMenu.options.map(
-              (opt: any) => opt.value,
-            )
-            if (availableValues.length > 0 && availableValues[0].includes('_')) {
+            availableValues = selectMenu.options.map((opt: any) => opt.value)
+            if (
+              availableValues.length > 0 &&
+              availableValues[0].includes('_')
+            ) {
               remainingTuples = availableValues
             }
           }
