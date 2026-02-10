@@ -286,6 +286,7 @@ export class TupleBans {
   }
 
   private orderTupleBans(): void {
+    this.tupleBans.sort((a, b) => a.deckId - b.deckId)
     this.tupleBans.sort((a, b) => a.stakeId - b.stakeId)
   }
 
