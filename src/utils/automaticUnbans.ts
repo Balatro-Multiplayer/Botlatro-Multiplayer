@@ -2,21 +2,25 @@
 import { pool } from '../db'
 import type { Bans } from 'psqlDB'
 import { createEmbedType, logStrike } from './logCommandUse'
+import { getGuild } from '../client'
 
 export async function automaticUnban(ban: Bans) {
   // remove ban
   const userId = ban.user_id.toString()
   await pool.query(`DELETE FROM "bans" WHERE user_id = $1`, [userId])
 
+  const guild = await getGuild()
+  const username = (await guild.members.fetch(userId))?.displayName ?? userId
+
   // log ban removal
   const embedType = createEmbedType(
-    `Ban removed for ${ban.user_id}`,
+    `Ban removed for ${username}`,
     '',
     16776960, // green
     [
       {
         name: 'Reason:',
-        value: `Ban expired at ${ban.expires_at ? `t:${ban.expires_at.getTime()}:D` : 'unknown'}.`,
+        value: `Ban expired at ${ban.expires_at ? `<t:${ban.expires_at.getTime()}:D>` : 'unknown'}.`,
         inline: true,
       },
     ],
