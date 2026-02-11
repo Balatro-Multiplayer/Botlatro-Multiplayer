@@ -1,5 +1,6 @@
 import { pool } from '../db'
 import { BannedDecks, Decks, Stakes } from 'psqlDB'
+import { getCombinedEmote } from './combinedEmoteCache'
 
 export type TupleBan = {
   stakeId: number
@@ -7,6 +8,7 @@ export type TupleBan = {
 
   stakeEmoji?: string
   deckEmoji?: string
+  combinedEmote?: string
 
   stakeName?: string
   deckName?: string
@@ -255,12 +257,18 @@ export class TupleBans {
 
     // get the tupleBan object from the chosenDeck and chosenStake object
 
+    const combinedEmote =
+      chosenDeck?.name && chosenStake?.name
+        ? getCombinedEmote(chosenDeck.name, chosenStake.name)
+        : null
+
     this.tupleBans.push({
       stakeId: chosenStake?.id ?? 1,
       deckId: chosenDeck?.id ?? 1,
 
       stakeEmoji: chosenStake?.emoji ?? '',
       deckEmoji: chosenDeck?.emoji ?? '',
+      combinedEmote: combinedEmote ?? undefined,
 
       stakeName: chosenStake?.name ?? '',
       deckName: chosenDeck?.name ?? '',

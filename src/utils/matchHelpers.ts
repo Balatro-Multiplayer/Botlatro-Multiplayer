@@ -61,6 +61,11 @@ import {
 } from '../events/messageCreate'
 import { generateAndStoreHtmlTranscript } from './exportTranscripts'
 import { TupleBan, TupleBans } from './TupleBans'
+import {
+  getCombinedEmote,
+  getCombinedOrFallback,
+  parseEmoji,
+} from './combinedEmoteCache'
 
 require('dotenv').config()
 
@@ -150,7 +155,14 @@ export async function setupDeckSelect(
           )
           .setValue(tupleStr)
           .setDescription(deck?.deck_desc ?? 'No description')
-        if (index < numberEmojis.length) {
+        const combined =
+          deck?.deck_name && stake?.stake_name
+            ? getCombinedEmote(deck.deck_name, stake.stake_name)
+            : null
+        const parsed = combined ? parseEmoji(combined) : null
+        if (parsed) {
+          option.setEmoji(parsed)
+        } else if (index < numberEmojis.length) {
           option.setEmoji(numberEmojis[index])
         }
         return option
@@ -184,7 +196,12 @@ export async function setupDeckSelect(
         .setLabel(`${tuple.deckName ?? 'N/A'} / ${tuple.stakeName ?? 'N/A'}`)
         .setValue(`${tuple.deckId}_${tuple.stakeId}`)
         .setDescription(tuple.deckDescription)
-      if (index < numberEmojis.length) {
+      const parsed = tuple.combinedEmote
+        ? parseEmoji(tuple.combinedEmote)
+        : null
+      if (parsed) {
+        option.setEmoji(parsed)
+      } else if (index < numberEmojis.length) {
         option.setEmoji(numberEmojis[index])
       }
       return option
@@ -271,8 +288,14 @@ export async function advanceDeckBanStep(
           if (interaction) {
             await interaction.message.delete().catch(() => {})
           }
+          const selectedEmote = getCombinedOrFallback(
+            finalDeckPick.deck_name,
+            stakeData.stake_name,
+            finalDeckPick.deck_emote,
+            stakeData.stake_emote,
+          )
           await channel.send({
-            content: `## Selected: ${stakeData.stake_emote} ${finalDeckPick.deck_emote} ${finalDeckPick.deck_name} on ${stakeData.stake_name}`,
+            content: `## Selected: ${selectedEmote} ${finalDeckPick.deck_name} on ${stakeData.stake_name}`,
           })
         } else {
           if (interaction) {
@@ -327,16 +350,20 @@ export async function advanceDeckBanStep(
 
   const deckSelMenu = await setupDeckSelect(
     `deck-bans-${nextStep}-${matchId}-${startingTeamId}`,
-    useTupleBans ? placeholderText : (
-      matchTeams.teams[nextTeamId].players.length > 1
+    useTupleBans
+      ? placeholderText
+      : matchTeams.teams[nextTeamId].players.length > 1
         ? `Team ${matchTeams.teams[nextTeamId].id}: Select ${selectAmount} ${useTupleBans ? 'option' : 'deck'}${selectAmount > 1 ? 's' : ''} to play.`
-        : `${nextMember.displayName}: Select ${selectAmount} ${useTupleBans ? 'option' : 'deck'}${selectAmount > 1 ? 's' : ''} to play.`
-    ),
+        : `${nextMember.displayName}: Select ${selectAmount} ${useTupleBans ? 'option' : 'deck'}${selectAmount > 1 ? 's' : ''} to play.`,
     selectAmount,
     selectAmount,
     true,
-    useTupleBans ? [] : (nextStep === 3 ? [] : deckChoices),
-    useTupleBans ? [] : (nextStep === 3 ? deckChoices : deckOptions.map((deck) => deck.id)),
+    useTupleBans ? [] : nextStep === 3 ? [] : deckChoices,
+    useTupleBans
+      ? []
+      : nextStep === 3
+        ? deckChoices
+        : deckOptions.map((deck) => deck.id),
     queueId,
     useTupleBans ? nextRemainingTuples : undefined,
   )
@@ -347,7 +374,9 @@ export async function advanceDeckBanStep(
       .setCustomId(
         `random-deck-select-${nextStep}-${matchId}-${startingTeamId}-${selectAmount}`,
       )
-      .setLabel(`Random ${isBanStep ? 'Ban' : 'Pick'}${selectAmount > 1 ? 's' : ''}`)
+      .setLabel(
+        `Random ${isBanStep ? 'Ban' : 'Pick'}${selectAmount > 1 ? 's' : ''}`,
+      )
       .setEmoji('🎲')
       .setStyle(ButtonStyle.Secondary),
   )
@@ -360,7 +389,8 @@ export async function advanceDeckBanStep(
         const [deckIdStr, stakeIdStr] = tupleStr.split('_')
         const deck = deckOptions.find((d) => d.id === parseInt(deckIdStr))
         const stake = await getStake(parseInt(stakeIdStr))
-        return `**${i + 1}.** ${deck?.deck_emote || ''} ${stake?.stake_emote || ''} ${deck?.deck_name || 'N/A'} / ${stake?.stake_name || 'N/A'}`
+        const emoteDisplay = `${deck?.deck_emote || ''} ${stake?.stake_emote || ''}`
+        return `**${i + 1}.** ${emoteDisplay} ${deck?.deck_name || 'N/A'} / ${stake?.stake_name || 'N/A'}`
       }),
     )
 
@@ -406,7 +436,13 @@ export async function advanceDeckBanStep(
             const deck = deckOptions.find((d) => d.id === parseInt(deckIdStr))
             const stake = await getStake(parseInt(stakeIdStr))
             if (deck && stake) {
-              return `${stake.stake_emote} ${deck.deck_emote} - ${deck.deck_name}`
+              const bannedEmote = getCombinedOrFallback(
+                deck.deck_name,
+                stake.stake_name,
+                deck.deck_emote,
+                stake.stake_emote,
+              )
+              return `${bannedEmote} - ${deck.deck_name} / ${stake.stake_name}`
             }
           }
           const deck = deckOptions.find((d) => d.id === parseInt(choice))
@@ -666,10 +702,10 @@ export async function sendMatchInitMessages(
   let embedTitle: string
   if (useTupleBans) {
     const tupleListStr = generatedTuples
-      .map(
-        (t, i) =>
-          `**${i + 1}.** ${t.deckEmoji} ${t.stakeEmoji} ${t.deckName} / ${t.stakeName}`,
-      )
+      .map((t, i) => {
+        const listEmote = `${t.deckEmoji} ${t.stakeEmoji}`
+        return `**${i + 1}.** ${listEmote} ${t.deckName} / ${t.stakeName}`
+      })
       .join('\n')
     // Tuple ban flow: ban 1, ban 2, ban 2, pick 1
     embedTitle = `Bans - Step 1/4`
@@ -729,14 +765,16 @@ export async function sendMatchInitMessages(
         .setLabel('Reroll Options')
         .setEmoji('🔄')
         .setStyle(ButtonStyle.Secondary),
-    ) 
+    )
   } else {
     deckBanButtons.push(
-        new ButtonBuilder()
-        .setCustomId(`use-default-bans-1-${matchId}-${randomTeams[1].teamIndex}`)
+      new ButtonBuilder()
+        .setCustomId(
+          `use-default-bans-1-${matchId}-${randomTeams[1].teamIndex}`,
+        )
         .setLabel('Use Preset Bans')
         .setStyle(ButtonStyle.Primary),
-      )
+    )
   }
 
   const deckBanButtonsRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -750,7 +788,9 @@ export async function sendMatchInitMessages(
   //   .join('\n')
 
   await textChannel.send({
-    content: useTupleBans ? `<@${randomTeams[0].players[0].user_id}>` : undefined,
+    content: useTupleBans
+      ? `<@${randomTeams[0].players[0].user_id}>`
+      : undefined,
     embeds: [deckEmbed],
     components: [deckSelMenu, deckBanButtonsRow],
   })
@@ -1188,12 +1228,25 @@ export async function endMatch(
     let titleText = `${queueSettings.queue_name} Match #${matchId} 🏆`
     if (matchData.deck || matchData.stake) {
       const matchInfoParts: string[] = []
-      if (matchData.deck) {
-        const deckData = await getDeckByName(matchData.deck)
+      const deckData = matchData.deck
+        ? await getDeckByName(matchData.deck)
+        : null
+      const stakeData = matchData.stake
+        ? await getStakeByName(matchData.stake)
+        : null
+      if (deckData && stakeData) {
+        const combined = getCombinedEmote(
+          deckData.deck_name,
+          stakeData.stake_name,
+        )
+        if (combined) {
+          matchInfoParts.push(combined)
+        } else {
+          matchInfoParts.push(`${deckData.deck_emote}`)
+          matchInfoParts.push(`${stakeData.stake_emote}`)
+        }
+      } else {
         if (deckData) matchInfoParts.push(`${deckData.deck_emote}`)
-      }
-      if (matchData.stake) {
-        const stakeData = await getStakeByName(matchData.stake)
         if (stakeData) matchInfoParts.push(`${stakeData.stake_emote}`)
       }
       if (matchInfoParts.length > 0) {
