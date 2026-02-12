@@ -41,7 +41,10 @@ export class TupleBans {
   defaultDeckProbability = 1
   defaultStakeProbability = 1
 
-  // todo: get specific probabilities for these based on queue settings
+  // the jsonb objects that determine deck / stake probability multipliers
+  stakeProbabilities: { stake_name: string; probability: number }[] = []
+  deckProbabilities: { deck_name: string; probability: number }[] = []
+
   // represents what stakes and decks are allowed in this match, along with their emoji and probability multipliers
   decks: {
     id: number
@@ -59,7 +62,7 @@ export class TupleBans {
     occurs?: number
   }[] = [
     {
-      // todo: implement the multipliers dynamically - for now just slightly increasing white stake and lowering green stake
+      // todo: remove these static assignments when the dynamic system is in place
       name: 'White Stake',
       multiplier: 1.25, // ?? this.defaultStakeProbability,
     },
@@ -102,6 +105,42 @@ export class TupleBans {
   public async init(): Promise<void> {
     await this.constructDecks()
     await this.constructStakes()
+  }
+
+  /**
+   * Fetch probability multipliers from db and assign them to {@link stakeProbabilities} and {@link deckProbabilities}
+   * @private
+   */
+  private async fetchProbabilities(): Promise<void> {
+    this.stakeProbabilities = (
+      await pool.query<{ stake_name: string; probability: number }>(
+        `SELECT stake_probability FROM queues WHERE id = $1`,
+        [this.queueId],
+      )
+    ).rows
+    this.deckProbabilities = (
+      await pool.query<{ deck_name: string; probability: number }>(
+        `SELECT deck_probability FROM queues WHERE id = $1`,
+        [this.queueId],
+      )
+    ).rows
+  }
+
+  /**
+   * Assign {@link stakeProbabilities} and {@link deckProbabilities} to the `multiplier` field of {@link decks} and {@link stakes}
+   */
+  public async loadProbabilities(): Promise<void> {
+    await this.fetchProbabilities()
+    this.stakes.forEach((stake) => {
+      stake.multiplier =
+        this.stakeProbabilities.find((prob) => prob.stake_name === stake.name)
+          ?.probability ?? this.defaultStakeProbability
+    })
+    this.decks.forEach((deck) => {
+      deck.multiplier =
+        this.deckProbabilities.find((prob) => prob.deck_name === deck.name)
+          ?.probability ?? this.defaultDeckProbability
+    })
   }
 
   /**
