@@ -278,7 +278,7 @@ export class TupleBans {
     let fallbackCount = 0
     let succeeded = false
     while (!succeeded) {
-      // if on penultimate tuple, make sure there is at least one white (yes I hate how hard-coded this is)
+      // when on last tuple, make sure there is at least one white stake (yes I hate how hard-coded this is)
       let containsWhite = true
       if (this.tupleBans.length == this.tupleCount - 1) {
         containsWhite = this.tupleBans.some(

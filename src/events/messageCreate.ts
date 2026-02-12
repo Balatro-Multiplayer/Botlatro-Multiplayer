@@ -1,12 +1,12 @@
 import { Events, GuildMember, PermissionFlagsBits } from 'discord.js'
 import {
   getCopyPasteByName,
+  getDeckByName,
+  getMatchData,
   getMatchIdFromChannel,
   getSettings,
-  upsertCopyPaste,
-  getMatchData,
-  getDeckByName,
   setPickedMatchDeck,
+  upsertCopyPaste,
 } from '../utils/queryDB'
 import { resendMatchWinVote } from '../utils/matchHelpers'
 import * as fs from 'fs'
@@ -65,7 +65,7 @@ export default {
               member.roles.cache.has(botSettings.queue_helper_role_id) ||
               member.permissions.has(PermissionFlagsBits.Administrator))
           ) {
-            const pasteContent = parts.slice(1).join(' ')
+            const pasteContent = parts.slice(1).join(' ').slice(0, 500)
             try {
               await upsertCopyPaste(pasteName, pasteContent, message.author.id)
               await message.react('✅')
