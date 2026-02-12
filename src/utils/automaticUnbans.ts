@@ -20,7 +20,7 @@ export async function automaticUnban(ban: Bans) {
     [
       {
         name: 'Reason:',
-        value: `Ban expired at ${ban.expires_at ? `<t:${ban.expires_at.getTime()}:D>` : 'unknown'}.`,
+        value: `Ban expired at ${ban.expires_at ? `<t:${ban.expires_at.getTime() / 1000}:D>` : 'unknown'}.`,
         inline: true,
       },
     ],
