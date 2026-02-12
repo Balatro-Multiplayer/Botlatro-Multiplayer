@@ -37,7 +37,6 @@ import {
   getUserQueueRole,
   getWinningTeamFromMatch,
   setMatchResultsMessageId,
-  setMatchStakeVoteTeam,
   setMatchTupleBans,
   setMatchVoiceChannel,
   setPickedMatchDeck,
@@ -704,7 +703,7 @@ export async function sendMatchInitMessages(
     const tupleListStr = generatedTuples
       .map((t, i) => {
         const listEmote = `${t.deckEmoji} ${t.stakeEmoji}`
-        return `**${i + 1}.** ${listEmote} ${t.deckName} / ${t.stakeName}`
+        return `**\`${i + 1}.\`** ${listEmote} ${t.deckName} / ${t.stakeName}`
       })
       .join('\n')
     // Tuple ban flow: ban 1, ban 2, ban 2, pick 1
