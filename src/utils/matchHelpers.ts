@@ -389,7 +389,7 @@ export async function advanceDeckBanStep(
         const deck = deckOptions.find((d) => d.id === parseInt(deckIdStr))
         const stake = await getStake(parseInt(stakeIdStr))
         const emoteDisplay = `${deck?.deck_emote || ''} ${stake?.stake_emote || ''}`
-        return `**${i + 1}.** ${emoteDisplay} ${deck?.deck_name || 'N/A'} / ${stake?.stake_name || 'N/A'}`
+        return `**\`${i + 1}.\`** ${emoteDisplay} ${deck?.deck_name || 'N/A'} / ${stake?.stake_name || 'N/A'}`
       }),
     )
 
