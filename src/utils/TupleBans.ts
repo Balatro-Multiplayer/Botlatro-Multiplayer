@@ -42,8 +42,8 @@ export class TupleBans {
   defaultStakeProbability = 1
 
   // the jsonb objects that determine deck / stake probability multipliers
-  stakeProbabilities: { stake_name: string; probability: number }[] = []
-  deckProbabilities: { deck_name: string; probability: number }[] = []
+  stakeProbabilities: { stake_name: string; multiplier: number }[] = []
+  deckProbabilities: { deck_name: string; multiplier: number }[] = []
 
   // represents what stakes and decks are allowed in this match, along with their emoji and probability multipliers
   decks: {
@@ -62,13 +62,12 @@ export class TupleBans {
     occurs?: number
   }[] = [
     {
-      // todo: remove these static assignments when the dynamic system is in place
       name: 'White Stake',
-      multiplier: 1.25, // ?? this.defaultStakeProbability,
+      multiplier: this.defaultStakeProbability,
     },
     {
       name: 'Green Stake',
-      multiplier: 0.75, // ?? this.defaultStakeProbability,
+      multiplier: this.defaultStakeProbability,
     },
     {
       name: 'Black Stake',
@@ -105,6 +104,7 @@ export class TupleBans {
   public async init(): Promise<void> {
     await this.constructDecks()
     await this.constructStakes()
+    await this.loadProbabilities()
   }
 
   /**
@@ -113,34 +113,49 @@ export class TupleBans {
    */
   private async fetchProbabilities(): Promise<void> {
     this.stakeProbabilities = (
-      await pool.query<{ stake_name: string; probability: number }>(
-        `SELECT stake_probability FROM queues WHERE id = $1`,
-        [this.queueId],
-      )
+      await pool.query(`SELECT * FROM stake_mults WHERE queue_id = $1`, [
+        this.queueId,
+      ])
     ).rows
     this.deckProbabilities = (
-      await pool.query<{ deck_name: string; probability: number }>(
-        `SELECT deck_probability FROM queues WHERE id = $1`,
-        [this.queueId],
-      )
+      await pool.query(`SELECT * FROM deck_mults WHERE queue_id = $1`, [
+        this.queueId,
+      ])
     ).rows
+
+    for (const prob of this.stakeProbabilities) {
+      console.log('probabilities: ', prob)
+    }
   }
 
   /**
    * Assign {@link stakeProbabilities} and {@link deckProbabilities} to the `multiplier` field of {@link decks} and {@link stakes}
    */
-  public async loadProbabilities(): Promise<void> {
+  private async loadProbabilities(): Promise<void> {
     await this.fetchProbabilities()
     this.stakes.forEach((stake) => {
-      stake.multiplier =
-        this.stakeProbabilities.find((prob) => prob.stake_name === stake.name)
-          ?.probability ?? this.defaultStakeProbability
+      const probMultiplier = this.stakeProbabilities.find(
+        (prob) => prob.stake_name === stake.name,
+      )?.multiplier
+
+      stake.multiplier = probMultiplier
+        ? Number(probMultiplier)
+        : this.defaultStakeProbability
     })
+
     this.decks.forEach((deck) => {
-      deck.multiplier =
-        this.deckProbabilities.find((prob) => prob.deck_name === deck.name)
-          ?.probability ?? this.defaultDeckProbability
+      const probMultiplier = this.deckProbabilities.find(
+        (prob) => prob.deck_name === deck.name,
+      )?.multiplier
+
+      deck.multiplier = probMultiplier
+        ? Number(probMultiplier)
+        : this.defaultDeckProbability
     })
+
+    for (const stake of this.stakes) {
+      console.log('other: ', stake.name, stake.multiplier)
+    }
   }
 
   /**
@@ -346,7 +361,6 @@ export class TupleBans {
   public getTupleBans(): TupleBan[] {
     this.generateTupleBansRecurse()
     this.orderTupleBans()
-    // console.table(this.tupleBans)
     return this.tupleBans
   }
 }
