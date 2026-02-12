@@ -278,7 +278,16 @@ export class TupleBans {
     let fallbackCount = 0
     let succeeded = false
     while (!succeeded) {
-      chosenStake = this.selectDeckStake(stakeSeries, Math.random())
+      // if on penultimate tuple, make sure there is at least one white stake
+      let containsWhite = true
+      if (this.tupleBans.length == this.tupleCount - 1) {
+        containsWhite = this.tupleBans.some(
+          (tupleBan) => tupleBan.stakeName === 'White Stake',
+        )
+      }
+
+      const stakeIndex = containsWhite ? Math.random() : 0
+      chosenStake = this.selectDeckStake(stakeSeries, stakeIndex)
       if (
         this.tupleBans.filter(
           (tupleBan) => tupleBan.stakeId === chosenStake?.id,
@@ -343,7 +352,6 @@ export class TupleBans {
    * Generates a list of tuple bans by recursing {@link generateTuple} until an array of length {@link tupleCount} is created
    */
   private generateTupleBansRecurse(): void {
-    this.generateTuple()
     if (this.tupleBans.length < this.tupleCount) {
       // try x times to generate tuple bans (each attempt represents up to 100 attempts for each individual tuple)
       if (this.attempts++ > 50) {
@@ -351,6 +359,7 @@ export class TupleBans {
           `Tuple bans stuck recursing. Aborting early with ${this.tupleBans.length} tuple bans`,
         )
       }
+      this.generateTuple()
       this.generateTupleBansRecurse()
     }
   }
