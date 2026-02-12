@@ -55,8 +55,8 @@ import {
   resetAllCurrentEloRangeForUser,
   setMatchBestOf,
   setMatchStakeVoteTeam,
-  setPickedMatchStake,
   setMatchTupleBans,
+  setPickedMatchStake,
   setQueueDeckBans,
   setUserDefaultDeckBans,
   setUserPriorityQueue,
@@ -678,7 +678,7 @@ export default {
               const tupleListStr = generatedTuples
                 .map(
                   (t, i) =>
-                    `**${i + 1}.** ${t.deckEmoji} ${t.stakeEmoji} ${t.deckName} / ${t.stakeName}`,
+                    `\`**${i + 1}.**\` ${t.deckEmoji} ${t.stakeEmoji} ${t.deckName} / ${t.stakeName}`,
                 )
                 .join('\n')
 
