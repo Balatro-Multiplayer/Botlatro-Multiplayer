@@ -290,7 +290,7 @@ export class TupleBans {
         chosenStake = {
           count: 1,
           id: 1,
-          emoji: ':white_stake:',
+          emoji: '<:white_stake:1407754838108016733>',
           name: 'White Stake',
         }
       } else {
