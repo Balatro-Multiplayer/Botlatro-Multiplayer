@@ -278,7 +278,7 @@ export class TupleBans {
     let fallbackCount = 0
     let succeeded = false
     while (!succeeded) {
-      // if on penultimate tuple, make sure there is at least one white stake
+      // if on penultimate tuple, make sure there is at least one white (yes I hate how hard-coded this is)
       let containsWhite = true
       if (this.tupleBans.length == this.tupleCount - 1) {
         containsWhite = this.tupleBans.some(
@@ -286,8 +286,17 @@ export class TupleBans {
         )
       }
 
-      const stakeIndex = containsWhite ? Math.random() : 0
-      chosenStake = this.selectDeckStake(stakeSeries, stakeIndex)
+      if (!containsWhite) {
+        chosenStake = {
+          count: 1,
+          id: 1,
+          emoji: ':white_stake:',
+          name: 'White Stake',
+        }
+      } else {
+        chosenStake = this.selectDeckStake(stakeSeries, Math.random())
+      }
+
       if (
         this.tupleBans.filter(
           (tupleBan) => tupleBan.stakeId === chosenStake?.id,
