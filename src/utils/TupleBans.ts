@@ -31,6 +31,9 @@ export class TupleBans {
   // the queue id that this instance is generating for
   queueId: number
 
+  // tracks number of attempts to generate tuple bans, so recursion can be stopped if it gets stuck
+  attempts = 0
+
   // additional deck IDs to ban (from match step bans)
   additionalBannedDeckIds: number[]
 
@@ -286,7 +289,7 @@ export class TupleBans {
       }
       if (fallbackCount++ > 100) {
         return console.error(
-          `Tuple bans stuck recursing. Aborting early with ${this.tupleBans.length} tuple bans`,
+          `Creating odds for stakes stuck recursing. try editing probabilities with change-stake-probabilities. Aborting early with ${this.tupleBans.length} tuple bans`,
         )
       }
     }
@@ -309,7 +312,7 @@ export class TupleBans {
       }
       if (fallbackCount++ > 100) {
         return console.error(
-          `Tuple bans stuck recursing. Aborting early with ${this.tupleBans.length} tuple bans`,
+          `Creating odds for decks stuck recursing. try editing probabilities with change-deck-probabilities. Aborting early with ${this.tupleBans.length} tuple bans`,
         )
       }
     }
@@ -341,14 +344,14 @@ export class TupleBans {
    */
   private generateTupleBansRecurse(): void {
     this.generateTuple()
-    let fallbackCount = 0
     if (this.tupleBans.length < this.tupleCount) {
-      this.generateTupleBansRecurse()
-      if (fallbackCount++ > 100) {
+      // try x times to generate tuple bans (each attempt represents up to 100 attempts for each individual tuple)
+      if (this.attempts++ > 50) {
         return console.error(
           `Tuple bans stuck recursing. Aborting early with ${this.tupleBans.length} tuple bans`,
         )
       }
+      this.generateTupleBansRecurse()
     }
   }
 
@@ -365,6 +368,7 @@ export class TupleBans {
   public getTupleBans(): TupleBan[] {
     this.generateTupleBansRecurse()
     this.orderTupleBans()
+    this.attempts = 0
     return this.tupleBans
   }
 }
