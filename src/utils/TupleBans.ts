@@ -122,10 +122,6 @@ export class TupleBans {
         this.queueId,
       ])
     ).rows
-
-    for (const prob of this.stakeProbabilities) {
-      console.log('probabilities: ', prob)
-    }
   }
 
   /**
@@ -152,10 +148,6 @@ export class TupleBans {
         ? Number(probMultiplier)
         : this.defaultDeckProbability
     })
-
-    for (const stake of this.stakes) {
-      console.log('other: ', stake.name, stake.multiplier)
-    }
   }
 
   /**
@@ -280,6 +272,7 @@ export class TupleBans {
 
     // generate stakes and decks until one that is within the occurrence limit is generated
 
+    let fallbackCount = 0
     let succeeded = false
     while (!succeeded) {
       chosenStake = this.selectDeckStake(stakeSeries, Math.random())
@@ -291,8 +284,14 @@ export class TupleBans {
       ) {
         succeeded = true
       }
+      if (fallbackCount++ > 100) {
+        return console.error(
+          `Tuple bans stuck recursing. Aborting early with ${this.tupleBans.length} tuple bans`,
+        )
+      }
     }
 
+    fallbackCount = 0
     succeeded = false
     while (!succeeded) {
       chosenDeck = this.selectDeckStake(deckSeries, Math.random())
@@ -307,6 +306,11 @@ export class TupleBans {
         )
       ) {
         succeeded = true
+      }
+      if (fallbackCount++ > 100) {
+        return console.error(
+          `Tuple bans stuck recursing. Aborting early with ${this.tupleBans.length} tuple bans`,
+        )
       }
     }
 
