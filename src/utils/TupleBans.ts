@@ -286,7 +286,7 @@ export class TupleBans {
         )
       }
 
-      if (!containsWhite) {
+      if (!containsWhite && this.tupleBans.length == this.tupleCount - 1) {
         chosenStake = {
           count: 1,
           id: 1,
