@@ -59,12 +59,13 @@ export class TupleBans {
     occurs?: number
   }[] = [
     {
+      // todo: implement the multipliers dynamically - for now just slightly increasing white stake and lowering green stake
       name: 'White Stake',
-      multiplier: this.defaultStakeProbability,
+      multiplier: 1.25, // ?? this.defaultStakeProbability,
     },
     {
       name: 'Green Stake',
-      multiplier: this.defaultStakeProbability,
+      multiplier: 0.75, // ?? this.defaultStakeProbability,
     },
     {
       name: 'Black Stake',
