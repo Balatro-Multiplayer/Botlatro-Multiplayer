@@ -288,8 +288,8 @@ export class TupleBans {
         succeeded = true
       }
       if (fallbackCount++ > 100) {
-        return console.error(
-          `Creating odds for stakes stuck recursing. try editing probabilities with change-stake-probabilities. Aborting early with ${this.tupleBans.length} tuple bans`,
+        return console.warn(
+          `Creating odds for stakes stuck recursing. try editing probabilities with 'change-stake-probabilities'. ${this.tupleBans.length} tuple bans are complete. Trying again`,
         )
       }
     }
@@ -311,8 +311,8 @@ export class TupleBans {
         succeeded = true
       }
       if (fallbackCount++ > 100) {
-        return console.error(
-          `Creating odds for decks stuck recursing. try editing probabilities with change-deck-probabilities. Aborting early with ${this.tupleBans.length} tuple bans`,
+        return console.warn(
+          `Creating odds for decks stuck recursing. try editing probabilities with 'change-deck-probabilities'. ${this.tupleBans.length} tuple bans are complete. Trying again`,
         )
       }
     }
