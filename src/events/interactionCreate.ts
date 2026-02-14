@@ -4,10 +4,12 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  ChannelType,
   EmbedBuilder,
   Events,
   GuildMember,
   Interaction,
+  MessageComponentInteraction,
   MessageFlags,
   PermissionFlagsBits,
   StringSelectMenuBuilder,
@@ -85,6 +87,8 @@ const processingQueueJoins = new Set<string>()
 const processingMatchEnds = new Set<number>()
 // Track matches that have consumed their one-time tuple reroll
 const tupleRerollUsed = new Set<number>()
+// Track matches that have consumed their one-time tuple veto
+const tupleVetoUsed = new Set<number>()
 
 export default {
   name: Events.InteractionCreate,
@@ -613,6 +617,142 @@ export default {
           })
         }
 
+        // handle tuple veto
+        if (interaction.customId.startsWith('veto-tuples-')) {
+          console.log('Handling veto tuples')
+          const matchId = parseInt(interaction.customId.split('-')[2])
+          const queueId = await getQueueIdFromMatch(matchId)
+          const matchTeams = await getTeamsInMatch(matchId)
+          const matchUsersArray = matchTeams.teams.flatMap((t) =>
+            t.players.map((u) => u.user_id),
+          )
+          const players = await pool.query(
+            `SELECT elo, user_id FROM queue_users WHERE user_id = ANY($1)`,
+            [matchUsersArray],
+          )
+          const vetoLimit = await pool.query(
+            `SELECT veto_mmr_threshold FROM queues WHERE id = $1`,
+            [queueId],
+          )
+          const userElo = players.rows.find(
+            (p) => p.user_id === interaction.user.id,
+          )?.elo
+
+          // check if player is allowed to veto
+          if (userElo && !(userElo <= vetoLimit.rows[0].veto_mmr_threshold)) {
+            await interaction.reply({
+              content: 'You are not allowed to veto.',
+              flags: MessageFlags.Ephemeral,
+            })
+            return
+          }
+
+          // Check if veto already used
+          if (tupleVetoUsed.has(matchId)) {
+            await interaction.reply({
+              content: 'Veto has already been used for this match.',
+              flags: MessageFlags.Ephemeral,
+            })
+            return
+          }
+
+          const embed = interaction.message.embeds[0]
+          const veto = async (
+            interaction: MessageComponentInteraction | null | undefined,
+            { embed }: { embed: EmbedBuilder; votes?: string[] },
+          ) => {
+            if (!interaction) return
+
+            tupleVetoUsed.add(matchId)
+            const queueId = await getQueueIdFromMatch(matchId)
+
+            // Regenerate tuples
+            const tupleGen = new TupleBans(queueId, [])
+            await tupleGen.init()
+            let generatedTuples = tupleGen.getTupleBans(tupleGen.veto)
+            // console.table(generatedTuples)
+
+            // Update match tuple bans in DB
+            const tupleStrings = generatedTuples.map(
+              (t) => `${t.deckId}_${t.stakeId}`,
+            )
+            await setMatchTupleBans(matchId, tupleStrings)
+
+            const messageComponents = interaction.message.components
+            const selectMenuRow = messageComponents.find(
+              (row) =>
+                row.type === 1 &&
+                'components' in row &&
+                row.components?.[0]?.type === 3,
+            ) as any
+            const selectMenu = selectMenuRow?.components?.[0]
+            const selectMenuCustomId = selectMenu?.customId || ''
+            const selectParts = selectMenuCustomId.split('-')
+            const opponentTeamIndex = parseInt(selectParts[4])
+            const activeTeamIndex = 1 - opponentTeamIndex
+
+            const activeTeamName =
+              matchTeams.teams[activeTeamIndex].players.length === 1
+                ? (
+                    await client.users.fetch(
+                      matchTeams.teams[activeTeamIndex].players[0].user_id,
+                    )
+                  ).displayName
+                : `Team ${matchTeams.teams[activeTeamIndex].id}`
+
+            // Build new embed description
+            const tupleListStr = generatedTuples
+              .map(
+                (t, i) =>
+                  `**\`${i + 1}.\`** ${t.deckEmoji} ${t.stakeEmoji} ${t.deckName} / ${t.stakeName}`,
+              )
+              .join('\n')
+
+            const newEmbed = EmbedBuilder.from(embed as any).setDescription(
+              `**${activeTeamName}** bans 1 option.\n\n` +
+                `**Available Options:**\n${tupleListStr}`,
+            )
+
+            // Build new select menu
+            const deckSelMenu = await setupDeckSelect(
+              selectMenuCustomId,
+              `${activeTeamName}: Select 1 option to ban.`,
+              1,
+              1,
+              true,
+              [],
+              [],
+              queueId,
+              undefined,
+              generatedTuples,
+            )
+
+            // Build new buttons (removing veto button)
+            const deckBanButtonsRow = ActionRowBuilder.from(
+              interaction.message.components[1] as any,
+            ) as ActionRowBuilder<ButtonBuilder>
+            const newButtons = deckBanButtonsRow.components.filter(
+              (c: any) =>
+                !(
+                  (c.data && c.data.custom_id?.startsWith('veto-tuples-')) ||
+                  (c.customId && c.customId.startsWith('veto-tuples-'))
+                ),
+            )
+            deckBanButtonsRow.setComponents(newButtons)
+
+            await interaction.update({
+              embeds: [newEmbed],
+              components: [deckSelMenu, deckBanButtonsRow],
+            })
+
+            if (interaction.channel?.type === ChannelType.GuildText)
+              await interaction.channel?.send(
+                `# ${interaction.user} has used their veto!`,
+              )
+          }
+          await veto(interaction, { embed: EmbedBuilder.from(embed) })
+        }
+
         if (interaction.customId.startsWith('reroll-tuples-')) {
           const matchId = parseInt(interaction.customId.split('-')[2])
           const matchTeams = await getTeamsInMatch(matchId)
@@ -629,6 +769,7 @@ export default {
             return
           }
 
+          // todo: make veto button re appear when a re roll is triggered
           // Use handleVoting for reroll
           await handleVoting(interaction, {
             voteType: 'Reroll Votes',

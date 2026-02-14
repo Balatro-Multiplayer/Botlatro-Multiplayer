@@ -765,6 +765,25 @@ export async function sendMatchInitMessages(
         .setEmoji('🔄')
         .setStyle(ButtonStyle.Secondary),
     )
+    const players = await pool.query(
+      `SELECT elo FROM queue_users WHERE queue_id = $1`,
+      [queueId],
+    )
+    const vetoLimit = await pool.query(
+      `SELECT veto_mmr_threshold FROM queues WHERE id = $1`,
+      [queueId],
+    )
+
+    const canVeto = players.rows.some(
+      (player) => player.elo <= (vetoLimit.rows[0].veto_mmr_threshold ?? 200),
+    )
+    if (canVeto)
+      deckBanButtons.push(
+        new ButtonBuilder()
+          .setCustomId(`veto-tuples-${matchId}`)
+          .setLabel('VETO')
+          .setStyle(ButtonStyle.Danger),
+      )
   } else {
     deckBanButtons.push(
       new ButtonBuilder()

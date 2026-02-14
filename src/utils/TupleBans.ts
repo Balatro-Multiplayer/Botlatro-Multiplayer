@@ -31,6 +31,12 @@ export class TupleBans {
   // the queue id that this instance is generating for
   queueId: number
 
+  // decide whether to force white stake for a round of tuple generation
+  forceWhite: boolean = false
+
+  // the amount of white stakes to give when a veto is triggered
+  vetoWhiteAmount = 4
+
   // tracks number of attempts to generate tuple bans, so recursion can be stopped if it gets stuck
   attempts = 0
 
@@ -228,8 +234,12 @@ export class TupleBans {
    * Generates a single tuple ban based on the {@link decks} and {@link stakes} arrays
    * @private
    */
-  private generateTuple() {
+  private generateTuple(beforeGenerate?: () => void): void {
     // gets the relative probability associated with x1 multiplier for stakes and decks
+
+    if (beforeGenerate) {
+      beforeGenerate()
+    }
 
     const stakePart =
       1 /
@@ -286,7 +296,10 @@ export class TupleBans {
         )
       }
 
-      if (!containsWhite && this.tupleBans.length == this.tupleCount - 1) {
+      if (
+        (!containsWhite && this.tupleBans.length == this.tupleCount - 1) ||
+        this.forceWhite
+      ) {
         chosenStake = {
           count: 1,
           id: 1,
@@ -327,6 +340,7 @@ export class TupleBans {
         )
       ) {
         succeeded = true
+        this.forceWhite = false
       }
       if (fallbackCount++ > 100) {
         return console.warn(
@@ -360,7 +374,10 @@ export class TupleBans {
   /**
    * Generates a list of tuple bans by recursing {@link generateTuple} until an array of length {@link tupleCount} is created
    */
-  private generateTupleBansRecurse(): void {
+  private generateTupleBansRecurse(
+    beforeGenerate?: () => void,
+    afterGenerate?: () => void,
+  ): void {
     if (this.tupleBans.length < this.tupleCount) {
       // try x times to generate tuple bans (each attempt represents up to 100 attempts for each individual tuple)
       if (this.attempts++ > 50) {
@@ -368,9 +385,31 @@ export class TupleBans {
           `Tuple bans stuck recursing. Aborting early with ${this.tupleBans.length} tuple bans`,
         )
       }
-      this.generateTuple()
-      this.generateTupleBansRecurse()
+
+      this.generateTuple(beforeGenerate)
+
+      // run an optional modifier function after each tuple ban is generated
+      if (afterGenerate) {
+        afterGenerate()
+      }
+      this.generateTupleBansRecurse(beforeGenerate, afterGenerate)
     }
+  }
+
+  /**
+   * Set {@link forceWhite} to set guarantee a white stake generation, if white count >= {@link vetoWhiteAmount}.
+   * @private
+   */
+  public veto = (): void => {
+    const whiteCount = this.tupleBans.filter(
+      (tupleBan) => tupleBan.stakeId === 1,
+    ).length
+
+    if (whiteCount >= this.vetoWhiteAmount) {
+      return
+    }
+
+    this.forceWhite = true
   }
 
   private orderTupleBans(): void {
@@ -383,8 +422,11 @@ export class TupleBans {
    *
    * @returns {TupleBan[]}
    */
-  public getTupleBans(): TupleBan[] {
-    this.generateTupleBansRecurse()
+  public getTupleBans = (
+    beforeGenerate?: () => void,
+    afterGenerate?: () => void,
+  ): TupleBan[] => {
+    this.generateTupleBansRecurse(beforeGenerate, afterGenerate)
     this.orderTupleBans()
     this.attempts = 0
     return this.tupleBans
