@@ -257,7 +257,7 @@ export async function advanceDeckBanStep(
   ).rows[0]?.use_tuple_bans
 
   // Tuple ban step amounts: step 1 = 1, step 2 = 2, step 3 = 2, step 4 = pick 1
-  const tupleBanAmounts = [1, 2, 2, 1]
+  const tupleBanAmounts = [1, 3, 3, 1]
   const finalStep = useTupleBans ? 4 : 3
 
   // Parse choices - extract deck IDs (and stake ID for final pick if tuple)

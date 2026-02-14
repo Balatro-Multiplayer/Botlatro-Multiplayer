@@ -38,7 +38,7 @@ export class TupleBans {
   additionalBannedDeckIds: number[]
 
   // the amount of tuples to create
-  tupleCount = 7
+  tupleCount = 9
 
   // every deck and stake should start at 1, representing the multiplier of how common they are
   defaultDeckProbability = 1
