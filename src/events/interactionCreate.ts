@@ -637,9 +637,16 @@ export default {
           const userElo = players.rows.find(
             (p) => p.user_id === interaction.user.id,
           )?.elo
+          const userInMatch = interaction.user.id in matchUsersArray
+          console.log(userInMatch)
+          console.log(matchUsersArray)
+          console.log(interaction.user.id)
 
           // check if player is allowed to veto
-          if (userElo && !(userElo <= vetoLimit.rows[0].veto_mmr_threshold)) {
+          if (
+            !(userElo <= vetoLimit.rows[0].veto_mmr_threshold) ||
+            !userInMatch
+          ) {
             await interaction.reply({
               content: 'You are not allowed to veto.',
               flags: MessageFlags.Ephemeral,
