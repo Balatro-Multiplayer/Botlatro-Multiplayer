@@ -782,7 +782,8 @@ export async function sendMatchInitMessages(
         new ButtonBuilder()
           .setCustomId(`veto-tuples-${matchId}`)
           .setLabel('VETO')
-          .setStyle(ButtonStyle.Danger),
+          .setEmoji('<:white_stake:1407754838108016733>')
+          .setStyle(ButtonStyle.Success),
       )
   } else {
     deckBanButtons.push(
