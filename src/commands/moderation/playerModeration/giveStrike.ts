@@ -51,6 +51,10 @@ export default {
       })
 
       const strikeList = await strikeUtils.getUserStrikes(user.id)
+      const totalStrikes = strikeList.reduce(
+        (acc: any, strike: any) => acc + strike.amount,
+        0,
+      )
 
       const member = await interaction.guild!.members.fetch(user.id)
       // log usage
@@ -61,7 +65,7 @@ export default {
         [
           {
             name: `Amount`,
-            value: `${amount} (total: ${strikeList.length})`,
+            value: `${amount} (total: ${totalStrikes})`,
             inline: true,
           },
           { name: `Reason`, value: `${reasonFormat}`, inline: true },
@@ -77,7 +81,7 @@ export default {
       await logStrike('add_strike', embed, undefined, `<@${user.id ?? 1234}>`)
 
       await interaction.editReply(
-        `User ${username} given ${amount} strikes ${reason == 'No reason provided' ? `for ${reason}` : ``}`,
+        `User ${username} given ${amount} strikes ${reason == 'No reason provided' ? `for ${reason}` : ``} (total: ${totalStrikes})`,
       )
     } catch (err: any) {
       console.error(err)
