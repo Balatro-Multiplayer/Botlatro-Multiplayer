@@ -2,6 +2,7 @@ import {
   AutocompleteInteraction,
   ChatInputCommandInteraction,
   MessageFlags,
+  PermissionFlagsBits,
   SlashCommandBuilder,
 } from 'discord.js'
 import { pool } from '../../db'
@@ -10,6 +11,7 @@ export default {
   data: new SlashCommandBuilder()
     .setName('change-deck-probabilities')
     .setDescription('Change the multiplier for a queue deck')
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
 
     .addStringOption((option) =>
       option
