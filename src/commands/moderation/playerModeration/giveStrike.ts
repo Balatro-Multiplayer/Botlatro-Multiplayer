@@ -80,6 +80,13 @@ export default {
       )
       await logStrike('add_strike', embed, undefined, `<@${user.id ?? 1234}>`)
 
+      // DM the striked user
+      try {
+        await user.send(
+          `You have received **${amount}** strike(s) for: **${reason}**\nYour total strikes: **${totalStrikes}**`,
+        )
+      } catch {}
+
       await interaction.editReply(
         `User ${username} given ${amount} strikes ${reason == 'No reason provided' ? `for ${reason}` : ``} (total: ${totalStrikes})`,
       )
