@@ -38,6 +38,8 @@ import { QueryResult } from 'pg'
 import { client, getGuild } from '../client'
 import { checkBans } from './automaticUnbans'
 
+let lastMatchCreationTime = 0
+
 // Updates or sends a new queue message for the specified text channel
 export async function updateQueueMessage(): Promise<Message | undefined> {
   const response = await pool.query(
@@ -395,6 +397,9 @@ export async function matchUpGames(): Promise<void> {
       if (users.some((u: Record<string, any>) => usedUsers.has(u.user_id)))
         continue
 
+      // Rate limit match creation to once every 5 seconds
+      if (Date.now() - lastMatchCreationTime < 5000) continue
+
       // Mark users as used in local set
       users.forEach((u: Record<string, any>) => usedUsers.add(u.user_id))
 
@@ -429,6 +434,8 @@ export async function matchUpGames(): Promise<void> {
 
         await dbClient.query('COMMIT')
         dbClient.release()
+
+        lastMatchCreationTime = Date.now()
 
         // Now create the match (users are already removed from queue)
         await createMatch(userIds, queueId)
