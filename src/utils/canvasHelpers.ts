@@ -104,9 +104,10 @@ async function addTopText(
   const displayName = !member ? user.username : member.displayName
   const nameStartX = 190
   const nameMaxWidth = 360
+  const nameFontStack = `"${font}", "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji"`
   // Start with the default title font size (62px)
   let nameFontSize = 62
-  ctx.font = `bold ${nameFontSize}px ${font}`
+  ctx.font = `bold ${nameFontSize}px ${nameFontStack}`
   let nameWidth = ctx.measureText(displayName).width
   // Scale down if name is too wide
   if (nameWidth > nameMaxWidth) {
@@ -114,7 +115,7 @@ async function addTopText(
       32,
       Math.floor((nameMaxWidth / nameWidth) * nameFontSize),
     )
-    ctx.font = `bold ${nameFontSize}px ${font}`
+    ctx.font = `bold ${nameFontSize}px ${nameFontStack}`
   }
   //add player name to canvas
   ctx.fillStyle = config.colors.textPrimary
