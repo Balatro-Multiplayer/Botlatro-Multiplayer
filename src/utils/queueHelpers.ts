@@ -190,9 +190,14 @@ export async function joinQueues(
       [userId],
     )
     const matchData = await pool.query(`SELECT * FROM matches WHERE id = $1`, [
-      matchId.rows[0].match_id,
+      matchId.rows[matchId.rows.length - 1].match_id,
     ])
 
+    console.log(
+      matchData.rows[0].channel_id,
+      matchData.rows[0].open,
+      matchData.rows.length,
+    )
     await interaction.editReply({
       content: `You're already in a match! <#${matchData.rows[0].channel_id}>`,
     })
@@ -866,10 +871,9 @@ export async function sendQueueLog(
     .setURL(`https://balatromp.com/transcript/${matchId}`)
     .setDisabled(true)
 
-
   const buttonRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
     cancelButton,
-    transcriptBtn
+    transcriptBtn,
   )
 
   // Send to logging channel
