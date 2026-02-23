@@ -570,13 +570,18 @@ export async function createMatch(
   await sendMatchInitMessages(queueId, matchId, channel)
 
   for (const userId of userIds) {
+    // this is for hydra
+    let alternateMessage: string | null = null
+    if (userId === '468481307601535007') {
+      alternateMessage = 'Kill Yourself!'
+    }
     if (!(await getUserDmsEnabled(userId))) continue
     const member = await guild.members.fetch(userId)
     try {
       await member.send({
         embeds: [
           new EmbedBuilder()
-            .setTitle('Match Found!')
+            .setTitle(alternateMessage || 'Match Found!')
             .setDescription(`**Match Channel**\n<#${channel.id}>`)
             .setColor(0x00ff00),
         ],
