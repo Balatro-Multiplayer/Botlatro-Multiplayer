@@ -11,6 +11,10 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+    deploy:
+      resources:
+        limits:
+          memory: 384M
 
   migrate:
     build: .
@@ -73,6 +77,10 @@ services:
     ports:
       - "4931:4931"
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
 volumes:
   pgdata: {}
