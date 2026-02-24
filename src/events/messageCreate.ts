@@ -9,9 +9,8 @@ import {
   upsertCopyPaste,
 } from '../utils/queryDB'
 import { resendMatchWinVote } from '../utils/matchHelpers'
-import * as fs from 'fs'
-import * as path from 'path'
 import { getGuild } from '../client'
+import { TupleBans } from '../utils/TupleBans'
 
 // Track message count per channel
 const channelMessageCounts = new Map<string, number>()
@@ -47,6 +46,25 @@ export default {
       if (content.startsWith('!')) {
         const parts = content.slice(1).split(' ')
         const pasteName = parts[0].toLowerCase()
+
+        if (pasteName === 'bans') {
+          const parsed = Number.parseInt(parts[1], 10)
+          const banAmount: number | null = Number.isNaN(parsed) ? null : parsed
+
+          const tupleGen = new TupleBans(1)
+          await tupleGen.init()
+          tupleGen.setTupleCount(banAmount)
+          const tupleBans = tupleGen.getTupleBans()
+          const output = tupleBans
+            .map(
+              (tuple) =>
+                tuple.combinedEmote ??
+                `${tuple.deckEmoji} - ${tuple.stakeEmoji}`,
+            )
+            .join('\n')
+          return await message.channel.send(output)
+        }
+
         const botSettings = await getSettings()
         const member = message.member as GuildMember
 
