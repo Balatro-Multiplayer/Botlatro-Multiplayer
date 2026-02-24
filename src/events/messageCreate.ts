@@ -53,7 +53,9 @@ export default {
 
           const tupleGen = new TupleBans(1)
           await tupleGen.init()
-          tupleGen.setTupleCount(banAmount)
+          tupleGen.setTupleCount(
+            banAmount ? (banAmount <= 20 ? banAmount : 20) : null,
+          )
           const tupleBans = tupleGen.getTupleBans()
           const output = tupleBans
             .map(
