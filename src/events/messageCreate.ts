@@ -66,7 +66,7 @@ export default {
                 tuple.combinedEmote ??
                 `${tuple.deckEmoji} - ${tuple.stakeEmoji}`,
             )
-            .join('\n')
+            .join('')
           return await message.channel.send(output)
         }
 
