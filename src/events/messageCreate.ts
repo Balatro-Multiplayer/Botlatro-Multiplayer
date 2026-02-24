@@ -51,6 +51,9 @@ export default {
           const parsed = Number.parseInt(parts[1], 10)
           const banAmount: number | null = Number.isNaN(parsed) ? null : parsed
 
+          if (banAmount && banAmount < 4)
+            return await message.channel.send('Min ban amount is 4.')
+
           const tupleGen = new TupleBans(1)
           await tupleGen.init()
           tupleGen.setTupleCount(
