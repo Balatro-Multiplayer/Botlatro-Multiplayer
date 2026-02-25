@@ -95,8 +95,8 @@ async function addTopText(
   ctx.fillStyle = config.colors.textTertiary
   ctx.fillText(
     playerData.leaderboard_position
-      ? `${queueName.toUpperCase()}: #${playerData.leaderboard_position} • Season ${season}`
-      : `${queueName.toUpperCase()} PLAYER • Season ${season}`,
+      ? `${queueName.toUpperCase()}: #${playerData.leaderboard_position} • SEASON ${season}`
+      : `${queueName.toUpperCase()} PLAYER • SEASON ${season}`,
     190,
     65,
   )
