@@ -1,7 +1,21 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { COMMAND_HANDLERS } from '../../../command-handlers'
+import { getActiveSeason } from '../../../utils/queryDB'
 
 const statsRouter = new OpenAPIHono()
+
+const seasonQueryParam = z
+  .string()
+  .regex(/^\d+$/)
+  .transform(Number)
+  .optional()
+  .openapi({
+    param: {
+      name: 'season',
+      in: 'query',
+    },
+    example: '5',
+  })
 
 statsRouter.openapi(
   createRoute({
@@ -35,6 +49,7 @@ statsRouter.openapi(
             },
             example: '100',
           }),
+        season: seasonQueryParam,
       }),
     },
     responses: {
@@ -74,12 +89,14 @@ statsRouter.openapi(
   }),
   async (c) => {
     const { queue_id } = c.req.valid('param')
-    const { limit } = c.req.valid('query')
+    const { limit, season: seasonParam } = c.req.valid('query')
 
     try {
+      const season = seasonParam ?? (await getActiveSeason())
       const leaderboard = await COMMAND_HANDLERS.STATS.GET_LEADERBOARD(
         queue_id,
         limit,
+        season,
       )
 
       return c.json(
@@ -187,6 +204,7 @@ statsRouter.openapi(
             },
             example: '789',
           }),
+        season: seasonQueryParam,
       }),
     },
     responses: {
@@ -203,6 +221,7 @@ statsRouter.openapi(
                   best_of_3: z.boolean(),
                   best_of_5: z.boolean(),
                   created_at: z.string(),
+                  season: z.number(),
                   players: z.array(
                     z.object({
                       user_id: z.string(),
@@ -240,9 +259,11 @@ statsRouter.openapi(
       after_match_id,
       before_match_id,
       match_id,
+      season: seasonParam,
     } = c.req.valid('query')
 
     try {
+      const season = seasonParam ?? (await getActiveSeason())
       const matches = await COMMAND_HANDLERS.STATS.GET_OVERALL_HISTORY(
         queue_id,
         limit,
@@ -251,6 +272,7 @@ statsRouter.openapi(
         after_match_id,
         before_match_id,
         match_id,
+        season,
       )
 
       return c.json({ matches }, 200)
@@ -327,6 +349,7 @@ statsRouter.openapi(
             },
             example: '2024-12-31T23:59:59Z',
           }),
+        season: seasonQueryParam,
       }),
     },
     responses: {
@@ -358,6 +381,7 @@ statsRouter.openapi(
                   created_at: z.string(),
                   winning_team: z.number().nullable(),
                   queue_id: z.number(),
+                  season: z.number(),
                 }),
               ),
             }),
@@ -379,15 +403,18 @@ statsRouter.openapi(
   }),
   async (c) => {
     const { user_id, queue_id } = c.req.valid('param')
-    const { limit, start_date, end_date } = c.req.valid('query')
+    const { limit, start_date, end_date, season: seasonParam } =
+      c.req.valid('query')
 
     try {
+      const season = seasonParam ?? (await getActiveSeason())
       const matches = await COMMAND_HANDLERS.STATS.GET_MATCH_HISTORY({
         userId: user_id,
         queueId: queue_id,
         limit,
         startDate: start_date,
         endDate: end_date,
+        season,
       })
 
       return c.json(
@@ -433,6 +460,9 @@ statsRouter.openapi(
             },
             example: '1',
           }),
+      }),
+      query: z.object({
+        season: seasonQueryParam,
       }),
     },
     responses: {
@@ -480,11 +510,14 @@ statsRouter.openapi(
   }),
   async (c) => {
     const { user_id, queue_id } = c.req.valid('param')
+    const { season: seasonParam } = c.req.valid('query')
 
     try {
+      const season = seasonParam ?? (await getActiveSeason())
       const stats = await COMMAND_HANDLERS.STATS.GET_PLAYER_STATS(
         user_id,
         queue_id,
+        season,
       )
 
       if (!stats) {

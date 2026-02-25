@@ -455,7 +455,30 @@ export async function getUsersNeedingRoleUpdates(
 export async function getLeaderboardPosition(
   queueId: number,
   userId: string,
+  season?: number,
 ): Promise<number | null> {
+  const activeSeason = await getActiveSeason()
+
+  if (season !== undefined && season !== activeSeason) {
+    // Historical season: rank from queue_users_seasons
+    const result = await pool.query(
+      `
+      SELECT rank
+      FROM (
+        SELECT user_id, ROW_NUMBER() OVER (ORDER BY elo DESC) as rank
+        FROM queue_users_seasons
+        WHERE queue_id = $1 AND season = $3
+      ) ranked
+      WHERE user_id = $2
+      `,
+      [queueId, userId, season],
+    )
+
+    if (result.rowCount === 0) return null
+    return result.rows[0].rank
+  }
+
+  // Current season: rank from queue_users
   const result = await pool.query(
     `
     SELECT rank
@@ -477,8 +500,9 @@ export async function getLeaderboardPosition(
 export async function getLeaderboardQueueRole(
   queueId: number,
   userId: string,
+  season?: number,
 ): Promise<QueueRoles | null> {
-  const rank = await getLeaderboardPosition(queueId, userId)
+  const rank = await getLeaderboardPosition(queueId, userId, season)
 
   if (rank === null) return null
 
@@ -1527,38 +1551,78 @@ export async function getSettings(): Promise<Settings> {
   return response.rows[0]
 }
 
+// get the active season from settings
+export async function getActiveSeason(): Promise<number> {
+  const res = await pool.query(
+    'SELECT active_season FROM settings WHERE singleton = true',
+  )
+  return res.rows[0].active_season
+}
+
 // get the data for the statistics canvas display
 export async function getStatsCanvasUserData(
   userId: string,
   queueId: number,
+  season?: number,
 ): Promise<StatsCanvasPlayerData> {
   // 1) Core player stats for this queue
-  const playerRes = await pool.query(
-    `
-    SELECT
-      qu.user_id,
-      qu.elo,
-      qu.peak_elo,
-      qu.win_streak,
-      qu.peak_win_streak
-    FROM queue_users qu
-    WHERE qu.user_id = $1 AND qu.queue_id = $2
-    `,
-    [userId, queueId],
-  )
+  const activeSeason = await getActiveSeason()
+  const isHistorical = season !== undefined && season !== activeSeason
 
-  if (playerRes.rowCount === 0) {
-    throw new Error(
-      'No player data found for this user in the specified queue.',
-    )
-  }
-
-  const p = playerRes.rows[0] as {
+  let p: {
     user_id: string
     elo: number
     peak_elo: number
     win_streak: number
     peak_win_streak: number
+  }
+
+  if (isHistorical) {
+    // Historical season: read from queue_users_seasons snapshot
+    const snapshotRes = await pool.query(
+      `
+      SELECT
+        qus.user_id,
+        qus.elo,
+        qus.peak_elo,
+        qus.win_streak,
+        qus.peak_win_streak
+      FROM queue_users_seasons qus
+      WHERE qus.user_id = $1 AND qus.queue_id = $2 AND qus.season = $3
+      `,
+      [userId, queueId, season],
+    )
+
+    if (snapshotRes.rowCount === 0) {
+      throw new Error(
+        'No player data found for this user in the specified queue and season.',
+      )
+    }
+
+    p = snapshotRes.rows[0]
+  } else {
+    // Current season: read from queue_users
+    const playerRes = await pool.query(
+      `
+      SELECT
+        qu.user_id,
+        qu.elo,
+        qu.peak_elo,
+        qu.win_streak,
+        qu.peak_win_streak
+      FROM queue_users qu
+      WHERE qu.user_id = $1 AND qu.queue_id = $2
+      `,
+      [userId, queueId],
+    )
+
+    if (playerRes.rowCount === 0) {
+      throw new Error(
+        'No player data found for this user in the specified queue.',
+      )
+    }
+
+    p = playerRes.rows[0]
   }
 
   // Calculate wins, losses, and games_played from match_users
@@ -1571,8 +1635,9 @@ export async function getStatsCanvasUserData(
     FROM match_users mu
     JOIN matches m ON m.id = mu.match_id
     WHERE mu.user_id = $1 AND m.queue_id = $2
+    ${season !== undefined ? 'AND m.season = $3' : ''}
     `,
-    [userId, queueId],
+    season !== undefined ? [userId, queueId, season] : [userId, queueId],
   )
 
   const wins = statsRes.rows[0]?.wins || 0
@@ -1589,9 +1654,10 @@ export async function getStatsCanvasUserData(
     FROM match_users mu
     JOIN matches m ON m.id = mu.match_id
     WHERE mu.user_id = $1 AND m.queue_id = $2 AND m.winning_team IS NOT NULL
+    ${season !== undefined ? 'AND m.season = $3' : ''}
     ORDER BY m.created_at DESC
     `,
-    [userId, queueId],
+    season !== undefined ? [userId, queueId, season] : [userId, queueId],
   )
 
   const previous_games = previousRes.rows as {
@@ -1609,9 +1675,10 @@ export async function getStatsCanvasUserData(
     FROM match_users mu
     JOIN matches m ON m.id = mu.match_id
     WHERE mu.user_id = $1 AND m.queue_id = $2 AND m.winning_team IS NOT NULL
+    ${season !== undefined ? 'AND m.season = $3' : ''}
     ORDER BY m.created_at
     `,
-    [userId, queueId],
+    season !== undefined ? [userId, queueId, season] : [userId, queueId],
   )
 
   let eloChanges = eloRes.rows.map((r: any) => ({
@@ -1659,6 +1726,7 @@ export async function getStatsCanvasUserData(
       FROM queue_users qu
       LEFT JOIN match_users mu ON mu.user_id = qu.user_id
       LEFT JOIN matches m ON m.id = mu.match_id AND m.queue_id = $1
+        ${season !== undefined ? 'AND m.season = $6' : ''}
       WHERE qu.queue_id = $1
       GROUP BY qu.user_id
     )
@@ -1670,13 +1738,22 @@ export async function getStatsCanvasUserData(
       COUNT(CASE WHEN winrate < $5 THEN 1 END) as winrate_rank
     FROM player_stats
     `,
-    [
-      queueId,
-      wins,
-      losses,
-      games_played,
-      games_played > 0 ? wins / games_played : 0,
-    ],
+    season !== undefined
+      ? [
+          queueId,
+          wins,
+          losses,
+          games_played,
+          games_played > 0 ? wins / games_played : 0,
+          season,
+        ]
+      : [
+          queueId,
+          wins,
+          losses,
+          games_played,
+          games_played > 0 ? wins / games_played : 0,
+        ],
   )
 
   const playerCount = parseInt(percentilesRes.rows[0].total_players)
@@ -1751,7 +1828,7 @@ export async function getStatsCanvasUserData(
     },
   ]
 
-  const leaderboardPos = await getLeaderboardPosition(queueId, userId)
+  const leaderboardPos = await getLeaderboardPosition(queueId, userId, season)
 
   // Fetch user's selected background
   const bgRes = await pool.query(
@@ -1781,7 +1858,7 @@ export async function getStatsCanvasUserData(
 
   try {
     // Try leaderboard role first (prioritized)
-    const leaderboardRole = await getLeaderboardQueueRole(queueId, userId)
+    const leaderboardRole = await getLeaderboardQueueRole(queueId, userId, season)
 
     if (leaderboardRole) {
       // User has a leaderboard role - display it with position-based bar
@@ -2206,6 +2283,7 @@ export async function getAllOpenRooms(): Promise<UserRoom[]> {
 export async function getQueueLeaderboard(
   queueId: number,
   limit?: number,
+  season?: number,
 ): Promise<
   Array<{
     rank: number
@@ -2219,26 +2297,61 @@ export async function getQueueLeaderboard(
     peak_streak: number
   }>
 > {
-  let query = `
-    SELECT
-      qu.user_id,
-      u.display_name,
-      qu.elo,
-      qu.peak_elo,
-      qu.win_streak,
-      qu.peak_win_streak,
-      COUNT(CASE WHEN m.winning_team = mu.team THEN 1 END)::integer as wins,
-      COUNT(CASE WHEN m.winning_team IS NOT NULL AND m.winning_team != mu.team THEN 1 END)::integer as losses
-    FROM queue_users qu
-    LEFT JOIN users u ON u.user_id = qu.user_id
-    LEFT JOIN match_users mu ON mu.user_id = qu.user_id
-    LEFT JOIN matches m ON m.id = mu.match_id AND m.queue_id = $1
-    WHERE qu.queue_id = $1
-    GROUP BY qu.user_id, u.display_name, qu.elo, qu.peak_elo, qu.win_streak, qu.peak_win_streak
-    ORDER BY qu.elo DESC
-  `
+  const activeSeason = await getActiveSeason()
+  const isHistorical = season !== undefined && season !== activeSeason
 
   const params: any[] = [queueId]
+
+  let seasonFilter = ''
+  if (season !== undefined) {
+    params.push(season)
+    seasonFilter = ` AND m.season = $${params.length}`
+  }
+
+  let query: string
+
+  if (isHistorical) {
+    // Historical season: read elo/peak/streak from queue_users_seasons snapshot
+    query = `
+      SELECT
+        qus.user_id,
+        u.display_name,
+        qus.elo,
+        qus.peak_elo,
+        qus.win_streak,
+        qus.peak_win_streak,
+        COUNT(CASE WHEN m.winning_team = mu.team THEN 1 END)::integer as wins,
+        COUNT(CASE WHEN m.winning_team IS NOT NULL AND m.winning_team != mu.team THEN 1 END)::integer as losses
+      FROM queue_users_seasons qus
+      LEFT JOIN users u ON u.user_id = qus.user_id
+      LEFT JOIN match_users mu ON mu.user_id = qus.user_id
+      LEFT JOIN matches m ON m.id = mu.match_id AND m.queue_id = $1${seasonFilter}
+      WHERE qus.queue_id = $1 AND qus.season = $2
+      GROUP BY qus.user_id, u.display_name, qus.elo, qus.peak_elo, qus.win_streak, qus.peak_win_streak
+      ORDER BY qus.elo DESC
+    `
+  } else {
+    // Current season: read from queue_users
+    query = `
+      SELECT
+        qu.user_id,
+        u.display_name,
+        qu.elo,
+        qu.peak_elo,
+        qu.win_streak,
+        qu.peak_win_streak,
+        COUNT(CASE WHEN m.winning_team = mu.team THEN 1 END)::integer as wins,
+        COUNT(CASE WHEN m.winning_team IS NOT NULL AND m.winning_team != mu.team THEN 1 END)::integer as losses
+      FROM queue_users qu
+      LEFT JOIN users u ON u.user_id = qu.user_id
+      LEFT JOIN match_users mu ON mu.user_id = qu.user_id
+      LEFT JOIN matches m ON m.id = mu.match_id AND m.queue_id = $1${seasonFilter}
+      WHERE qu.queue_id = $1
+      GROUP BY qu.user_id, u.display_name, qu.elo, qu.peak_elo, qu.win_streak, qu.peak_win_streak
+      ORDER BY qu.elo DESC
+    `
+  }
+
   if (limit) {
     query += ` LIMIT $${params.length + 1}`
     params.push(limit)

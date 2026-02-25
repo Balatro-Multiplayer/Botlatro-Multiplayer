@@ -1,17 +1,18 @@
 import {
-  AttachmentBuilder,
   ChatInputCommandInteraction,
   MessageFlags,
   PermissionFlagsBits,
   SlashCommandBuilder,
 } from 'discord.js'
 import { pool } from '../../db'
-import { exportSeasonData, combineSeasonData } from '../../utils/csvExport'
+import { getActiveSeason } from '../../utils/queryDB'
 
 export default {
   data: new SlashCommandBuilder()
     .setName('reset-season')
-    .setDescription('[ADMIN] Reset the season. WARNING: IRREVERSIBLE!')
+    .setDescription(
+      '[ADMIN] Advance to the next season. Snapshots current stats and resets MMR.',
+    )
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addStringOption((option) =>
       option
@@ -27,67 +28,76 @@ export default {
     }
 
     try {
-      console.log('[Reset Season] Starting season reset process...')
+      const currentSeason = await getActiveSeason()
+      const newSeason = currentSeason + 1
 
-      // Export all season data before deletion
+      console.log(
+        `[Reset Season] Starting season transition: ${currentSeason} -> ${newSeason}`,
+      )
+
+      // Step 1: Snapshot queue_users into queue_users_seasons
       await interaction.editReply({
-        content:
-          '**Step 1/4:** Exporting season data to CSV...\n_This may take a moment for large datasets._',
+        content: `**Step 1/3:** Snapshotting season ${currentSeason} stats...`,
       })
 
-      const exportStart = Date.now()
-      const seasonData = await exportSeasonData()
-      console.log(
-        `[Reset Season] Export completed in ${Date.now() - exportStart}ms`,
+      const snapshotResult = await pool.query(
+        `
+        INSERT INTO queue_users_seasons (user_id, queue_id, season, elo, peak_elo, win_streak, peak_win_streak, volatility)
+        SELECT user_id, queue_id, $1, elo, peak_elo, win_streak, peak_win_streak, volatility
+        FROM queue_users
+        ON CONFLICT (user_id, queue_id, season) DO UPDATE SET
+          elo = EXCLUDED.elo,
+          peak_elo = EXCLUDED.peak_elo,
+          win_streak = EXCLUDED.win_streak,
+          peak_win_streak = EXCLUDED.peak_win_streak,
+          volatility = EXCLUDED.volatility
+        `,
+        [currentSeason],
       )
+      console.log(
+        `[Reset Season] Snapshotted ${snapshotResult.rowCount} queue_users entries for season ${currentSeason}`,
+      )
+
+      // Step 2: Reset queue_users to defaults
+      await interaction.editReply({
+        content: `**Step 2/3:** Resetting all players to default MMR for season ${newSeason}...`,
+      })
+
+      const resetResult = await pool.query(
+        `
+        UPDATE queue_users qu
+        SET elo = q.default_elo,
+            peak_elo = q.default_elo,
+            win_streak = 0,
+            peak_win_streak = 0,
+            volatility = NULL,
+            is_decay = false,
+            last_decay = NULL
+        FROM queues q
+        WHERE qu.queue_id = q.id
+        `,
+      )
+      console.log(
+        `[Reset Season] Reset ${resetResult.rowCount} queue_users entries to defaults`,
+      )
+
+      // Step 3: Increment active_season and update matches default
+      await pool.query(
+        `UPDATE settings SET active_season = $1 WHERE singleton = true`,
+        [newSeason],
+      )
+      console.log(`[Reset Season] Active season set to ${newSeason}`)
+
+      await pool.query(
+        `ALTER TABLE matches ALTER COLUMN season SET DEFAULT ${newSeason}`,
+      )
+      console.log(`[Reset Season] Matches default season set to ${newSeason}`)
 
       await interaction.editReply({
-        content: '**Step 2/4:** Generating CSV file...',
+        content: `**Step 3/3:** Complete!\n\nSeason **${currentSeason}** has been archived and season **${newSeason}** has begun.\n\n**Actions taken:**\n- Snapshotted ${snapshotResult.rowCount} player stats for season ${currentSeason}\n- Reset ${resetResult.rowCount} players to default MMR\n- Active season is now **${newSeason}**`,
       })
 
-      const csvContent = combineSeasonData(seasonData)
-
-      // Create the CSV file as a buffer
-      const buffer = Buffer.from(csvContent, 'utf-8')
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-      const attachment = new AttachmentBuilder(buffer, {
-        name: `season-export-${timestamp}.csv`,
-      })
-      console.log(
-        `[Reset Season] CSV file generated (${(buffer.length / 1024).toFixed(2)} KB)`,
-      )
-
-      // Delete all matches and queue users
-      await interaction.editReply({
-        content:
-          '**Step 3/4:** Deleting season data from database...\n_Deleting match users, matches, and queue users._',
-      })
-
-      const deleteStart = Date.now()
-      const matchUsersResult = await pool.query('DELETE FROM match_users')
-      console.log(
-        `[Reset Season] Deleted ${matchUsersResult.rowCount} match_users entries`,
-      )
-
-      const matchesResult = await pool.query('DELETE FROM matches')
-      console.log(`[Reset Season] Deleted ${matchesResult.rowCount} matches`)
-
-      const queueUsersResult = await pool.query('DELETE FROM queue_users')
-      console.log(
-        `[Reset Season] Deleted ${queueUsersResult.rowCount} queue_users entries`,
-      )
-
-      console.log(
-        `[Reset Season] Database cleanup completed in ${Date.now() - deleteStart}ms`,
-      )
-
-      // Send success message with the CSV file attached
-      await interaction.editReply({
-        content: `**Step 4/4:** Complete!\n\nSuccessfully reset the season. **THIS CANNOT BE REVERSED.**\n\nSeason data has been exported and attached as a CSV file.\n\n**Summary:**\n${seasonData.summary}\n**Deleted:**\n- ${matchUsersResult.rowCount} match user entries\n- ${matchesResult.rowCount} matches\n- ${queueUsersResult.rowCount} queue user entries`,
-        files: [attachment],
-      })
-
-      console.log('[Reset Season] Season reset completed successfully')
+      console.log('[Reset Season] Season transition completed successfully')
     } catch (err: any) {
       console.error('[Reset Season] Error resetting season:', err)
       const errorMessage = err instanceof Error ? err.message : String(err)

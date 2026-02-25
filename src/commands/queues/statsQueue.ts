@@ -1,6 +1,10 @@
 import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
 import { drawPlayerStatsCanvas } from '../../utils/canvasHelpers'
-import { getQueueIdFromName, getStatsCanvasUserData } from '../../utils/queryDB'
+import {
+  getActiveSeason,
+  getQueueIdFromName,
+  getStatsCanvasUserData,
+} from '../../utils/queryDB'
 import {
   setupViewStatsButtons,
   setUserQueueRole,
@@ -18,7 +22,12 @@ export default {
       const showDots =
         interaction.options.getString('dots') === 'yes' ? true : false
       const queueId = await getQueueIdFromName(queueName)
-      const playerStats = await getStatsCanvasUserData(targetUser.id, queueId)
+      const season = await getActiveSeason()
+      const playerStats = await getStatsCanvasUserData(
+        targetUser.id,
+        queueId,
+        season,
+      )
       const statFile = await drawPlayerStatsCanvas(
         queueName,
         playerStats,

@@ -22,6 +22,7 @@ export type MatchHistoryEntry = {
   created_at: string
   winning_team: number | null
   queue_id: number
+  season: number
 }
 
 /**
@@ -35,6 +36,7 @@ export async function getMatchHistory({
   offset,
   startDate,
   endDate,
+  season,
 }: {
   userId: string
   queueId?: number
@@ -42,6 +44,7 @@ export async function getMatchHistory({
   offset?: number
   startDate?: string
   endDate?: string
+  season?: number
 }): Promise<MatchHistoryEntry[]> {
   try {
     // Get match history for the player with opponent details
@@ -59,6 +62,7 @@ export async function getMatchHistory({
         m.best_of_5,
         m.created_at,
         m.queue_id,
+        m.season,
         mu.team as player_team,
         mu.elo_change as player_elo_change,
         mu.mmr_after as player_mmr_after,
@@ -81,6 +85,12 @@ export async function getMatchHistory({
 
     if (queueId !== undefined) {
       params.push(queueId)
+      paramIndex++
+    }
+
+    if (season !== undefined) {
+      query += ` AND m.season = $${paramIndex}`
+      params.push(season)
       paramIndex++
     }
 
@@ -129,6 +139,7 @@ export async function getMatchHistory({
           created_at: row.created_at.toISOString(),
           winning_team: row.winning_team,
           queue_id: row.queue_id,
+          season: row.season,
         })
       }
 

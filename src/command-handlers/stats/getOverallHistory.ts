@@ -8,6 +8,7 @@ export type OverallHistoryEntry = {
   best_of_3: boolean
   best_of_5: boolean
   created_at: string
+  season: number
   players: {
     user_id: string
     name: string
@@ -37,6 +38,7 @@ export async function getOverallHistory(
   afterMatchId?: string,
   beforeMatchId?: string,
   matchId?: string,
+  season?: number,
 ): Promise<OverallHistoryEntry[]> {
   try {
     // Optimized query strategy:
@@ -74,6 +76,12 @@ export async function getOverallHistory(
       }
     }
 
+    // Add season filter
+    if (season !== undefined) {
+      matchFilterConditions += ` AND m.season = $${params.length + 1}`
+      params.push(season)
+    }
+
     // Add date range filters if provided
     if (startDate) {
       matchFilterConditions += ` AND m.created_at >= $${params.length + 1}`
@@ -96,7 +104,8 @@ export async function getOverallHistory(
           m.stake,
           m.best_of_3,
           m.best_of_5,
-          m.created_at
+          m.created_at,
+          m.season
         FROM matches m
         ${matchFilterConditions}
         ORDER BY m.created_at DESC
@@ -152,6 +161,7 @@ export async function getOverallHistory(
         fm.best_of_3,
         fm.best_of_5,
         fm.created_at,
+        fm.season,
         mu.user_id,
         u.display_name as player_name,
         mu.team,
@@ -179,6 +189,7 @@ export async function getOverallHistory(
           best_of_3: row.best_of_3,
           best_of_5: row.best_of_5,
           created_at: row.created_at.toISOString(),
+          season: row.season,
           players: [],
         })
       }

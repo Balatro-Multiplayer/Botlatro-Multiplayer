@@ -138,6 +138,7 @@ declare module 'psqlDB' {
     decay_interval: number
     decay_grace: number
     match_count_channel_id: string
+    active_season: number
   }
 
   export type teamResults = {
@@ -217,6 +218,18 @@ declare module 'psqlDB' {
     active: boolean
     log_id: string | null
     reason: string | null
+  }
+
+  export interface QueueUsersSeason {
+    id: number
+    user_id: string
+    queue_id: number
+    season: number
+    elo: number
+    peak_elo: number
+    win_streak: number
+    peak_win_streak: number
+    volatility: number | null
   }
 
   export interface CopyPaste {
