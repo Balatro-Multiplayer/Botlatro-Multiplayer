@@ -40,6 +40,15 @@ export default {
             .setDescription('Show dots for each individual game on the graph')
             .addChoices([{ name: 'yes', value: 'yes' }])
             .setRequired(false),
+        )
+        .addIntegerOption((option) =>
+          option
+            .setName('season')
+            .setDescription(
+              'Season number to view stats for (defaults to current)',
+            )
+            .setRequired(false)
+            .setMinValue(5),
         ),
     ),
   async execute(interaction: ChatInputCommandInteraction) {

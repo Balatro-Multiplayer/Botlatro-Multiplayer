@@ -22,7 +22,8 @@ export default {
       const showDots =
         interaction.options.getString('dots') === 'yes' ? true : false
       const queueId = await getQueueIdFromName(queueName)
-      const season = await getActiveSeason()
+      const activeSeason = await getActiveSeason()
+      const season = interaction.options.getInteger('season') ?? activeSeason
       const playerStats = await getStatsCanvasUserData(
         targetUser.id,
         queueId,
@@ -32,6 +33,7 @@ export default {
         queueName,
         playerStats,
         byDate,
+        season,
         showDots,
       )
       const viewStatsButtons = setupViewStatsButtons(queueName)

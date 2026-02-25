@@ -83,6 +83,7 @@ async function addTopText(
   ctx: CanvasRenderingContext2D,
   playerData: StatsCanvasPlayerData,
   queueName: string,
+  season: number,
 ) {
   const guild = await getGuild()
   const member = await guild.members.fetch(playerData.user_id).catch(() => null)
@@ -94,8 +95,8 @@ async function addTopText(
   ctx.fillStyle = config.colors.textTertiary
   ctx.fillText(
     playerData.leaderboard_position
-      ? `${queueName.toUpperCase()}: #${playerData.leaderboard_position}`
-      : `${queueName.toUpperCase()} PLAYER`,
+      ? `${queueName.toUpperCase()}: #${playerData.leaderboard_position} • Season ${season}`
+      : `${queueName.toUpperCase()} PLAYER • Season ${season}`,
     190,
     65,
   )
@@ -1121,6 +1122,7 @@ export async function drawPlayerStatsCanvas(
   queueName: string,
   playerData: StatsCanvasPlayerData,
   byDate: boolean,
+  season: number,
   showDots: boolean = false,
 ) {
   // Render at higher resolution for sharper text (2x, 4x, etc.)
@@ -1160,7 +1162,7 @@ export async function drawPlayerStatsCanvas(
     await rankupBar(ctx, playerData, 180, 140, 415, 20, 136)
   }
 
-  await addTopText(ctx, playerData, queueName)
+  await addTopText(ctx, playerData, queueName, season)
 
   //side elements
   await addBlackBox(ctx, 60, 170, 95, 85)

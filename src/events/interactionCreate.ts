@@ -37,6 +37,7 @@ import { TupleBans } from '../utils/TupleBans'
 import {
   checkUserBanned,
   getActiveQueues,
+  getActiveSeason,
   getDeckList,
   getHelperRoleId,
   getMatchChannel,
@@ -988,6 +989,7 @@ export default {
             await interaction.deferReply()
             const queueName = interaction.customId.split('-')[2]
             const queueId = await getQueueIdFromName(queueName)
+            const season = await getActiveSeason()
             const playerStats = await getStatsCanvasUserData(
               interaction.user.id,
               queueId,
@@ -996,6 +998,7 @@ export default {
               queueName,
               playerStats,
               false,
+              season,
             )
             const viewStatsButtons = setupViewStatsButtons(queueName)
 
