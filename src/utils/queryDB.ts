@@ -2350,6 +2350,7 @@ export async function getQueueLeaderboard(
       LEFT JOIN matches m ON m.id = mu.match_id AND m.queue_id = $1${seasonFilter}
       WHERE qu.queue_id = $1
       GROUP BY qu.user_id, u.display_name, qu.elo, qu.peak_elo, qu.win_streak, qu.peak_win_streak
+      HAVING COUNT(m.id) > 0
       ORDER BY qu.elo DESC
     `
   }
