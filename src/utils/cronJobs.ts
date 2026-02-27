@@ -57,6 +57,9 @@ export async function partyDeleteCronJob() {
   ) // 5 minutes in milliseconds
 }
 
+const MATCH_CREATION_COOLDOWN_MS = 5000
+let lastMatchCreationTime = 0
+
 // increment elo search globally across all queues
 export async function incrementEloCronJobAllQueues() {
   const speedDefault = 2
@@ -171,6 +174,12 @@ export async function incrementEloCronJobAllQueues() {
         }
 
         if (bestPair.length === 2) {
+          const now = Date.now()
+          if (now - lastMatchCreationTime < MATCH_CREATION_COOLDOWN_MS) {
+            break // Rate limit: wait until cooldown passes before creating another match
+          }
+          lastMatchCreationTime = now
+
           const matchupUsers = bestPair.map((u) => u.userId)
 
           // remove users from all queues they are in
@@ -188,6 +197,7 @@ export async function incrementEloCronJobAllQueues() {
 
           // queue them for the match
           await createMatch(matchupUsers, bestPair[0].queueId)
+          break // Only one match per tick
         }
       }
     } catch (err) {
