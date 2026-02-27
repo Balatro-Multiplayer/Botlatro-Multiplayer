@@ -535,16 +535,36 @@ export async function createMatch(
 
   const matchId = response.rows[0].id
   const backupCat = '1427367817803464914'
+  const lfg3Cat = '1477060454516789509'
   const category = await guild.channels.fetch(categoryId)
   if (!category || category.type !== ChannelType.GuildCategory) {
     return console.log('Not a valid category.')
   }
   const channelCount = category.children.cache.size
 
+  let parentCat: string | null = categoryId
+  if (channelCount > 45) {
+    const backup = await guild.channels.fetch(backupCat)
+    const backupCount =
+      backup && backup.type === ChannelType.GuildCategory
+        ? backup.children.cache.size
+        : 0
+    if (backupCount > 45) {
+      const lfg3 = await guild.channels.fetch(lfg3Cat)
+      const lfg3Count =
+        lfg3 && lfg3.type === ChannelType.GuildCategory
+          ? lfg3.children.cache.size
+          : 0
+      parentCat = lfg3Count > 45 ? null : lfg3Cat
+    } else {
+      parentCat = backupCat
+    }
+  }
+
   const channel = await guild.channels.create({
     name: `${queue.rows[0].queue_name.toLowerCase()}-${matchId}`,
     type: ChannelType.GuildText,
-    parent: channelCount > 45 ? backupCat : categoryId,
+    parent: parentCat ?? undefined,
     permissionOverwrites: permissionOverwrites,
   })
 
