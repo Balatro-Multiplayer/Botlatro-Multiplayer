@@ -59,7 +59,12 @@ export async function updateQueueMessage(): Promise<Message | undefined> {
   if (queueListResponse.rowCount == 0) return
   let queueList: Queues[] = queueListResponse.rows
   queueList = queueList.filter((queue) => !queue.locked)
-  queueList.sort((a, b) => a.id - b.id) // Sort by ID ascending (oldest to newest)
+  const QUEUE_ORDER = ['Standard Ranked', 'Legacy Ranked', 'Smallworld', 'Sandbox', 'Casual']
+  queueList.sort((a, b) => {
+    const ai = QUEUE_ORDER.indexOf(a.queue_name)
+    const bi = QUEUE_ORDER.indexOf(b.queue_name)
+    return (ai === -1 ? Infinity : ai) - (bi === -1 ? Infinity : bi)
+  })
   const queueFields: APIEmbedField[] = await Promise.all(
     queueList.map(async (queue) => {
       const usersInQueue = await getUsersInQueue(queue.id)
