@@ -139,6 +139,7 @@ declare module 'psqlDB' {
     decay_grace: number
     match_count_channel_id: string
     active_season: number
+    bounty_helper_role_id: string
   }
 
   export type teamResults = {
@@ -218,6 +219,22 @@ declare module 'psqlDB' {
     active: boolean
     log_id: string | null
     reason: string | null
+  }
+
+  export interface Bounty {
+    id: number
+    bounty_name: string
+    description: string
+    created_by: string
+    created_at: Date
+  }
+
+  export interface UserBounty {
+    id: number
+    bounty_id: number
+    user_id: string
+    is_first: boolean
+    completed_at: Date
   }
 
   export interface QueueUsersSeason {

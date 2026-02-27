@@ -12,6 +12,7 @@ import setBannedDecks from 'commands/moderation/setBannedDecks'
 import setDecay from '../moderation/setDecay'
 import setBmpctuCategory from '../moderation/bmpctu/setBmpctuCategory'
 import setRoomLogChannel from '../moderation/bmpctu/setRoomLogChannel'
+import setBountyHelperRole from '../moderation/bounty/setBountyHelperRole'
 
 export default {
   data: new SlashCommandBuilder()
@@ -109,6 +110,17 @@ export default {
               .setRequired(true)
               .addChannelTypes(0), // txt
         ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('bounty-helper-role')
+        .setDescription('[ADMIN] Set the bounty helper role')
+        .addRoleOption((option) =>
+          option
+            .setName('role')
+            .setDescription('The role to set as bounty helper')
+            .setRequired(true),
+        ),
     ),
 
   async execute(interaction: ChatInputCommandInteraction) {
@@ -122,6 +134,8 @@ export default {
       await setBmpctuCategory.execute(interaction)
     } else if (interaction.options.getSubcommand() === 'room-log') {
       await setRoomLogChannel.execute(interaction)
+    } else if (interaction.options.getSubcommand() === 'bounty-helper-role') {
+      await setBountyHelperRole.execute(interaction)
     }
   },
 

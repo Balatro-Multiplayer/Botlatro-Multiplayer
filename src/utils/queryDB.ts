@@ -2,6 +2,7 @@ import { GuildMember, TextChannel, VoiceChannel } from 'discord.js'
 import { pool } from '../db'
 import type { Bans, Strikes, UserRoom } from 'psqlDB'
 import {
+  Bounty,
   CopyPaste,
   Decks,
   Matches,
@@ -10,6 +11,7 @@ import {
   Settings,
   Stakes,
   StatsCanvasPlayerData,
+  UserBounty,
   teamResults,
 } from 'psqlDB'
 import { client, getGuild } from '../client'
@@ -2447,4 +2449,126 @@ export async function searchCopyPastesByName(
     [`%${search}%`],
   )
   return res.rows
+}
+
+// -- Bounty Functions --
+
+// Create a bounty
+export async function createBounty(
+  name: string,
+  description: string,
+  createdBy: string,
+): Promise<Bounty> {
+  const res = await pool.query<Bounty>(
+    `INSERT INTO bounties (bounty_name, description, created_by)
+     VALUES ($1, $2, $3)
+     RETURNING *`,
+    [name, description, createdBy],
+  )
+  return res.rows[0]
+}
+
+// Delete a bounty
+export async function deleteBounty(bountyId: number): Promise<boolean> {
+  const res = await pool.query(
+    `DELETE FROM bounties WHERE id = $1 RETURNING id`,
+    [bountyId],
+  )
+  return res.rowCount !== 0
+}
+
+// Get all bounties
+export async function getBounties(): Promise<Bounty[]> {
+  const res = await pool.query<Bounty>(
+    `SELECT * FROM bounties ORDER BY id`,
+  )
+  return res.rows
+}
+
+// Get a bounty by name
+export async function getBountyByName(
+  name: string,
+): Promise<Bounty | null> {
+  const res = await pool.query<Bounty>(
+    `SELECT * FROM bounties WHERE bounty_name = $1`,
+    [name],
+  )
+  return res.rows[0] || null
+}
+
+// Assign a bounty to a user (auto-sets is_first if no prior completions)
+export async function assignBounty(
+  bountyId: number,
+  userId: string,
+): Promise<UserBounty> {
+  // Check if anyone has completed this bounty before
+  const existing = await pool.query(
+    `SELECT id FROM user_bounties WHERE bounty_id = $1`,
+    [bountyId],
+  )
+  const isFirst = existing.rowCount === 0
+
+  const res = await pool.query<UserBounty>(
+    `INSERT INTO user_bounties (bounty_id, user_id, is_first)
+     VALUES ($1, $2, $3)
+     RETURNING *`,
+    [bountyId, userId, isFirst],
+  )
+  return res.rows[0]
+}
+
+// Revoke a bounty from a user
+export async function revokeBounty(
+  bountyId: number,
+  userId: string,
+): Promise<boolean> {
+  const res = await pool.query(
+    `DELETE FROM user_bounties WHERE bounty_id = $1 AND user_id = $2 RETURNING id`,
+    [bountyId, userId],
+  )
+  return res.rowCount !== 0
+}
+
+// Get all bounties for a user (with bounty details)
+export async function getUserBounties(
+  userId: string,
+): Promise<(UserBounty & { bounty_name: string; description: string })[]> {
+  const res = await pool.query(
+    `SELECT ub.*, b.bounty_name, b.description
+     FROM user_bounties ub
+     JOIN bounties b ON b.id = ub.bounty_id
+     WHERE ub.user_id = $1
+     ORDER BY ub.completed_at DESC`,
+    [userId],
+  )
+  return res.rows
+}
+
+// Get all users who completed a bounty
+export async function getBountyCompletions(
+  bountyId: number,
+): Promise<UserBounty[]> {
+  const res = await pool.query<UserBounty>(
+    `SELECT * FROM user_bounties WHERE bounty_id = $1 ORDER BY completed_at`,
+    [bountyId],
+  )
+  return res.rows
+}
+
+// Get the bounty helper role id
+export async function getBountyHelperRoleId(): Promise<string | null> {
+  const res = await pool.query(
+    `SELECT bounty_helper_role_id FROM settings`,
+  )
+  return res.rows[0]?.bounty_helper_role_id || null
+}
+
+// Set the bounty helper role id
+export async function setBountyHelperRoleId(
+  roleId: string,
+): Promise<void> {
+  await pool.query(
+    `UPDATE settings SET bounty_helper_role_id = $1 WHERE singleton = true`,
+    [roleId],
+  )
 }
