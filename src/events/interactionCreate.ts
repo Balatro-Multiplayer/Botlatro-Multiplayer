@@ -1033,10 +1033,17 @@ export default {
 
           // Send webhook notification for each queue left
           // Just do the first queue listed, multi-queue support later
-          sendWebhook('LEAVE_QUEUE', {
-            players_removed: [{ id: interaction.user.id }],
-            queueId: userQueuesBeforeLeave[0].id,
-          })
+          const firstQueueLeft = userQueuesBeforeLeave[0]
+          if (firstQueueLeft) {
+            sendWebhook('LEAVE_QUEUE', {
+              players_removed: [{ id: interaction.user.id }],
+              queueId: firstQueueLeft.id,
+            })
+          } else {
+            console.warn(
+              `[LEAVE_QUEUE] No queued rows found before leave for user ${interaction.user.id}`,
+            )
+          }
 
           let message = 'You left the queue!'
 
