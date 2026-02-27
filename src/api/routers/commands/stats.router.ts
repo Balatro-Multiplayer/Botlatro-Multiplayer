@@ -8,11 +8,13 @@ const seasonQueryParam = z
   .string()
   .regex(/^\d+$/)
   .transform(Number)
+  .refine((n) => n >= 5, { message: 'Season must be 5 or greater' })
   .optional()
   .openapi({
     param: {
       name: 'season',
       in: 'query',
+      description: 'Season number to filter by. Must be 5 or greater.',
     },
     example: '5',
   })
