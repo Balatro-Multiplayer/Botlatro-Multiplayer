@@ -10,9 +10,7 @@ export const shorthands = undefined;
  */
 export const up = (pgm) => {
   // Store the generated tuple bans for each match (array of "deckId_stakeId" strings)
-  pgm.addColumn('matches', {
-    tuple_bans: { type: 'jsonb', notNull: false, default: null }
-  });
+  pgm.sql(`ALTER TABLE matches ADD COLUMN IF NOT EXISTS tuple_bans jsonb DEFAULT NULL`);
 };
 
 /**
