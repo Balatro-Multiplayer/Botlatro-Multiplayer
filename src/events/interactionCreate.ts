@@ -638,7 +638,7 @@ export default {
           const userElo = players.rows.find(
             (p) => p.user_id === interaction.user.id,
           )?.elo
-          const userInMatch = interaction.user.id in matchUsersArray
+          const userInMatch = matchUsersArray.includes(interaction.user.id)
           console.log(userInMatch)
           console.log(matchUsersArray)
           console.log(interaction.user.id)
