@@ -27,7 +27,7 @@ function calculateRatingChange(
   const denominator = 1 + Math.pow(10, exponent)
 
   // volatility factor
-  const gMultiplier = 1.5 - g_volatility * 0.05
+  const gMultiplier = 1.75 - g_volatility * 0.05
 
   return gMultiplier * (numerator / denominator)
 }
