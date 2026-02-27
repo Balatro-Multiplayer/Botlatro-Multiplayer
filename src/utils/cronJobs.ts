@@ -57,7 +57,7 @@ export async function partyDeleteCronJob() {
   ) // 5 minutes in milliseconds
 }
 
-const MATCH_CREATION_COOLDOWN_MS = 5000
+const MATCH_CREATION_COOLDOWN_MS = 8000
 let lastMatchCreationTime = 0
 
 // increment elo search globally across all queues
