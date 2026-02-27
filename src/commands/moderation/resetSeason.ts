@@ -70,7 +70,7 @@ export default {
             peak_elo = q.default_elo,
             win_streak = 0,
             peak_win_streak = 0,
-            volatility = NULL,
+            volatility = 0.06,
             is_decay = false,
             last_decay = NULL
         FROM queues q
