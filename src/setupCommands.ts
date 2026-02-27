@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { REST, Routes } from 'discord.js'
 import * as dotenv from 'dotenv'
+import { attachDiscordRateLimitLogging } from './utils/discordRateLimitLogger'
 require('dotenv').config()
 dotenv.config()
 
@@ -44,6 +45,7 @@ export function setupClientCommands(client: Client, deploy: boolean = false) {
     if (deploy) {
         // Construct and prepare an instance of the REST module
         const rest = new REST().setToken(token)
+        attachDiscordRateLimitLogging(rest, 'command-deploy')
 
         // and deploy your commands!
         ;(async () => {

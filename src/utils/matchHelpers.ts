@@ -1530,7 +1530,7 @@ export async function updateMatchCountChannel(): Promise<void> {
         )
         .catch((err) => {
           if (err.code !== 50013) {
-            // Only log if it's not a rate limit error
+            // Ignore missing permission noise here. REST rate limits are logged globally.
             console.log('Failed to update match count channel:', err.message)
           }
         })

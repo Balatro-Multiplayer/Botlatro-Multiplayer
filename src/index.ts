@@ -16,6 +16,7 @@ import * as dotenv from 'dotenv'
 import { setupClientCommands } from 'setupCommands'
 import { serve } from '@hono/node-server'
 import { preloadBackgrounds } from './utils/backgroundManager'
+import { attachDiscordRateLimitLogging } from './utils/discordRateLimitLogger'
 
 dotenv.config()
 
@@ -33,6 +34,7 @@ process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
 })
 
 setupClientCommands(client)
+attachDiscordRateLimitLogging(client.rest, 'bot')
 
 const token = process.env.DISCORD_TOKEN || ''
 
