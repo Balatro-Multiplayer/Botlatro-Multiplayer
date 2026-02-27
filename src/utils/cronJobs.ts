@@ -254,6 +254,8 @@ export async function runDecayTick() {
 }
 
 // update match count channel every 5 minutes
+// the 5 minute interval is a HARD discord limit for voice channel name changes. This CANNOT be changed.
+// DO NOT CHANGE THE INTERVAL
 export async function updateMatchCountCronJob() {
   setInterval(
     async () => {
