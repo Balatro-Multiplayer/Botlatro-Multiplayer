@@ -1501,6 +1501,15 @@ export async function updateMatchCountChannel(): Promise<void> {
     const activeMatches = await getActiveMatches()
     const activeMatchCount = activeMatches.length || 0
 
+    // hard coded ids for the two ranked game modes. will change if queues are deleted and re-created
+    const standardId = 1
+    const legacyId = 7
+
+    const standardCount =
+      activeMatches.filter((m) => m.queue_id === standardId).length || 0
+    const legacyCount =
+      activeMatches.filter((m) => m.queue_id === legacyId).length || 0
+
     // Get match count channel ID from settings
     const settingsRes = await pool.query(
       `SELECT match_count_channel_id FROM settings WHERE singleton = true`,
@@ -1517,7 +1526,7 @@ export async function updateMatchCountChannel(): Promise<void> {
     if (channel && channel.type === ChannelType.GuildVoice) {
       await channel
         .setName(
-          `${activeMatchCount} Active Match${activeMatchCount === 1 ? '' : 'es'}`,
+          `${activeMatchCount} Active Match${activeMatchCount === 1 ? '' : 'es'} (${standardCount}:${legacyCount})`,
         )
         .catch((err) => {
           if (err.code !== 50013) {
