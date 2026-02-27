@@ -504,15 +504,20 @@ export async function createMatch(
   if (!guild) throw new Error('Guild not found')
 
   const categoryId = settings.queue_category_id
+  const permissionOverwrites = [
+    {
+      id: guild.roles.everyone,
+      deny: [PermissionFlagsBits.ViewChannel],
+    },
+    ...userIds.map((userId) => ({
+      id: userId,
+      allow: [PermissionFlagsBits.ViewChannel],
+      type: OverwriteType.Member,
+    })),
+  ]
 
-  // Build the permission overwrites that will be granted after messages are sent
-  const userPermissionOverwrites: any[] = userIds.map((userId) => ({
-    id: userId,
-    allow: [PermissionFlagsBits.ViewChannel],
-    type: OverwriteType.Member,
-  }))
   if (settings.queue_helper_role_id) {
-    userPermissionOverwrites.push({
+    permissionOverwrites.push({
       id: settings.queue_helper_role_id,
       allow: [PermissionFlagsBits.ViewChannel],
       type: OverwriteType.Role,
@@ -536,19 +541,16 @@ export async function createMatch(
   }
   const channelCount = category.children.cache.size
 
-  // Create channel hidden from everyone — users are granted access after messages are sent
   const channel = await guild.channels.create({
     name: `${queue.rows[0].queue_name.toLowerCase()}-${matchId}`,
     type: ChannelType.GuildText,
     parent: channelCount > 45 ? backupCat : categoryId,
-    permissionOverwrites: [
-      { id: guild.roles.everyone, deny: [PermissionFlagsBits.ViewChannel] },
-    ],
+    permissionOverwrites: permissionOverwrites,
   })
 
   await pool.query(
     `
-        UPDATE matches
+        UPDATE matches 
         SET channel_id = $1
         WHERE id = $2
     `,
@@ -566,15 +568,11 @@ export async function createMatch(
 
   await updateQueueMessage()
 
-  // Send queue start messages while channel is still hidden
-  await sendMatchInitMessages(queueId, matchId, channel)
+  // Wait 2 seconds for channel to fully propagate in Discord's API
+  await new Promise((resolve) => setTimeout(resolve, 2000))
 
-  // Grant users access now that all messages are in place
-  await Promise.all(
-    userPermissionOverwrites.map((overwrite) =>
-      channel.permissionOverwrites.create(overwrite.id, { ViewChannel: true }),
-    ),
-  )
+  // Send queue start messages
+  await sendMatchInitMessages(queueId, matchId, channel)
 
   for (const userId of userIds) {
     // this is for hydra
