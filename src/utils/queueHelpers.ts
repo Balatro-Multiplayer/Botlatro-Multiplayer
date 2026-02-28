@@ -42,6 +42,9 @@ let lastMatchCreationTime = 0
 
 // Updates or sends a new queue message for the specified text channel
 export async function updateQueueMessage(): Promise<Message | undefined> {
+  // for now limiting edits to 10% - todo: more robust fix
+  if (Math.random() > 0.1) return
+
   const response = await pool.query(
     'SELECT queue_channel_id, queue_message_id FROM settings',
   )
@@ -59,7 +62,13 @@ export async function updateQueueMessage(): Promise<Message | undefined> {
   if (queueListResponse.rowCount == 0) return
   let queueList: Queues[] = queueListResponse.rows
   queueList = queueList.filter((queue) => !queue.locked)
-  const QUEUE_ORDER = ['Standard Ranked', 'Legacy Ranked', 'Smallworld', 'Sandbox', 'Casual']
+  const QUEUE_ORDER = [
+    'Standard Ranked',
+    'Legacy Ranked',
+    'Smallworld',
+    'Sandbox',
+    'Casual',
+  ]
   queueList.sort((a, b) => {
     const ai = QUEUE_ORDER.indexOf(a.queue_name)
     const bi = QUEUE_ORDER.indexOf(b.queue_name)
