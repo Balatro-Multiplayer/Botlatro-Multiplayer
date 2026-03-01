@@ -77,8 +77,11 @@ export async function updateQueueMessage(): Promise<Message | undefined> {
   const queueFields: APIEmbedField[] = await Promise.all(
     queueList.map(async (queue) => {
       const usersInQueue = await getUsersInQueue(queue.id)
+      const displayName = queue.queue_icon
+        ? `${queue.queue_icon} ${queue.queue_name}`
+        : queue.queue_name
       return {
-        name: queue.queue_name,
+        name: displayName,
         value: `${usersInQueue.length}`,
         inline: true,
       }
@@ -94,10 +97,12 @@ export async function updateQueueMessage(): Promise<Message | undefined> {
     .setColor('#ff0000')
 
   const options: StringSelectMenuOptionBuilder[] = queueList.map((queue) => {
-    return new StringSelectMenuOptionBuilder()
+    const option = new StringSelectMenuOptionBuilder()
       .setLabel(queue.queue_name.slice(0, 100))
       .setDescription((queue.queue_desc || '').slice(0, 100))
       .setValue(queue.id.toString())
+    if (queue.queue_icon) option.setEmoji(queue.queue_icon)
+    return option
   })
 
   if (options.length == 0) return

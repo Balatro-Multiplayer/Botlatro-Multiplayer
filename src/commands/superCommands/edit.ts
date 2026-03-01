@@ -151,6 +151,13 @@ export default {
             .setName('use-tuple-bans')
             .setDescription('Whether or not this queue should use tuple bans.')
             .setRequired(false),
+        )
+        .addStringOption((option) =>
+          option
+            .setName('queue-icon')
+            .setDescription('Emoji displayed next to the queue name')
+            .setRequired(false)
+            .setMaxLength(64),
         ),
     )
     .addSubcommand((sub) =>

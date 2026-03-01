@@ -24,6 +24,7 @@ declare module 'psqlDB' {
     instaqueue_min: number
     instaqueue_max: number
     use_tuple_bans: boolean
+    queue_icon?: string | null
   }
 
   export interface QueueRoles {
