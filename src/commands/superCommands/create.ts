@@ -10,6 +10,7 @@ import addQueueRole from 'commands/moderation/addQueueRole'
 import queue from './queue'
 import addLeaderboardRole from '../moderation/addLeaderboardRole'
 import createRoom from '../moderation/bmpctu/createRoom'
+import createDeck from '../moderation/createDeck'
 
 export default {
   data: new SlashCommandBuilder()
@@ -242,6 +243,32 @@ export default {
             .setDescription('Reason to add this user to a room')
             .setRequired(false),
         ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('deck')
+        .setDescription('[ADMIN] Add a new deck to the database')
+        .addStringOption((option) =>
+          option
+            .setName('deck-name')
+            .setDescription('Name of the deck')
+            .setRequired(true)
+            .setMaxLength(255),
+        )
+        .addStringOption((option) =>
+          option
+            .setName('deck-emote')
+            .setDescription('Emoji for the deck')
+            .setRequired(true)
+            .setMaxLength(255),
+        )
+        .addStringOption((option) =>
+          option
+            .setName('deck-desc')
+            .setDescription('Description of the deck')
+            .setRequired(true)
+            .setMaxLength(500),
+        ),
     ),
   async execute(interaction: ChatInputCommandInteraction) {
     if (interaction.options.getSubcommand() === 'queue') {
@@ -254,6 +281,8 @@ export default {
       await addLeaderboardRole.execute(interaction)
     } else if (interaction.options.getSubcommand() === 'room') {
       await createRoom.execute(interaction)
+    } else if (interaction.options.getSubcommand() === 'deck') {
+      await createDeck.execute(interaction)
     }
   },
   async autocomplete(interaction: AutocompleteInteraction) {
