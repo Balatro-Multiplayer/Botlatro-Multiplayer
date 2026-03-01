@@ -62,7 +62,7 @@ export const up = (pgm) => {
         ('Erratic Deck', '<:erratic_deck:1407755223484596294>', 'All Ranks/Suits randomized', false),
         ('Violet Deck', '<:violet_deck:1407823549741273171>', '+1 Voucher Slot in Shop, 50% off 1st Ante Voucher', true),
         ('Orange Deck', '<:orange_deck:1407823492757585950>', 'Start with Giga Standard Pack and 2 Hanged Man', true),
-        ('Cocktail Deck', '<:cocktail_deck:1407823448729976862>', 'Uses 3 random deck effects at once', true),
+        ('Virtualized Cocktail ~ Zodiac Magic Heidelberg', '<:cocktail_deck:1407823448729976862>', 'Uses 3 random deck effects at once', true),
         ('Gradient Deck', '<:gradient_deck:1407823575158882495>', 'Cards are considered +/- 1 rank for Joker effects', true),
         ('Oracle Deck', '<:oracle_deck:1415520993002131506>', 'Start with Clearance Sale, money is capped at $50.', true),
         ('Heidelberg Deck', '<:heidelberg_deck:1415521423673524324>', 'Start with a built in Perkeo effect.', true);
