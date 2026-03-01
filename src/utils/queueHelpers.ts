@@ -487,8 +487,59 @@ function getCombinations<T>(arr: T[], k: number): T[][] {
   return results
 }
 
-// Queues players together and creates a match channel for them
+// route match creation through this wrapper, which will queue it up based on rate limits
+
+type MatchRequest = {
+  resolve: (result: any) => void
+  reject: (err: any) => void
+  userIds: string[]
+  queueId: number
+}
+
+const matchQueue: MatchRequest[] = []
+let processingMatch = false
+let nextDelay = 1500
+
+client.rest.on('rateLimited', (info) => {
+  if (info.retryAfter > nextDelay) {
+    nextDelay = info.retryAfter + 500
+  }
+})
+
 export async function createMatch(
+  userIds: string[],
+  queueId: number,
+): Promise<any> {
+  return new Promise((resolve, reject) => {
+    matchQueue.push({ resolve, reject, userIds, queueId })
+    processMatchQueue()
+  })
+}
+
+async function processMatchQueue() {
+  if (processingMatch || matchQueue.length === 0) return
+  processingMatch = true
+
+  const { resolve, reject, userIds, queueId } = matchQueue.shift()!
+
+  try {
+    const result = await createMatchResolved(userIds, queueId)
+    resolve(result)
+  } catch (err) {
+    reject(err)
+  }
+
+  const delay = nextDelay
+  nextDelay = 1500 // reset for next run
+
+  setTimeout(() => {
+    processingMatch = false
+    processMatchQueue()
+  }, delay)
+}
+
+// Queues players together and creates a match channel for them
+export async function createMatchResolved(
   userIds: string[],
   queueId: number,
 ): Promise<any> {
