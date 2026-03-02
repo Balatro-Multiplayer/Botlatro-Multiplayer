@@ -146,7 +146,7 @@ export async function updateQueueMessage(force = false): Promise<Message | undef
   const queueChannel = (await client.channels.fetch(
     queueChannelId,
   )) as TextChannel
-  if (queueMessageId) {
+  if (queueMessageId && !force) {
     await queueChannel.messages
       .fetch(queueMessageId)
       .then(async (msg) => {
@@ -172,7 +172,7 @@ export async function updateQueueMessage(force = false): Promise<Message | undef
       })
   }
 
-  if (!queueMsg) {
+  if (!queueMsg || force) {
     try {
       queueMsg = await queueChannel.send({
         embeds: [embed],
