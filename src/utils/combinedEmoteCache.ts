@@ -1,19 +1,35 @@
 import { client } from '../client'
+import { Decks, Stakes } from 'psqlDB'
 
 // Cache: key is "deckkey__stakekey", value is the full Discord emote string "<:name:id>"
 const combinedEmoteCache = new Map<string, string>()
 
 /**
- * Derives the combined emote lookup key from a deck name and stake name.
- * "Red Deck" + "Gold Stake" => "red__gold"
+ * Returns the emote name for a deck, using emote_name if set, otherwise deriving it from deck_name.
+ * "Virt's Cocktail" with emote_name "cocktail" => "cocktail"
+ * "Red Deck" with no emote_name => "red"
+ */
+export function getDeckEmoteName(deck: Decks): string {
+  return deck.emote_name ?? deck.deck_name.replace(/\s*Deck$/i, '').toLowerCase()
+}
+
+/**
+ * Returns the emote name for a stake, using emote_name if set, otherwise deriving it from stake_name.
+ * "White Stake" with no emote_name => "white"
+ */
+export function getStakeEmoteName(stake: Stakes): string {
+  return stake.emote_name ?? stake.stake_name.replace(/\s*Stake$/i, '').toLowerCase()
+}
+
+/**
+ * Builds the combined emote lookup key from a deck emote name and stake emote name.
+ * "cocktail" + "white" => "cocktail__white"
  */
 export function getCombinedEmoteKey(
-  deckName: string,
-  stakeName: string,
+  deckEmoteName: string,
+  stakeEmoteName: string,
 ): string {
-  const deckKey = deckName.replace(/\s*Deck$/i, '').toLowerCase()
-  const stakeKey = stakeName.replace(/\s*Stake$/i, '').toLowerCase()
-  return `${deckKey}__${stakeKey}`
+  return `${deckEmoteName}__${stakeEmoteName}`
 }
 
 /**
@@ -41,13 +57,13 @@ export async function preloadCombinedEmotes(): Promise<void> {
 }
 
 /**
- * Returns the combined emote string for a deck+stake pair, or null if not found.
+ * Returns the combined emote string for a deck+stake pair by their emote names, or null if not found.
  */
 export function getCombinedEmote(
-  deckName: string,
-  stakeName: string,
+  deckEmoteName: string,
+  stakeEmoteName: string,
 ): string | null {
-  const key = getCombinedEmoteKey(deckName, stakeName)
+  const key = getCombinedEmoteKey(deckEmoteName, stakeEmoteName)
   return combinedEmoteCache.get(key) ?? null
 }
 
@@ -55,12 +71,12 @@ export function getCombinedEmote(
  * Returns the combined emote if available, otherwise falls back to separate emotes.
  */
 export function getCombinedOrFallback(
-  deckName: string,
-  stakeName: string,
+  deckEmoteName: string,
+  stakeEmoteName: string,
   deckEmote: string,
   stakeEmote: string,
 ): string {
-  return getCombinedEmote(deckName, stakeName) ?? `${deckEmote} ${stakeEmote}`
+  return getCombinedEmote(deckEmoteName, stakeEmoteName) ?? `${deckEmote} ${stakeEmote}`
 }
 
 /**

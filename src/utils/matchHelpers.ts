@@ -68,6 +68,8 @@ import { TupleBan, TupleBans } from './TupleBans'
 import {
   getCombinedEmote,
   getCombinedOrFallback,
+  getDeckEmoteName,
+  getStakeEmoteName,
   parseEmoji,
 } from './combinedEmoteCache'
 import { getNextDelay, setNextDelay } from './queueHelpers'
@@ -161,8 +163,8 @@ export async function setupDeckSelect(
           .setValue(tupleStr)
           .setDescription(deck?.deck_desc ?? 'No description')
         const combined =
-          deck?.deck_name && stake?.stake_name
-            ? getCombinedEmote(deck.deck_name, stake.stake_name)
+          deck && stake
+            ? getCombinedEmote(getDeckEmoteName(deck), getStakeEmoteName(stake))
             : null
         const parsed = combined ? parseEmoji(combined) : null
         if (parsed) {
@@ -294,8 +296,8 @@ export async function advanceDeckBanStep(
             await interaction.message.delete().catch(() => {})
           }
           const selectedEmote = getCombinedOrFallback(
-            finalDeckPick.deck_name,
-            stakeData.stake_name,
+            getDeckEmoteName(finalDeckPick),
+            getStakeEmoteName(stakeData),
             finalDeckPick.deck_emote,
             stakeData.stake_emote,
           )
@@ -442,8 +444,8 @@ export async function advanceDeckBanStep(
             const stake = await getStake(parseInt(stakeIdStr))
             if (deck && stake) {
               const bannedEmote = getCombinedOrFallback(
-                deck.deck_name,
-                stake.stake_name,
+                getDeckEmoteName(deck),
+                getStakeEmoteName(stake),
                 deck.deck_emote,
                 stake.stake_emote,
               )
@@ -1261,8 +1263,8 @@ export async function endMatch(
         : null
       if (deckData && stakeData) {
         const combined = getCombinedEmote(
-          deckData.deck_name,
-          stakeData.stake_name,
+          getDeckEmoteName(deckData),
+          getStakeEmoteName(stakeData),
         )
         if (combined) {
           matchInfoParts.push(combined)

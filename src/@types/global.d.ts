@@ -158,6 +158,7 @@ declare module 'psqlDB' {
     deck_emote: string
     deck_desc: string
     custom: boolean
+    emote_name: string | null
   }
 
   export type BannedDecks = {
@@ -171,6 +172,7 @@ declare module 'psqlDB' {
     stake_emote: string
     stake_desc: string
     custom: boolean
+    emote_name: string | null
   }
 
   export type StatsCanvasPlayerData = {

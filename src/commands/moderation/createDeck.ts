@@ -6,6 +6,7 @@ export default {
     const deckName = interaction.options.getString('deck-name', true)
     const deckEmote = interaction.options.getString('deck-emote', true)
     const deckDesc = interaction.options.getString('deck-desc', true)
+    const emoteName = interaction.options.getString('emote-name') ?? null
 
     try {
       const existing = await pool.query(
@@ -22,8 +23,8 @@ export default {
       }
 
       await pool.query(
-        `INSERT INTO decks (deck_name, deck_emote, deck_desc, custom) VALUES ($1, $2, $3, true)`,
-        [deckName, deckEmote, deckDesc],
+        `INSERT INTO decks (deck_name, deck_emote, deck_desc, custom, emote_name) VALUES ($1, $2, $3, true, $4)`,
+        [deckName, deckEmote, deckDesc, emoteName],
       )
 
       await interaction.reply({

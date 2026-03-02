@@ -282,6 +282,15 @@ export default {
             .setDescription('Description of the deck')
             .setRequired(true)
             .setMaxLength(500),
+        )
+        .addStringOption((option) =>
+          option
+            .setName('emote-name')
+            .setDescription(
+              'Emote name for emote/combo lookups (e.g. "cocktail" for "cocktail__white"). Defaults to derived from deck name.',
+            )
+            .setRequired(false)
+            .setMaxLength(100),
         ),
     ),
   async execute(interaction: ChatInputCommandInteraction) {

@@ -21,6 +21,7 @@ type Series = {
   id: number | undefined
   emoji: string | undefined
   name: string
+  emote_name?: string | null
   description?: string
 }
 
@@ -58,6 +59,7 @@ export class TupleBans {
   decks: {
     id: number
     name: string
+    emote_name?: string | null
     emoji?: string
     multiplier: number
     occurs?: number
@@ -66,6 +68,7 @@ export class TupleBans {
   stakes: {
     id?: number
     name: string
+    emote_name?: string | null
     emoji?: string
     multiplier: number
     occurs?: number
@@ -172,6 +175,7 @@ export class TupleBans {
         )
         stake.id = dbStake.rows[0].id
         stake.emoji = dbStake.rows[0].stake_emote
+        stake.emote_name = dbStake.rows[0].emote_name
       }),
     )
   }
@@ -205,6 +209,7 @@ export class TupleBans {
         id: allowedDeck.id,
         emoji: allowedDeck.deck_emote,
         name: allowedDeck.deck_name,
+        emote_name: allowedDeck.emote_name,
         multiplier: this.defaultDeckProbability,
         description: allowedDeck.deck_desc,
       })
@@ -351,9 +356,13 @@ export class TupleBans {
 
     // get the tupleBan object from the chosenDeck and chosenStake object
 
+    const deckEmoteName =
+      chosenDeck?.emote_name ?? chosenDeck?.name.replace(/\s*Deck$/i, '').toLowerCase() ?? ''
+    const stakeEmoteName =
+      chosenStake?.emote_name ?? chosenStake?.name.replace(/\s*Stake$/i, '').toLowerCase() ?? ''
     const combinedEmote =
       chosenDeck?.name && chosenStake?.name
-        ? getCombinedEmote(chosenDeck.name, chosenStake.name)
+        ? getCombinedEmote(deckEmoteName, stakeEmoteName)
         : null
 
     this.tupleBans.push({
