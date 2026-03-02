@@ -645,7 +645,7 @@ export async function createMatchResolved(
       .catch(() => null)
     if (fetched && fetched.type === ChannelType.GuildText) {
       channel = fetched as TextChannel
-      await channel.edit({ name: channelName, permissionOverwrites })
+      await channel.edit({ name: channelName, permissionOverwrites, parent: parentCat ?? undefined })
     } else {
       // Channel no longer exists in Discord — remove it from the pool and create fresh
       await releaseReserveChannel(reservedChannelId)
