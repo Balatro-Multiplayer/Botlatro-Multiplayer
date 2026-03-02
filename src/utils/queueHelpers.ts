@@ -511,6 +511,7 @@ let processingMatch = false
 let nextDelay = 1500
 
 client.rest.on('rateLimited', (info) => {
+  console.log(`LIMITED: ${info.retryAfter}`)
   if (info.retryAfter > nextDelay) {
     nextDelay = info.retryAfter + 1500
   }
