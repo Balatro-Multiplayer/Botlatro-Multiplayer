@@ -1,28 +1,9 @@
-import {
-  ChatInputCommandInteraction,
-  GuildMember,
-  MessageFlags,
-  PermissionFlagsBits,
-} from 'discord.js'
-import { getUserBounties, getBountyHelperRoleId } from '../../../utils/queryDB'
+import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
+import { getUserBounties } from '../../../utils/queryDB'
 
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
     try {
-      const member = interaction.member as GuildMember
-      const bountyHelperRoleId = await getBountyHelperRoleId()
-      const isAdmin = member.permissions.has(PermissionFlagsBits.Administrator)
-      const hasBountyRole =
-        bountyHelperRoleId && member.roles.cache.has(bountyHelperRoleId)
-
-      if (!isAdmin && !hasBountyRole) {
-        await interaction.reply({
-          content: 'You do not have permission to check bounties.',
-          flags: MessageFlags.Ephemeral,
-        })
-        return
-      }
-
       const user = interaction.options.getUser('user', true)
       const userBounties = await getUserBounties(user.id)
 

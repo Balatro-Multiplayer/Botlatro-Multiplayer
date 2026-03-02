@@ -7,6 +7,7 @@ import { cronRouter } from './routers/commands/cron.router'
 import { statsRouter } from './routers/commands/stats.router'
 import { playersRouter } from './routers/commands/players.router'
 import { transcriptsRouter } from './routers/commands/transcriptsRouter'
+import { bountiesRouter } from './routers/commands/bounties.router'
 
 const app = new OpenAPIHono({ strict: false })
 const token = process.env.API_TOKEN
@@ -29,6 +30,7 @@ app.get('/docs', Scalar({ url: '/swagger' }))
 // Public routes (no auth required)
 app.route('/api/stats', statsRouter)
 app.route('/api/players', playersRouter)
+app.route('/api/bounties', bountiesRouter)
 
 // Protected routes (auth required)
 app.use('/api/matches/*', bearerAuth({ token }))

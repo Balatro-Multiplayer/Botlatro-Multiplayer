@@ -1,7 +1,6 @@
 import {
   AutocompleteInteraction,
   ChatInputCommandInteraction,
-  PermissionFlagsBits,
   SlashCommandBuilder,
 } from 'discord.js'
 import { getBounties } from '../../utils/queryDB'
@@ -11,12 +10,12 @@ import assignBounty from '../moderation/bounty/assignBounty'
 import revokeBounty from '../moderation/bounty/revokeBounty'
 import listBounties from '../moderation/bounty/listBounties'
 import checkBounties from '../moderation/bounty/checkBounties'
+import bountyCompletions from '../moderation/bounty/bountyCompletions'
 
 export default {
   data: new SlashCommandBuilder()
     .setName('bounty')
     .setDescription('Manage bounties/achievements')
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
 
     .addSubcommand((sub) =>
       sub
@@ -97,12 +96,25 @@ export default {
     .addSubcommand((sub) =>
       sub
         .setName('check')
-        .setDescription('[BOUNTY HELPER] Check bounties for a user')
+        .setDescription('Check bounties for a user')
         .addUserOption((option) =>
           option
             .setName('user')
             .setDescription('The user to check bounties for')
             .setRequired(true),
+        ),
+    )
+
+    .addSubcommand((sub) =>
+      sub
+        .setName('completions')
+        .setDescription('List all users who have completed a bounty')
+        .addStringOption((option) =>
+          option
+            .setName('bounty-name')
+            .setDescription('Name of the bounty')
+            .setRequired(true)
+            .setAutocomplete(true),
         ),
     ),
 
@@ -121,6 +133,8 @@ export default {
       await listBounties.execute(interaction)
     } else if (subcommand === 'check') {
       await checkBounties.execute(interaction)
+    } else if (subcommand === 'completions') {
+      await bountyCompletions.execute(interaction)
     }
   },
 
