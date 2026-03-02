@@ -10,6 +10,7 @@ import deleteQueueRole from '../moderation/deleteQueueRole'
 import queue from './queue'
 import deleteRoom from '../moderation/bmpctu/deleteRoom'
 import { roomDeleteAutoCompletion } from '../../utils/Autocompletions'
+import deleteDeck from '../moderation/deleteDeck'
 
 export default {
   data: new SlashCommandBuilder()
@@ -59,6 +60,18 @@ export default {
             .setRequired(true)
             .setAutocomplete(true),
         ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('deck')
+        .setDescription('[ADMIN] Delete a deck from the database')
+        .addStringOption((option) =>
+          option
+            .setName('deck-name')
+            .setDescription('The deck to delete')
+            .setRequired(true)
+            .setAutocomplete(true),
+        ),
     ),
 
   async execute(interaction: ChatInputCommandInteraction) {
@@ -68,6 +81,8 @@ export default {
       await deleteQueueRole.execute(interaction)
     } else if (interaction.options.getSubcommand() === 'room') {
       await deleteRoom.execute(interaction)
+    } else if (interaction.options.getSubcommand() === 'deck') {
+      await deleteDeck.execute(interaction)
     }
   },
   async autocomplete(interaction: AutocompleteInteraction) {
@@ -75,6 +90,8 @@ export default {
       await queue.autocomplete(interaction)
     else if (interaction.options.getSubcommand() === 'room')
       await roomDeleteAutoCompletion(interaction)
+    else if (interaction.options.getSubcommand() === 'deck')
+      await deleteDeck.autocomplete(interaction)
   },
 }
 // this supercommand should only be usable by bmpctu+

@@ -8,6 +8,7 @@ import {
 import queue from './queue'
 import editQueue from '../moderation/editQueue'
 import editQueueRole from '../moderation/editQueueRole'
+import editDeck from '../moderation/editDeck'
 
 export default {
   data: new SlashCommandBuilder()
@@ -189,16 +190,62 @@ export default {
             .setDescription('The new emote for this role')
             .setRequired(false),
         ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('deck')
+        .setDescription('[ADMIN] Edit an existing deck')
+        .addStringOption((option) =>
+          option
+            .setName('deck-name')
+            .setDescription('The deck to edit')
+            .setRequired(true)
+            .setAutocomplete(true),
+        )
+        .addStringOption((option) =>
+          option
+            .setName('new-deck-name')
+            .setDescription('New name for the deck')
+            .setRequired(false)
+            .setMaxLength(255),
+        )
+        .addStringOption((option) =>
+          option
+            .setName('deck-emote')
+            .setDescription('New emoji for the deck')
+            .setRequired(false)
+            .setMaxLength(255),
+        )
+        .addStringOption((option) =>
+          option
+            .setName('deck-desc')
+            .setDescription('New description for the deck')
+            .setRequired(false)
+            .setMaxLength(500),
+        )
+        .addStringOption((option) =>
+          option
+            .setName('emote-name')
+            .setDescription('New emote name for emote/combo lookups')
+            .setRequired(false)
+            .setMaxLength(100),
+        ),
     ),
   async execute(interaction: ChatInputCommandInteraction) {
     if (interaction.options.getSubcommand() === 'queue') {
       await editQueue.execute(interaction)
     } else if (interaction.options.getSubcommand() === 'queue-role') {
       await editQueueRole.execute(interaction)
+    } else if (interaction.options.getSubcommand() === 'deck') {
+      await editDeck.execute(interaction)
     }
   },
   async autocomplete(interaction: AutocompleteInteraction) {
-    await queue.autocomplete(interaction)
+    if (interaction.options.getSubcommand() === 'deck') {
+      await editDeck.autocomplete(interaction)
+    } else {
+      await queue.autocomplete(interaction)
+    }
   },
 }
 // this supercommand should only be usable by mod+
