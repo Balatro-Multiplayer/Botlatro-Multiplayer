@@ -993,6 +993,7 @@ export default {
             const playerStats = await getStatsCanvasUserData(
               interaction.user.id,
               queueId,
+              season,
             )
             const statFile = await drawPlayerStatsCanvas(
               queueName,
