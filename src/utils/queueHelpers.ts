@@ -43,9 +43,9 @@ import { checkBans } from './automaticUnbans'
 let lastMatchCreationTime = 0
 
 // Updates or sends a new queue message for the specified text channel
-export async function updateQueueMessage(): Promise<Message | undefined> {
+export async function updateQueueMessage(force = false): Promise<Message | undefined> {
   // for now limiting edits to 10% - todo: more robust fix
-  if (Math.random() > 0.1) return
+  if (!force && Math.random() > 0.1) return
 
   const response = await pool.query(
     'SELECT queue_channel_id, queue_message_id FROM settings',
@@ -150,7 +150,7 @@ export async function updateQueueMessage(): Promise<Message | undefined> {
     await queueChannel.messages
       .fetch(queueMessageId)
       .then(async (msg) => {
-        if (msg.author.id == client.user?.id) {
+        if (!force && msg.author.id == client.user?.id) {
           try {
             queueMsg = await msg.edit({
               embeds: [embed],
@@ -534,6 +534,7 @@ async function processMatchQueue() {
     const result = await createMatchResolved(userIds, queueId)
     resolve(result)
   } catch (err) {
+    console.log(`[RATE LIMIT QUEUE ID]: queueId`)
     reject(err)
   }
 
