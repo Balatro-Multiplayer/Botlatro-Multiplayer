@@ -30,7 +30,6 @@ import {
   getUserDmsEnabled,
   getUserQueueRole,
   getUsersInQueue,
-  removeReserveChannel,
   setMatchQueueLogMessageId,
   userInMatch,
   userInQueue,
@@ -634,26 +633,35 @@ export async function createMatchResolved(
 
   const channelName = `${queue.rows[0].queue_name.toLowerCase()}-${matchId}`
 
-  let channel: TextChannel
+  let channel: TextChannel | undefined
   let reservedChannelId: string | null = null
   // only reclaim if we have more than 1 match in the queue
   if (matchQueue.length >= 1) {
-    reservedChannelId = await claimReserveChannel()
-  }
-  if (reservedChannelId) {
-    const fetched = await guild.channels
-      .fetch(reservedChannelId)
-      .catch(() => null)
-    if (fetched && fetched.type === ChannelType.GuildText) {
-      channel = fetched as TextChannel
-      await channel.edit({
-        name: channelName,
-        permissionOverwrites,
-        parent: parentCat ?? undefined,
-      })
-    } else {
-      // Channel no longer exists in Discord — remove it from the pool and create fresh
-      await removeReserveChannel(reservedChannelId)
+    let claimed = false
+    while (true) {
+      reservedChannelId = await claimReserveChannel()
+      if (!reservedChannelId) break
+
+      const fetched = await guild.channels
+        .fetch(reservedChannelId)
+        .catch(() => null)
+
+      if (fetched && fetched.type === ChannelType.GuildText) {
+        channel = fetched as TextChannel
+        await channel.edit({
+          name: channelName,
+          permissionOverwrites,
+          parent: parentCat ?? undefined,
+        })
+        claimed = true
+        break
+      }
+
+      // Channel no longer exists in Discord — remove and try next
+      console.log(`Reserved channel ${reservedChannelId} no longer exists`)
+    }
+
+    if (!claimed) {
       channel = await guild.channels.create({
         name: channelName,
         type: ChannelType.GuildText,
@@ -668,6 +676,11 @@ export async function createMatchResolved(
       parent: parentCat ?? undefined,
       permissionOverwrites,
     })
+  }
+
+  if (!channel) {
+    console.error('Failed to create or claim match channel')
+    return
   }
 
   await pool.query(
@@ -697,18 +710,13 @@ export async function createMatchResolved(
   await sendMatchInitMessages(queueId, matchId, channel)
 
   for (const userId of userIds) {
-    // this is for hydra
-    let alternateMessage: string | null = null
-    if (userId === '468481307601535007') {
-      alternateMessage = 'Kill Yourself!'
-    }
     if (!(await getUserDmsEnabled(userId))) continue
     const member = await guild.members.fetch(userId)
     try {
       await member.send({
         embeds: [
           new EmbedBuilder()
-            .setTitle(alternateMessage || 'Match Found!')
+            .setTitle('Match Found!')
             .setDescription(`**Match Channel**\n<#${channel.id}>`)
             .setColor(0x00ff00),
         ],

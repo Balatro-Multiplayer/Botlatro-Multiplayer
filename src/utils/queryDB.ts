@@ -11,8 +11,8 @@ import {
   Settings,
   Stakes,
   StatsCanvasPlayerData,
-  UserBounty,
   teamResults,
+  UserBounty,
 } from 'psqlDB'
 import { client, getGuild } from '../client'
 import { QueryResult } from 'pg'
@@ -741,20 +741,19 @@ export async function setMatchTupleBans(
   matchId: number,
   tuples: string[],
 ): Promise<void> {
-  await pool.query(
-    `UPDATE matches SET tuple_bans = $2 WHERE id = $1`,
-    [matchId, JSON.stringify(tuples)],
-  )
+  await pool.query(`UPDATE matches SET tuple_bans = $2 WHERE id = $1`, [
+    matchId,
+    JSON.stringify(tuples),
+  ])
 }
 
 // Get the tuple bans for a match
 export async function getMatchTupleBans(
   matchId: number,
 ): Promise<string[] | null> {
-  const res = await pool.query(
-    `SELECT tuple_bans FROM matches WHERE id = $1`,
-    [matchId],
-  )
+  const res = await pool.query(`SELECT tuple_bans FROM matches WHERE id = $1`, [
+    matchId,
+  ])
   return res.rows[0]?.tuple_bans ?? null
 }
 
@@ -1885,7 +1884,11 @@ export async function getStatsCanvasUserData(
 
   try {
     // Try leaderboard role first (prioritized)
-    const leaderboardRole = await getLeaderboardQueueRole(queueId, userId, season)
+    const leaderboardRole = await getLeaderboardQueueRole(
+      queueId,
+      userId,
+      season,
+    )
 
     if (leaderboardRole) {
       // User has a leaderboard role - display it with position-based bar
@@ -2505,16 +2508,12 @@ export async function deleteBounty(bountyId: number): Promise<boolean> {
 
 // Get all bounties
 export async function getBounties(): Promise<Bounty[]> {
-  const res = await pool.query<Bounty>(
-    `SELECT * FROM bounties ORDER BY id`,
-  )
+  const res = await pool.query<Bounty>(`SELECT * FROM bounties ORDER BY id`)
   return res.rows
 }
 
 // Get a bounty by name
-export async function getBountyByName(
-  name: string,
-): Promise<Bounty | null> {
+export async function getBountyByName(name: string): Promise<Bounty | null> {
   const res = await pool.query<Bounty>(
     `SELECT * FROM bounties WHERE bounty_name = $1`,
     [name],
@@ -2583,16 +2582,12 @@ export async function getBountyCompletions(
 
 // Get the bounty helper role id
 export async function getBountyHelperRoleId(): Promise<string | null> {
-  const res = await pool.query(
-    `SELECT bounty_helper_role_id FROM settings`,
-  )
+  const res = await pool.query(`SELECT bounty_helper_role_id FROM settings`)
   return res.rows[0]?.bounty_helper_role_id || null
 }
 
 // Set the bounty helper role id
-export async function setBountyHelperRoleId(
-  roleId: string,
-): Promise<void> {
+export async function setBountyHelperRoleId(roleId: string): Promise<void> {
   await pool.query(
     `UPDATE settings SET bounty_helper_role_id = $1 WHERE singleton = true`,
     [roleId],
@@ -2609,15 +2604,15 @@ export async function addReserveChannel(channelId: string): Promise<void> {
 }
 
 // Atomically claims a free reserve channel. Returns its channel_id or null if pool is empty.
+// This now deletes from the db instead of setting in_use to true, as we no longer re-use reserves.
 export async function claimReserveChannel(): Promise<string | null> {
   const res = await pool.query(`
-    UPDATE reserve_channels
-    SET in_use = true
+    DELETE FROM reserve_channels
     WHERE id = (
       SELECT id FROM reserve_channels
       WHERE in_use = false
       LIMIT 1
-      FOR UPDATE SKIP LOCKED
+        FOR UPDATE SKIP LOCKED
     )
     RETURNING channel_id
   `)
@@ -2640,10 +2635,9 @@ export async function isReserveChannel(channelId: string): Promise<boolean> {
 }
 
 export async function removeReserveChannel(channelId: string): Promise<void> {
-  await pool.query(
-    `DELETE FROM reserve_channels WHERE channel_id = $1`,
-    [channelId],
-  )
+  await pool.query(`DELETE FROM reserve_channels WHERE channel_id = $1`, [
+    channelId,
+  ])
 }
 
 export async function getFreeReserveChannelCount(): Promise<number> {
