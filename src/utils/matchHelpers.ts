@@ -6,6 +6,7 @@ import {
   ContainerBuilder,
   EmbedBuilder,
   MessageFlags,
+  PermissionFlagsBits,
   PermissionsBitField,
   SeparatorSpacingSize,
   StringSelectMenuBuilder,
@@ -36,6 +37,10 @@ import {
   getUserDefaultDeckBans,
   getUserQueueRole,
   getWinningTeamFromMatch,
+  addReserveChannel,
+  getFreeReserveChannelCount,
+  isReserveChannel,
+  releaseReserveChannel,
   setMatchResultsMessageId,
   setMatchTupleBans,
   setMatchVoiceChannel,
@@ -1436,6 +1441,30 @@ export function sendWebhook(action: string, payload: any): void {
     })
 }
 
+const POOL_REPLENISH_THRESHOLD = 5
+
+async function replenishReservePool(guild: import('discord.js').Guild): Promise<void> {
+  const freeCount = await getFreeReserveChannelCount()
+  if (freeCount >= POOL_REPLENISH_THRESHOLD) return
+
+  const settings = await getSettings()
+  if (!settings?.queue_category_id) return
+
+  const channel = await guild.channels.create({
+    name: 'reserve-channel',
+    type: ChannelType.GuildText,
+    parent: settings.queue_category_id,
+    permissionOverwrites: [
+      {
+        id: guild.roles.everyone,
+        deny: [PermissionFlagsBits.ViewChannel],
+      },
+    ],
+  })
+  await addReserveChannel(channel.id)
+  console.log(`[ReservePool] Replenished: created channel ${channel.id} (free count was ${freeCount})`)
+}
+
 // delete match channel
 export async function deleteMatchChannel(matchId: number): Promise<boolean> {
   const textChannel = await getMatchChannel(matchId)
@@ -1447,13 +1476,49 @@ export async function deleteMatchChannel(matchId: number): Promise<boolean> {
   // Clear the message count for this channel
   clearChannelMessageCount(textChannel.id)
 
+  const reserve = await isReserveChannel(textChannel.id)
+
   setTimeout(async () => {
-    await textChannel.delete().catch((err) => {
-      console.error(
-        `Failed to delete text channel for match ${matchId}: ${err}`,
+    if (reserve) {
+      // Purge all messages before returning to pool
+      try {
+        const messages = await textChannel.messages.fetch({ limit: 100 })
+        if (messages.size > 0) {
+          await textChannel.bulkDelete(messages, true)
+        }
+      } catch (err) {
+        console.error(
+          `Failed to bulk delete messages in reserve channel ${textChannel.id}: ${err}`,
+        )
+      }
+
+      await textChannel
+        .edit({
+          name: 'reserve-channel',
+          permissionOverwrites: [
+            {
+              id: textChannel.guild.roles.everyone,
+              deny: [PermissionFlagsBits.ViewChannel],
+            },
+          ],
+        })
+        .catch((err) =>
+          console.error(
+            `Failed to reset reserve channel ${textChannel.id}: ${err}`,
+          ),
+        )
+      await releaseReserveChannel(textChannel.id)
+      replenishReservePool(textChannel.guild).catch((err) =>
+        console.error('Failed to replenish reserve pool:', err),
       )
-      return false
-    })
+    } else {
+      await textChannel.delete().catch((err) => {
+        console.error(
+          `Failed to delete text channel for match ${matchId}: ${err}`,
+        )
+        return false
+      })
+    }
   }, 1000)
   return true
 }

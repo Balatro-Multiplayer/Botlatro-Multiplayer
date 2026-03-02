@@ -1,27 +1,31 @@
-import { queueChangeLock } from "utils/queryDB";
+import { clearQueueUsers, lockAllQueues, queueChangeLock, unlockAllQueues } from "utils/queryDB";
 import { updateQueueMessage } from "utils/queueHelpers";
 
-/**
- * Sets a queue to locked.
- *
- * @param {number} queueId - The unique identifier of the queue to be locked.
- * @return {Promise<boolean>} A promise that resolves to true if the queue was successfully locked, otherwise false.
- */
 export async function lockQueue(queueId: number): Promise<boolean> {
     const lockCheck = await queueChangeLock(queueId, true);
-    if (lockCheck) await updateQueueMessage();
+    if (lockCheck) {
+        await clearQueueUsers(queueId)
+        await updateQueueMessage();
+    }
     return lockCheck
 }
 
-/**
- * Sets a queue to unlocked.
- *
- * @param {number} queueId - The unique identifier of the queue to be unlocked.
- * @return {Promise<boolean>} A promise that resolves to true if the queue was successfully unlocked, otherwise false.
- */
 export async function unlockQueue(queueId: number): Promise<boolean> {
     const unlockCheck = await queueChangeLock(queueId, false);
     if (unlockCheck) await updateQueueMessage();
     return unlockCheck
+}
+
+export async function lockAllQueuesHandler(): Promise<number> {
+    const lockedIds = await lockAllQueues()
+    await Promise.all(lockedIds.map((id) => clearQueueUsers(id)))
+    if (lockedIds.length > 0) await updateQueueMessage()
+    return lockedIds.length
+}
+
+export async function unlockAllQueuesHandler(): Promise<boolean> {
+    const result = await unlockAllQueues()
+    if (result) await updateQueueMessage()
+    return result
 }
 

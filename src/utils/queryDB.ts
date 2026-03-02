@@ -34,6 +34,31 @@ export async function queueChangeLock(queueId: number, lock: boolean = true) {
   return res.rowCount !== 0
 }
 
+// Clear all users from a queue (set queue_join_time to NULL and reset elo range)
+export async function clearQueueUsers(queueId: number): Promise<void> {
+  const queueSettings = await getQueueSettings(queueId)
+  await pool.query(
+    `UPDATE queue_users
+     SET queue_join_time = NULL, current_elo_range = $2
+     WHERE queue_id = $1 AND queue_join_time IS NOT NULL`,
+    [queueId, queueSettings.elo_search_start],
+  )
+}
+
+// Lock all queues and return their IDs
+export async function lockAllQueues(): Promise<number[]> {
+  const res = await pool.query(
+    `UPDATE queues SET locked = true WHERE locked = false RETURNING id`,
+  )
+  return res.rows.map((row) => row.id)
+}
+
+// Unlock all queues
+export async function unlockAllQueues(): Promise<boolean> {
+  const res = await pool.query(`UPDATE queues SET locked = false`)
+  return (res.rowCount ?? 0) > 0
+}
+
 // Get the role lock for a queue
 export async function getQueueRoleLock(
   queueId: number,
@@ -2572,4 +2597,58 @@ export async function setBountyHelperRoleId(
     `UPDATE settings SET bounty_helper_role_id = $1 WHERE singleton = true`,
     [roleId],
   )
+}
+
+// Reserve channel pool
+
+export async function addReserveChannel(channelId: string): Promise<void> {
+  await pool.query(
+    `INSERT INTO reserve_channels (channel_id) VALUES ($1) ON CONFLICT DO NOTHING`,
+    [channelId],
+  )
+}
+
+// Atomically claims a free reserve channel. Returns its channel_id or null if pool is empty.
+export async function claimReserveChannel(): Promise<string | null> {
+  const res = await pool.query(`
+    UPDATE reserve_channels
+    SET in_use = true
+    WHERE id = (
+      SELECT id FROM reserve_channels
+      WHERE in_use = false
+      LIMIT 1
+      FOR UPDATE SKIP LOCKED
+    )
+    RETURNING channel_id
+  `)
+  return res.rows[0]?.channel_id ?? null
+}
+
+export async function releaseReserveChannel(channelId: string): Promise<void> {
+  await pool.query(
+    `UPDATE reserve_channels SET in_use = false WHERE channel_id = $1`,
+    [channelId],
+  )
+}
+
+export async function isReserveChannel(channelId: string): Promise<boolean> {
+  const res = await pool.query(
+    `SELECT id FROM reserve_channels WHERE channel_id = $1`,
+    [channelId],
+  )
+  return (res.rowCount ?? 0) > 0
+}
+
+export async function removeReserveChannel(channelId: string): Promise<void> {
+  await pool.query(
+    `DELETE FROM reserve_channels WHERE channel_id = $1`,
+    [channelId],
+  )
+}
+
+export async function getFreeReserveChannelCount(): Promise<number> {
+  const res = await pool.query(
+    `SELECT COUNT(*) FROM reserve_channels WHERE in_use = false`,
+  )
+  return parseInt(res.rows[0].count)
 }

@@ -2,10 +2,12 @@ import queueLock from 'commands/moderation/queueLock'
 import {
   AutocompleteInteraction,
   ChatInputCommandInteraction,
+  MessageFlags,
   PermissionFlagsBits,
   SlashCommandBuilder,
 } from 'discord.js'
 import { getQueueNames } from 'utils/queryDB'
+import { COMMAND_HANDLERS } from '../../command-handlers'
 
 export default {
   data: new SlashCommandBuilder()
@@ -35,12 +37,36 @@ export default {
             .setRequired(true)
             .setAutocomplete(true),
         ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('lock-all')
+        .setDescription('Locks all queues and removes everyone from them.'),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('unlock-all')
+        .setDescription('Unlocks all queues.'),
     ),
   async execute(interaction: ChatInputCommandInteraction) {
     if (interaction.options.getSubcommand() === 'lock') {
       await queueLock.execute(interaction, true)
     } else if (interaction.options.getSubcommand() === 'unlock') {
       await queueLock.execute(interaction, false)
+    } else if (interaction.options.getSubcommand() === 'lock-all') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+      const count = await COMMAND_HANDLERS.MODERATION.LOCK_ALL_QUEUES()
+      await interaction.editReply(
+        count > 0
+          ? `Locked **${count}** queue(s) and removed all players from them.`
+          : 'All queues were already locked.',
+      )
+    } else if (interaction.options.getSubcommand() === 'unlock-all') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+      const success = await COMMAND_HANDLERS.MODERATION.UNLOCK_ALL_QUEUES()
+      await interaction.editReply(
+        success ? 'All queues have been unlocked.' : 'Failed to unlock queues.',
+      )
     }
   },
   async autocomplete(interaction: AutocompleteInteraction) {

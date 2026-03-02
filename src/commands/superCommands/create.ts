@@ -11,6 +11,7 @@ import queue from './queue'
 import addLeaderboardRole from '../moderation/addLeaderboardRole'
 import createRoom from '../moderation/bmpctu/createRoom'
 import createDeck from '../moderation/createDeck'
+import seedReserveChannels from '../moderation/seedReserveChannels'
 
 export default {
   data: new SlashCommandBuilder()
@@ -246,6 +247,19 @@ export default {
     )
     .addSubcommand((sub) =>
       sub
+        .setName('reserve-channels')
+        .setDescription('[ADMIN] Pre-create reserve channels for the match pool')
+        .addIntegerOption((option) =>
+          option
+            .setName('count')
+            .setDescription('Number of reserve channels to create (default: 25)')
+            .setRequired(false)
+            .setMinValue(1)
+            .setMaxValue(45),
+        ),
+    )
+    .addSubcommand((sub) =>
+      sub
         .setName('deck')
         .setDescription('[ADMIN] Add a new deck to the database')
         .addStringOption((option) =>
@@ -283,6 +297,8 @@ export default {
       await createRoom.execute(interaction)
     } else if (interaction.options.getSubcommand() === 'deck') {
       await createDeck.execute(interaction)
+    } else if (interaction.options.getSubcommand() === 'reserve-channels') {
+      await seedReserveChannels.execute(interaction)
     }
   },
   async autocomplete(interaction: AutocompleteInteraction) {

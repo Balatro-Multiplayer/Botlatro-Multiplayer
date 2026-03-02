@@ -21,6 +21,7 @@ import {
   sendWebhook,
 } from './matchHelpers'
 import {
+  claimReserveChannel,
   createQueueUser,
   getAllQueueRoles,
   getLeaderboardQueueRole,
@@ -29,6 +30,7 @@ import {
   getUserDmsEnabled,
   getUserQueueRole,
   getUsersInQueue,
+  releaseReserveChannel,
   setMatchQueueLogMessageId,
   userInMatch,
   userInQueue,
@@ -626,12 +628,35 @@ export async function createMatchResolved(
     }
   }
 
-  const channel = await guild.channels.create({
-    name: `${queue.rows[0].queue_name.toLowerCase()}-${matchId}`,
-    type: ChannelType.GuildText,
-    parent: parentCat ?? undefined,
-    permissionOverwrites: permissionOverwrites,
-  })
+  const channelName = `${queue.rows[0].queue_name.toLowerCase()}-${matchId}`
+
+  let channel: TextChannel
+  const reservedChannelId = await claimReserveChannel()
+  if (reservedChannelId) {
+    const fetched = await guild.channels
+      .fetch(reservedChannelId)
+      .catch(() => null)
+    if (fetched && fetched.type === ChannelType.GuildText) {
+      channel = fetched as TextChannel
+      await channel.edit({ name: channelName, permissionOverwrites })
+    } else {
+      // Channel no longer exists in Discord — remove it from the pool and create fresh
+      await releaseReserveChannel(reservedChannelId)
+      channel = await guild.channels.create({
+        name: channelName,
+        type: ChannelType.GuildText,
+        parent: parentCat ?? undefined,
+        permissionOverwrites,
+      })
+    }
+  } else {
+    channel = await guild.channels.create({
+      name: channelName,
+      type: ChannelType.GuildText,
+      parent: parentCat ?? undefined,
+      permissionOverwrites,
+    })
+  }
 
   await pool.query(
     `
