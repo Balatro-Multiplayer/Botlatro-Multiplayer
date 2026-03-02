@@ -1494,7 +1494,7 @@ async function replenishReservePoolResolved(freeCount: number): Promise<void> {
   if (!settings?.queue_category_id) return
 
   const categoryId =
-    freeCount > 40
+    freeCount < 40
       ? (settings.reserve_category_id ?? '1477856235880452167')
       : '1478097431450222663' // cba to set up the db migration just yet so hardcoded fallbacks
 
