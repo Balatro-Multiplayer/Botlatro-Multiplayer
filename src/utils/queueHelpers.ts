@@ -534,7 +534,7 @@ async function processMatchQueue() {
     const result = await createMatchResolved(userIds, queueId)
     resolve(result)
   } catch (err) {
-    console.log(`[RATE LIMIT QUEUE ID]: queueId`)
+    console.log(`[RATE LIMIT QUEUE ID]: ${queueId}`)
     reject(err)
   }
 
