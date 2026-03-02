@@ -90,13 +90,18 @@ export async function updateQueueMessage(): Promise<Message | undefined> {
     }),
   )
 
+  const allLocked = queueList.length === 0
+
   const embed = new EmbedBuilder()
     .setTitle(`Balatro Multiplayer Matchmaking Queue`)
     .setDescription(
-      `Use the Select Menu to join the queue!\n\n**Current Players In Queue**`,
+      allLocked
+        ? `Queues are currently locked.`
+        : `Use the Select Menu to join the queue!\n\n**Current Players In Queue**`,
     )
-    .addFields(queueFields)
     .setColor('#ff0000')
+
+  if (queueFields.length > 0) embed.addFields(queueFields)
 
   const options: StringSelectMenuOptionBuilder[] = queueList.map((queue) => {
     const option = new StringSelectMenuOptionBuilder()
@@ -106,18 +111,6 @@ export async function updateQueueMessage(): Promise<Message | undefined> {
     if (queue.queue_icon) option.setEmoji(queue.queue_icon)
     return option
   })
-
-  if (options.length == 0) return
-
-  const selectRow =
-    new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
-      new StringSelectMenuBuilder()
-        .setCustomId('join-queue')
-        .setPlaceholder('Join Queue')
-        .addOptions(options)
-        .setMinValues(1)
-        .setMaxValues(queueList.length),
-    )
 
   const leaveQueue = new ButtonBuilder()
     .setCustomId(`leave-queue`)
@@ -129,17 +122,25 @@ export async function updateQueueMessage(): Promise<Message | undefined> {
     .setLabel('Check Queued State')
     .setStyle(ButtonStyle.Secondary)
 
-  const setPriorityQueue = new ButtonBuilder()
-    .setCustomId(`set-priority-queue`)
-    .setLabel('Set Priority Queue')
-    .setStyle(ButtonStyle.Primary)
-    .setDisabled(true)
-  // .setDisabled(options.length < 2)
-
   const buttonRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
     leaveQueue,
     checkQueued,
   )
+
+  const components: ActionRowBuilder<any>[] = [buttonRow]
+
+  if (!allLocked) {
+    const selectRow =
+      new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId('join-queue')
+          .setPlaceholder('Join Queue')
+          .addOptions(options)
+          .setMinValues(1)
+          .setMaxValues(queueList.length),
+      )
+    components.unshift(selectRow)
+  }
 
   let queueMsg
   const queueChannel = (await client.channels.fetch(
@@ -153,7 +154,7 @@ export async function updateQueueMessage(): Promise<Message | undefined> {
           try {
             queueMsg = await msg.edit({
               embeds: [embed],
-              components: [selectRow, buttonRow],
+              components,
             })
           } catch (err) {
             console.error('Failed to edit queue message:', err)
@@ -175,7 +176,7 @@ export async function updateQueueMessage(): Promise<Message | undefined> {
     try {
       queueMsg = await queueChannel.send({
         embeds: [embed],
-        components: [selectRow, buttonRow],
+        components,
       })
       await pool.query('UPDATE settings SET queue_message_id = $1', [
         queueMsg.id,
