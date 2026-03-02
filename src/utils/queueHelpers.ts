@@ -30,7 +30,7 @@ import {
   getUserDmsEnabled,
   getUserQueueRole,
   getUsersInQueue,
-  releaseReserveChannel,
+  removeReserveChannel,
   setMatchQueueLogMessageId,
   userInMatch,
   userInQueue,
@@ -648,7 +648,7 @@ export async function createMatchResolved(
       await channel.edit({ name: channelName, permissionOverwrites, parent: parentCat ?? undefined })
     } else {
       // Channel no longer exists in Discord — remove it from the pool and create fresh
-      await releaseReserveChannel(reservedChannelId)
+      await removeReserveChannel(reservedChannelId)
       channel = await guild.channels.create({
         name: channelName,
         type: ChannelType.GuildText,
