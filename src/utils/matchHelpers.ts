@@ -1166,9 +1166,9 @@ export async function endMatch(
 
   console.log(`Queue ID for match ${matchId}: ${queueId}`)
   const queueSettings = await getQueueSettings(queueId)
-  console.log(`Queue settings for match ${matchId}:`, queueSettings)
+  // console.log(`Queue settings for match ${matchId}:`, queueSettings)
   const matchData = await getMatchData(matchId)
-  console.log(`Match data for match ${matchId}:`, matchData)
+  // console.log(`Match data for match ${matchId}:`, matchData)
 
   let teamResults: teamResults | null
   // create our teamResults object here
