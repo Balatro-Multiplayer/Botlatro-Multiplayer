@@ -1485,7 +1485,7 @@ async function replenishReservePoolResolved(): Promise<void> {
   const freeCount = await getFreeReserveChannelCount()
   if (freeCount >= POOL_REPLENISH_THRESHOLD) return
 
-  const guild = await client.guilds.fetch(process.env.GUILD_ID!)
+  const guild = await getGuild()
 
   const settings = await getSettings()
   if (!settings?.queue_category_id) return

@@ -23,7 +23,7 @@ import { pool } from '../db'
 import * as fs from 'fs'
 import * as path from 'path'
 import { glob } from 'glob'
-import { client } from '../client'
+import { getGuild } from '../client'
 
 // delete old parties every 5 minutes
 export async function partyDeleteCronJob() {
@@ -216,7 +216,7 @@ export async function incrementEloCronJobAllQueues() {
 export async function deleteOldTranscriptsCronJob() {
   setInterval(
     async () => {
-      const guild = client.guilds.cache.get(process.env.GUILD_ID!)
+      const guild = await getGuild()
 
       const pattern = path
         .join(__dirname, '..', 'logs', `match-*_*.log`)

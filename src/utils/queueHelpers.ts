@@ -572,10 +572,7 @@ export async function createMatchResolved(
   const settings = await getSettings()
   if (!settings) return
 
-  const guild =
-    client.guilds.cache.get(process.env.GUILD_ID!) ??
-    (await client.guilds.fetch(process.env.GUILD_ID!))
-  if (!guild) throw new Error('Guild not found')
+  const guild = await getGuild()
 
   const categoryId = settings.queue_category_id
   const permissionOverwrites = [
@@ -645,7 +642,11 @@ export async function createMatchResolved(
       .catch(() => null)
     if (fetched && fetched.type === ChannelType.GuildText) {
       channel = fetched as TextChannel
-      await channel.edit({ name: channelName, permissionOverwrites, parent: parentCat ?? undefined })
+      await channel.edit({
+        name: channelName,
+        permissionOverwrites,
+        parent: parentCat ?? undefined,
+      })
     } else {
       // Channel no longer exists in Discord — remove it from the pool and create fresh
       await removeReserveChannel(reservedChannelId)
