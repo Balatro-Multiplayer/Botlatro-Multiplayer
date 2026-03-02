@@ -1058,7 +1058,7 @@ export async function userInMatch(userId: string): Promise<boolean> {
   return response.length > 0
 }
 
-// Get active match counts grouped by queue
+// Get active match counts grouped by queue, matching the select menu filter and order
 export async function getActiveMatchCountsByQueue(): Promise<
   { queue_id: number; queue_name: string; active_matches: number }[]
 > {
@@ -1066,8 +1066,16 @@ export async function getActiveMatchCountsByQueue(): Promise<
     `SELECT q.id AS queue_id, q.queue_name, COUNT(m.id)::integer AS active_matches
      FROM queues q
      LEFT JOIN matches m ON m.queue_id = q.id AND m.open = true
+     WHERE q.locked = false
      GROUP BY q.id, q.queue_name
-     ORDER BY q.id`,
+     ORDER BY CASE q.queue_name
+       WHEN 'Standard Ranked' THEN 1
+       WHEN 'Legacy Ranked'   THEN 2
+       WHEN 'Smallworld'      THEN 3
+       WHEN 'Sandbox'         THEN 4
+       WHEN 'Casual'          THEN 5
+       ELSE 6
+     END`,
   )
   return res.rows
 }
