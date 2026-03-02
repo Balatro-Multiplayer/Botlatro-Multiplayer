@@ -19,13 +19,13 @@ export async function unlockQueue(queueId: number): Promise<boolean> {
 export async function lockAllQueuesHandler(): Promise<number> {
     const lockedIds = await lockAllQueues()
     await Promise.all(lockedIds.map((id) => clearQueueUsers(id)))
-    if (lockedIds.length > 0) await updateQueueMessage()
+    if (lockedIds.length > 0) await updateQueueMessage(true)
     return lockedIds.length
 }
 
 export async function unlockAllQueuesHandler(): Promise<boolean> {
     const result = await unlockAllQueues()
-    if (result) await updateQueueMessage()
+    if (result) await updateQueueMessage(true)
     return result
 }
 
