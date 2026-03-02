@@ -525,6 +525,7 @@ export async function createMatch(
 ): Promise<any> {
   return new Promise((resolve, reject) => {
     matchQueue.push({ resolve, reject, userIds, queueId })
+    console.log(`[MATCH QUEUE LENGTH]: ${matchQueue.length}`)
     processMatchQueue()
   })
 }
@@ -537,7 +538,6 @@ async function processMatchQueue() {
 
   try {
     const result = await createMatchResolved(userIds, queueId)
-    console.log(`[MATCH QUEUE LENGTH]: ${matchQueue.length}`)
     resolve(result)
   } catch (err) {
     reject(err)
