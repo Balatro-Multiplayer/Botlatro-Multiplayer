@@ -1444,7 +1444,7 @@ export function sendWebhook(action: string, payload: any): void {
     })
 }
 
-const POOL_REPLENISH_THRESHOLD = 40
+const POOL_REPLENISH_THRESHOLD = 80
 
 type ReplenishRequest = {
   resolve: () => void
@@ -1463,12 +1463,16 @@ export async function replenishReservePool(): Promise<void> {
 
 async function processReplenishQueue() {
   if (processingReplenish || replenishQueue.length === 0) return
+
+  const freeCount = await getFreeReserveChannelCount()
+  if (freeCount >= POOL_REPLENISH_THRESHOLD) return
+
   processingReplenish = true
 
   const { resolve, reject } = replenishQueue.shift()!
 
   try {
-    await replenishReservePoolResolved()
+    await replenishReservePoolResolved(freeCount)
     resolve()
   } catch (err) {
     reject(err)
@@ -1483,19 +1487,21 @@ async function processReplenishQueue() {
   }, delay)
 }
 
-async function replenishReservePoolResolved(): Promise<void> {
-  const freeCount = await getFreeReserveChannelCount()
-  if (freeCount >= POOL_REPLENISH_THRESHOLD) return
-
+async function replenishReservePoolResolved(freeCount: number): Promise<void> {
   const guild = await getGuild()
 
   const settings = await getSettings()
   if (!settings?.queue_category_id) return
 
+  const categoryId =
+    freeCount > 40
+      ? (settings.reserve_category_id ?? '1477856235880452167')
+      : '1478097431450222663' // cba to set up the db migration just yet so hardcoded fallbacks
+
   const channel = await guild.channels.create({
     name: 'reserve-channel',
     type: ChannelType.GuildText,
-    parent: settings.reserve_category_id ?? '1477856235880452167', // cba to set up the migration just yet so hardcoded fallback
+    parent: categoryId,
     permissionOverwrites: [
       {
         id: guild.roles.everyone,
@@ -1504,9 +1510,7 @@ async function replenishReservePoolResolved(): Promise<void> {
     ],
   })
   await addReserveChannel(channel.id)
-  console.log(
-    `[ReservePool] Replenished: created channel ${channel.id} (free count was ${freeCount})`,
-  )
+  console.log(`[ReservePool] Replenished: created channel ${channel.id}`)
 }
 
 // delete match channel
