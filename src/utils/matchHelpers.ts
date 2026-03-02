@@ -1493,7 +1493,7 @@ async function replenishReservePoolResolved(): Promise<void> {
   const channel = await guild.channels.create({
     name: 'reserve-channel',
     type: ChannelType.GuildText,
-    parent: settings.queue_category_id,
+    parent: settings.reserve_category_id ?? '1477856235880452167', // cba to set up the migration just yet so hardcoded fallback
     permissionOverwrites: [
       {
         id: guild.roles.everyone,

@@ -141,6 +141,7 @@ declare module 'psqlDB' {
     match_count_channel_id: string
     active_season: number
     bounty_helper_role_id: string
+    reserve_category_id?: string | null
   }
 
   export type teamResults = {
