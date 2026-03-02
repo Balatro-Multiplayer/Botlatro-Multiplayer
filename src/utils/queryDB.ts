@@ -1594,6 +1594,7 @@ export async function getStatsCanvasUserData(
   // 1) Core player stats for this queue
   const activeSeason = await getActiveSeason()
   const isHistorical = season !== undefined && season !== activeSeason
+  const effectiveSeason = season ?? activeSeason
 
   let p: {
     user_id: string
@@ -1701,10 +1702,10 @@ export async function getStatsCanvasUserData(
     FROM match_users mu
     JOIN matches m ON m.id = mu.match_id
     WHERE mu.user_id = $1 AND m.queue_id = $2 AND m.winning_team IS NOT NULL
-    ${season !== undefined ? 'AND m.season = $3' : ''}
+    AND m.season = $3
     ORDER BY m.created_at
     `,
-    season !== undefined ? [userId, queueId, season] : [userId, queueId],
+    [userId, queueId, effectiveSeason],
   )
 
   let eloChanges = eloRes.rows.map((r: any) => ({
