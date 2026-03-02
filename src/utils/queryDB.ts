@@ -1058,6 +1058,20 @@ export async function userInMatch(userId: string): Promise<boolean> {
   return response.length > 0
 }
 
+// Get active match counts grouped by queue
+export async function getActiveMatchCountsByQueue(): Promise<
+  { queue_id: number; queue_name: string; active_matches: number }[]
+> {
+  const res = await pool.query(
+    `SELECT q.id AS queue_id, q.queue_name, COUNT(m.id)::integer AS active_matches
+     FROM queues q
+     LEFT JOIN matches m ON m.queue_id = q.id AND m.open = true
+     GROUP BY q.id, q.queue_name
+     ORDER BY q.id`,
+  )
+  return res.rows
+}
+
 // Get all active/open matches
 export async function getActiveMatches(): Promise<Matches[]> {
   const res = await pool.query<Matches>(
