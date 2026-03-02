@@ -1442,7 +1442,7 @@ export function sendWebhook(action: string, payload: any): void {
     })
 }
 
-const POOL_REPLENISH_THRESHOLD = 50
+const POOL_REPLENISH_THRESHOLD = 40
 
 type ReplenishRequest = {
   resolve: () => void
