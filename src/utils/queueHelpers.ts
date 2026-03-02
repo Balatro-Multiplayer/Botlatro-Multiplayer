@@ -506,7 +506,7 @@ type MatchRequest = {
   queueId: number
 }
 
-const matchQueue: MatchRequest[] = []
+export const matchQueue: MatchRequest[] = []
 let processingMatch = false
 let nextDelay = 1500
 export const getNextDelay = () => nextDelay
@@ -635,7 +635,11 @@ export async function createMatchResolved(
   const channelName = `${queue.rows[0].queue_name.toLowerCase()}-${matchId}`
 
   let channel: TextChannel
-  const reservedChannelId = await claimReserveChannel()
+  let reservedChannelId: string | null = null
+  // only reclaim if we have more than 1 match in the queue
+  if (matchQueue.length > 1) {
+    reservedChannelId = await claimReserveChannel()
+  }
   if (reservedChannelId) {
     const fetched = await guild.channels
       .fetch(reservedChannelId)
