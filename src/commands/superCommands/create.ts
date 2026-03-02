@@ -287,7 +287,7 @@ export default {
           option
             .setName('emote-name')
             .setDescription(
-              'Emote name for emote/combo lookups (e.g. "cocktail" for "cocktail__white"). Defaults to derived from deck name.',
+              'Emote name for emote/combo lookups.',
             )
             .setRequired(false)
             .setMaxLength(100),
