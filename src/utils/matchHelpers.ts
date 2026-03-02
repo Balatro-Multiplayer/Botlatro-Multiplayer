@@ -5,6 +5,7 @@ import {
   ChannelType,
   ContainerBuilder,
   EmbedBuilder,
+  Guild,
   MessageFlags,
   PermissionFlagsBits,
   PermissionsBitField,
@@ -17,11 +18,13 @@ import {
 import { pool } from '../db'
 import { shuffle } from 'lodash-es'
 import {
+  addReserveChannel,
   closeMatch,
   getActiveMatches,
   getDeckByName,
   getDeckList,
   getDecksInQueue,
+  getFreeReserveChannelCount,
   getMatchChannel,
   getMatchData,
   getMatchQueueLogMessageId,
@@ -37,8 +40,6 @@ import {
   getUserDefaultDeckBans,
   getUserQueueRole,
   getWinningTeamFromMatch,
-  addReserveChannel,
-  getFreeReserveChannelCount,
   isReserveChannel,
   releaseReserveChannel,
   setMatchResultsMessageId,
@@ -70,6 +71,7 @@ import {
   getCombinedOrFallback,
   parseEmoji,
 } from './combinedEmoteCache'
+import { getNextDelay, setNextDelay } from './queueHelpers'
 
 require('dotenv').config()
 
@@ -1443,7 +1445,47 @@ export function sendWebhook(action: string, payload: any): void {
 
 const POOL_REPLENISH_THRESHOLD = 5
 
-async function replenishReservePool(guild: import('discord.js').Guild): Promise<void> {
+type ReplenishRequest = {
+  resolve: () => void
+  reject: (err: any) => void
+  guild: Guild
+}
+
+const replenishQueue: ReplenishRequest[] = []
+let processingReplenish = false
+
+export async function replenishReservePool(guild: Guild): Promise<void> {
+  return new Promise((resolve, reject) => {
+    replenishQueue.push({ resolve, reject, guild })
+    processReplenishQueue()
+  })
+}
+
+async function processReplenishQueue() {
+  if (processingReplenish || replenishQueue.length === 0) return
+  processingReplenish = true
+
+  const { resolve, reject, guild } = replenishQueue.shift()!
+
+  try {
+    await replenishReservePoolResolved(guild)
+    resolve()
+  } catch (err) {
+    reject(err)
+  }
+
+  const delay = getNextDelay()
+  setNextDelay(1500)
+
+  setTimeout(() => {
+    processingReplenish = false
+    processReplenishQueue()
+  }, delay)
+}
+
+async function replenishReservePoolResolved(
+  guild: import('discord.js').Guild,
+): Promise<void> {
   const freeCount = await getFreeReserveChannelCount()
   if (freeCount >= POOL_REPLENISH_THRESHOLD) return
 
@@ -1462,7 +1504,9 @@ async function replenishReservePool(guild: import('discord.js').Guild): Promise<
     ],
   })
   await addReserveChannel(channel.id)
-  console.log(`[ReservePool] Replenished: created channel ${channel.id} (free count was ${freeCount})`)
+  console.log(
+    `[ReservePool] Replenished: created channel ${channel.id} (free count was ${freeCount})`,
+  )
 }
 
 // delete match channel

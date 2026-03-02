@@ -509,6 +509,8 @@ type MatchRequest = {
 const matchQueue: MatchRequest[] = []
 let processingMatch = false
 let nextDelay = 1500
+export const getNextDelay = () => nextDelay
+export const setNextDelay = (v: number) => (nextDelay = v)
 
 client.rest.on('rateLimited', (info) => {
   console.log(`LIMITED: ${info.retryAfter}`)
