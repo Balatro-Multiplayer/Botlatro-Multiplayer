@@ -637,7 +637,7 @@ export async function createMatchResolved(
   let channel: TextChannel
   let reservedChannelId: string | null = null
   // only reclaim if we have more than 1 match in the queue
-  if (matchQueue.length > 1) {
+  if (matchQueue.length >= 1) {
     reservedChannelId = await claimReserveChannel()
   }
   if (reservedChannelId) {
