@@ -241,7 +241,7 @@ export async function replenishReservePoolCronJob() {
   setInterval(
     async () => {
       // if we already have a queue of reserves trying to be made, we don't try and make a new one.
-      if (replenishQueue.length > 1) return
+      if (replenishQueue.length >= 1) return
 
       replenishReservePool().catch((err) =>
         console.error('Failed to replenish reserve pool:', err),
