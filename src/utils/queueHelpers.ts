@@ -43,7 +43,9 @@ import { checkBans } from './automaticUnbans'
 let lastMatchCreationTime = 0
 
 // Updates or sends a new queue message for the specified text channel
-export async function updateQueueMessage(force = false): Promise<Message | undefined> {
+export async function updateQueueMessage(
+  force = false,
+): Promise<Message | undefined> {
   // for now limiting edits to 10% - todo: more robust fix
   if (!force && Math.random() > 0.1) return
 
@@ -510,7 +512,7 @@ let nextDelay = 1500
 
 client.rest.on('rateLimited', (info) => {
   if (info.retryAfter > nextDelay) {
-    nextDelay = info.retryAfter + 500
+    nextDelay = info.retryAfter + 1500
   }
 })
 
@@ -532,9 +534,9 @@ async function processMatchQueue() {
 
   try {
     const result = await createMatchResolved(userIds, queueId)
+    console.log(`[MATCH QUEUE LENGTH]: ${matchQueue.length}`)
     resolve(result)
   } catch (err) {
-    console.log(`[RATE LIMIT QUEUE ID]: ${queueId}`)
     reject(err)
   }
 
