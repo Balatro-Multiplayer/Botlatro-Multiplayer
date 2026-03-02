@@ -5,7 +5,6 @@ import {
   getCurrentEloRangeForUser,
   getQueueSettings,
   getSettings,
-  getUserPriorityQueueId,
   getUserQueues,
   getUsersInQueue,
   partyUtils,
@@ -15,7 +14,11 @@ import {
   updateCurrentEloRangeForUser,
 } from './queryDB'
 import { createMatch, timeSpentInQueue } from './queueHelpers'
-import { updateMatchCountChannel } from './matchHelpers'
+import {
+  replenishQueue,
+  replenishReservePool,
+  updateMatchCountChannel,
+} from './matchHelpers'
 import { pool } from '../db'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -232,6 +235,20 @@ export async function deleteOldTranscriptsCronJob() {
     },
     5 * 60 * 1000,
   ) // every 5 mins
+}
+
+export async function replenishReservePoolCronJob() {
+  setInterval(
+    async () => {
+      // if we already have a queue of reserves trying to be made, we don't try and make a new one.
+      if (replenishQueue.length > 1) return
+
+      replenishReservePool().catch((err) =>
+        console.error('Failed to replenish reserve pool:', err),
+      )
+    },
+    1000 * 10, // every 10 seconds,
+  )
 }
 
 // decay users

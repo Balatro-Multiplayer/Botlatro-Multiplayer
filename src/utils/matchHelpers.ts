@@ -5,7 +5,6 @@ import {
   ChannelType,
   ContainerBuilder,
   EmbedBuilder,
-  Guild,
   MessageFlags,
   PermissionFlagsBits,
   PermissionsBitField,
@@ -1448,15 +1447,14 @@ const POOL_REPLENISH_THRESHOLD = 20
 type ReplenishRequest = {
   resolve: () => void
   reject: (err: any) => void
-  guild: Guild
 }
 
-const replenishQueue: ReplenishRequest[] = []
+export const replenishQueue: ReplenishRequest[] = []
 let processingReplenish = false
 
-export async function replenishReservePool(guild: Guild): Promise<void> {
+export async function replenishReservePool(): Promise<void> {
   return new Promise((resolve, reject) => {
-    replenishQueue.push({ resolve, reject, guild })
+    replenishQueue.push({ resolve, reject })
     processReplenishQueue()
   })
 }
@@ -1465,10 +1463,10 @@ async function processReplenishQueue() {
   if (processingReplenish || replenishQueue.length === 0) return
   processingReplenish = true
 
-  const { resolve, reject, guild } = replenishQueue.shift()!
+  const { resolve, reject } = replenishQueue.shift()!
 
   try {
-    await replenishReservePoolResolved(guild)
+    await replenishReservePoolResolved()
     resolve()
   } catch (err) {
     reject(err)
@@ -1483,11 +1481,11 @@ async function processReplenishQueue() {
   }, delay)
 }
 
-async function replenishReservePoolResolved(
-  guild: import('discord.js').Guild,
-): Promise<void> {
+async function replenishReservePoolResolved(): Promise<void> {
   const freeCount = await getFreeReserveChannelCount()
   if (freeCount >= POOL_REPLENISH_THRESHOLD) return
+
+  const guild = await client.guilds.fetch(process.env.GUILD_ID!)
 
   const settings = await getSettings()
   if (!settings?.queue_category_id) return
@@ -1531,7 +1529,7 @@ export async function deleteMatchChannel(matchId: number): Promise<boolean> {
 
     if (reserve) {
       await removeReserveChannel(textChannel.id)
-      replenishReservePool(textChannel.guild).catch((err) =>
+      replenishReservePool().catch((err) =>
         console.error('Failed to replenish reserve pool:', err),
       )
     }
