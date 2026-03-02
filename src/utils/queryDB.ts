@@ -1759,11 +1759,16 @@ export async function getStatsCanvasUserData(
   })
 
   // Calculate percentiles for each stat using CTEs
+  const playerStatsTable = isHistorical ? 'queue_users_seasons qus' : 'queue_users qu'
+  const playerAlias = isHistorical ? 'qus' : 'qu'
+  const seasonJoinFilter = season !== undefined ? 'AND m.season = $6' : ''
+  const seasonWhereFilter = isHistorical ? 'AND qus.season = $6' : ''
+
   const percentilesRes = await pool.query(
     `
     WITH player_stats AS (
       SELECT
-        qu.user_id,
+        ${playerAlias}.user_id,
         COUNT(CASE WHEN m.winning_team = mu.team THEN 1 END)::integer as wins,
         COUNT(CASE WHEN m.winning_team IS NOT NULL AND m.winning_team != mu.team THEN 1 END)::integer as losses,
         COUNT(CASE WHEN m.winning_team IS NOT NULL THEN 1 END)::integer as games_played,
@@ -1772,12 +1777,13 @@ export async function getStatsCanvasUserData(
           THEN COUNT(CASE WHEN m.winning_team = mu.team THEN 1 END)::float / COUNT(CASE WHEN m.winning_team IS NOT NULL THEN 1 END)
           ELSE 0
         END as winrate
-      FROM queue_users qu
-      LEFT JOIN match_users mu ON mu.user_id = qu.user_id
+      FROM ${playerStatsTable}
+      LEFT JOIN match_users mu ON mu.user_id = ${playerAlias}.user_id
       LEFT JOIN matches m ON m.id = mu.match_id AND m.queue_id = $1
-        ${season !== undefined ? 'AND m.season = $6' : ''}
-      WHERE qu.queue_id = $1
-      GROUP BY qu.user_id
+        ${seasonJoinFilter}
+      WHERE ${playerAlias}.queue_id = $1
+        ${seasonWhereFilter}
+      GROUP BY ${playerAlias}.user_id
     )
     SELECT
       COUNT(*) as total_players,
@@ -1961,9 +1967,13 @@ export async function getStatsCanvasUserData(
         }
       }
     } else {
-      // Fall back to MMR-based role
-      const queueRole = await getUserQueueRole(queueId, userId)
-      if (queueRole) {
+      // Fall back to MMR-based role using p.elo (correct for both current and historical seasons)
+      const queueRoleRes = await pool.query(
+        `SELECT * FROM queue_roles WHERE queue_id = $1 AND mmr_threshold <= $2 ORDER BY mmr_threshold DESC LIMIT 1`,
+        [queueId, p.elo],
+      )
+      if (queueRoleRes.rowCount && queueRoleRes.rowCount > 0) {
+        const queueRole = queueRoleRes.rows[0]
         const guild =
           client.guilds.cache.get(process.env.GUILD_ID!) ??
           (await client.guilds.fetch(process.env.GUILD_ID!))
