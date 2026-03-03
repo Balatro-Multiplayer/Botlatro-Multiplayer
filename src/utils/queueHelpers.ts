@@ -635,8 +635,8 @@ export async function createMatchResolved(
 
   let channel: TextChannel | undefined
   let reservedChannelId: string | null = null
-  // only reclaim if we have more than 1 match in the queue
-  if (matchQueue.length >= 1) {
+  // reclaim if we have more matches waiting or if we're currently rate limited
+  if (matchQueue.length >= 1 || nextDelay > 1500) {
     let claimed = false
     while (true) {
       reservedChannelId = await claimReserveChannel()
