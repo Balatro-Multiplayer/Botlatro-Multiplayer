@@ -511,9 +511,14 @@ let processingMatch = false
 let nextDelay = 1500
 export const getNextDelay = () => nextDelay
 export const setNextDelay = (v: number) => (nextDelay = v)
+let skipReserves = false
 
 client.rest.on('rateLimited', (info) => {
   console.log(`LIMITED: ${info.retryAfter}`)
+  // if we get patch limited to a large extent, then that's reserves causing it, so we skip reserves.
+  if (info.method === 'PATCH' && info.retryAfter > 10000) {
+    skipReserves = true
+  }
   if (info.retryAfter > nextDelay) {
     nextDelay = info.retryAfter + 1500
   }
@@ -548,7 +553,7 @@ async function processMatchQueue() {
 
   // if we are racking up limits, start aggressively processing matches using reserve channels
   const freeReserves = await getFreeReserveChannelCount()
-  if (delay > 5000 && freeReserves > 5) {
+  if (delay > 5000 && freeReserves > 5 && delay < 60000) {
     processingMatch = false
     await processMatchQueue()
   }
@@ -644,7 +649,7 @@ export async function createMatchResolved(
   let channel: TextChannel | undefined
   let reservedChannelId: string | null = null
   // use reserves if we have more matches waiting or if we're currently rate-limited
-  if (matchQueue.length >= 1 || nextDelay > 1500) {
+  if (matchQueue.length >= 1 || (nextDelay > 1500 && !skipReserves)) {
     let claimed = false
     while (true) {
       reservedChannelId = await claimReserveChannel()
@@ -678,6 +683,7 @@ export async function createMatchResolved(
       })
     }
   } else {
+    skipReserves = false
     channel = await guild.channels.create({
       name: channelName,
       type: ChannelType.GuildText,
