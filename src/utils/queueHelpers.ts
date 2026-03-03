@@ -556,6 +556,7 @@ async function processMatchQueue() {
   if (delay > 5000 && freeReserves > 5 && delay < 60000) {
     processingMatch = false
     await processMatchQueue()
+    return
   }
 
   setTimeout(() => {
@@ -649,7 +650,7 @@ export async function createMatchResolved(
   let channel: TextChannel | undefined
   let reservedChannelId: string | null = null
   // use reserves if we have more matches waiting or if we're currently rate-limited
-  if (matchQueue.length >= 1 || (nextDelay > 1500 && !skipReserves)) {
+  if (matchQueue.length >= 1 || nextDelay > 1500 || !skipReserves) {
     let claimed = false
     while (true) {
       reservedChannelId = await claimReserveChannel()
