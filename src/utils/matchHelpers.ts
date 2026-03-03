@@ -1479,7 +1479,7 @@ async function processReplenishQueue() {
   }
 
   const delay = getNextDelay()
-  setNextDelay(1500)
+  setNextDelay(3000)
 
   setTimeout(() => {
     processingReplenish = false

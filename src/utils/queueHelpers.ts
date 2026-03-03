@@ -553,7 +553,7 @@ async function processMatchQueue() {
 
   // if we are racking up limits, start aggressively processing matches using reserve channels
   const freeReserves = await getFreeReserveChannelCount()
-  if (delay > 5000 && freeReserves > 5 && delay < 60000) {
+  if (delay > 5000 && delay < 60000 && freeReserves > 5 && !skipReserves) {
     processingMatch = false
     await processMatchQueue()
     return
