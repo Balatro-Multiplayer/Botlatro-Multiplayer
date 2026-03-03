@@ -24,6 +24,7 @@ import {
   claimReserveChannel,
   createQueueUser,
   getAllQueueRoles,
+  getFreeReserveChannelCount,
   getLeaderboardQueueRole,
   getQueueSettings,
   getSettings,
@@ -545,6 +546,13 @@ async function processMatchQueue() {
   const delay = nextDelay
   nextDelay = 1500 // reset for next run
 
+  // if we are racking up limits, start aggressively processing matches using reserve channels
+  const freeReserves = await getFreeReserveChannelCount()
+  if (delay > 5000 && freeReserves > 5) {
+    processingMatch = false
+    await processMatchQueue()
+  }
+
   setTimeout(() => {
     processingMatch = false
     processMatchQueue()
@@ -635,7 +643,7 @@ export async function createMatchResolved(
 
   let channel: TextChannel | undefined
   let reservedChannelId: string | null = null
-  // reclaim if we have more matches waiting or if we're currently rate limited
+  // use reserves if we have more matches waiting or if we're currently rate-limited
   if (matchQueue.length >= 1 || nextDelay > 1500) {
     let claimed = false
     while (true) {
