@@ -1456,7 +1456,11 @@ async function processReplenishQueue() {
   if (processingReplenish || replenishQueue.length === 0) return
 
   const freeCount = await getFreeReserveChannelCount()
-  if (freeCount >= POOL_REPLENISH_THRESHOLD) return
+  if (freeCount >= POOL_REPLENISH_THRESHOLD) {
+    // Pool is full — drain queued promises so the cron job can call again next tick
+    while (replenishQueue.length > 0) replenishQueue.shift()!.resolve()
+    return
+  }
 
   processingReplenish = true
 
@@ -1556,8 +1560,6 @@ export async function deleteMatchChannel(matchId: number): Promise<boolean> {
   // Clear the message count for this channel
   clearChannelMessageCount(textChannel.id)
 
-  const reserve = await isReserveChannel(textChannel.id)
-
   setTimeout(async () => {
     await textChannel.delete().catch((err) => {
       console.error(
@@ -1565,12 +1567,9 @@ export async function deleteMatchChannel(matchId: number): Promise<boolean> {
       )
     })
 
-    if (reserve) {
-      await removeReserveChannel(textChannel.id)
-      replenishReservePool().catch((err) =>
-        console.error('Failed to replenish reserve pool:', err),
-      )
-    }
+    replenishReservePool().catch((err) =>
+      console.error('Failed to replenish reserve pool:', err),
+    )
   }, 1000)
   return true
 }
