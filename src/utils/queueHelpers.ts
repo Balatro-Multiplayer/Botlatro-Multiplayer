@@ -666,6 +666,7 @@ export async function createMatchResolved(
           name: channelName,
           permissionOverwrites,
           parent: parentCat ?? undefined,
+          lockPermissions: false,
         })
         claimed = true
         break
