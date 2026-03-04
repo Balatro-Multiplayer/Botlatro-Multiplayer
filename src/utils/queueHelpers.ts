@@ -662,12 +662,8 @@ export async function createMatchResolved(
 
       if (fetched && fetched.type === ChannelType.GuildText) {
         channel = fetched as TextChannel
-        await channel.edit({
-          name: channelName,
-          permissionOverwrites,
-          parent: parentCat ?? undefined,
-          lockPermissions: false,
-        })
+        await channel.edit({ name: channelName, permissionOverwrites })
+        await channel.setParent(parentCat ?? null, { lockPermissions: false })
         claimed = true
         break
       }
