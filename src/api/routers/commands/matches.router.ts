@@ -19,6 +19,7 @@ matchesRouter.openapi(
                   queue_id: z.number(),
                   queue_name: z.string(),
                   active_matches: z.number(),
+                  players_in_queue: z.number(),
                 }),
               ),
             }),

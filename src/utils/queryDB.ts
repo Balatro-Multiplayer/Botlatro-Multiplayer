@@ -1060,12 +1060,15 @@ export async function userInMatch(userId: string): Promise<boolean> {
 
 // Get active match counts grouped by queue, matching the select menu filter and order
 export async function getActiveMatchCountsByQueue(): Promise<
-  { queue_id: number; queue_name: string; active_matches: number }[]
+  { queue_id: number; queue_name: string; active_matches: number; players_in_queue: number }[]
 > {
   const res = await pool.query(
-    `SELECT q.id AS queue_id, q.queue_name, COUNT(m.id)::integer AS active_matches
+    `SELECT q.id AS queue_id, q.queue_name,
+            COUNT(DISTINCT m.id)::integer AS active_matches,
+            COUNT(DISTINCT CASE WHEN qu.queue_join_time IS NOT NULL THEN qu.user_id END)::integer AS players_in_queue
      FROM queues q
      LEFT JOIN matches m ON m.queue_id = q.id AND m.open = true
+     LEFT JOIN queue_users qu ON qu.queue_id = q.id
      WHERE q.locked = false
      GROUP BY q.id, q.queue_name
      ORDER BY CASE q.queue_name
