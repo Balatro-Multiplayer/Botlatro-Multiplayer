@@ -43,8 +43,6 @@ export async function checkBans() {
       !!ban.expires_at && ban.expires_at.getTime() < currentTime,
   )
 
-  console.log('Expired bans:', expiredBans)
-
   // unban user
   for (const expiredBan of expiredBans) {
     await automaticUnban(expiredBan)

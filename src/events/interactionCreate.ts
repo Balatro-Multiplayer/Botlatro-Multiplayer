@@ -328,9 +328,6 @@ export default {
                   const customSelId = interaction.values[0]
                   const matchDataParts: string[] = customSelId.split('_')
                   const matchId = parseInt(matchDataParts[1])
-                  console.log(
-                    `Finishing vote for match ${matchId}, winner ${winner}`,
-                  )
 
                   // Check if match is already being processed
                   if (processingMatchEnds.has(matchId)) {

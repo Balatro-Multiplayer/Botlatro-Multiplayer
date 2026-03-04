@@ -116,7 +116,6 @@ export async function setupDeckSelect(
   // check if current queue is using tuple bans or not
   let useTupleBan = false
   if (queueId) {
-    console.log('queueId: ', queueId)
     useTupleBan = (
       await pool.query(`SELECT use_tuple_bans FROM queues WHERE id = $1`, [
         queueId,
@@ -1111,15 +1110,12 @@ export async function endMatch(
   matchId: number,
   cancelled = false,
 ): Promise<boolean> {
-  console.log(`Attempting to close match ${matchId}`)
-
   const matchCheck = await getMatchStatus(matchId)
   if (!matchCheck) {
     console.log(`match ${matchId} already closed, running change winner logic`)
   }
 
   await closeMatch(matchId)
-  console.log(`Ending match ${matchId}, cancelled: ${cancelled}`)
 
   // Get teams early so we can use for both cancelled and completed matches
   const matchTeams = await getTeamsInMatch(matchId)
@@ -1167,7 +1163,6 @@ export async function endMatch(
     return false
   }
 
-  console.log(`Queue ID for match ${matchId}: ${queueId}`)
   const queueSettings = await getQueueSettings(queueId)
   // console.log(`Queue settings for match ${matchId}:`, queueSettings)
   const matchData = await getMatchData(matchId)
@@ -1183,16 +1178,12 @@ export async function endMatch(
     })),
   }
 
-  console.log(`match ${matchId} team results made`)
-
   teamResults = await calculateNewMMR(
     queueId,
     queueSettings,
     teamResultsData,
     winningTeamId,
   )
-
-  console.log(`match ${matchId} results: ${teamResults.teams}`)
 
   // Save elo_change, mmr_after, and winstreak to database
   const updatePromises = teamResults.teams.flatMap((team) =>
@@ -1214,8 +1205,6 @@ export async function endMatch(
   )
 
   await Promise.all(updatePromises)
-
-  console.log(`Updated elo_change and win_streak for match ${matchId}`)
 
   try {
     // close match in DB
