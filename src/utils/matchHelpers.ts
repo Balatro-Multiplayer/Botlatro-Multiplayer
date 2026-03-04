@@ -1532,9 +1532,12 @@ async function replenishReservePoolResolved(freeCount: number): Promise<void> {
   let categoryId: string
   if (r1Count <= 40) {
     categoryId = r1
+    console.log(`Creating reserve in r1`)
   } else if (r2Count <= 40) {
     categoryId = r2
+    console.log(`Creating reserve in r2`)
   } else {
+    console.log(`Could not create a reserve`)
     return
   }
 
