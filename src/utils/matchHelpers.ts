@@ -2,9 +2,11 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  CategoryChannel,
   ChannelType,
   ContainerBuilder,
   EmbedBuilder,
+  Guild,
   MessageFlags,
   PermissionFlagsBits,
   PermissionsBitField,
@@ -1493,10 +1495,48 @@ async function replenishReservePoolResolved(freeCount: number): Promise<void> {
   const settings = await getSettings()
   if (!settings?.queue_category_id) return
 
-  const categoryId =
-    freeCount < 40
-      ? (settings.reserve_category_id ?? '1477856235880452167')
-      : '1478097431450222663' // cba to set up the db migration just yet so hardcoded fallbacks
+  async function getCategoryCount(
+    guild: Guild,
+    categoryId: string,
+  ): Promise<number> {
+    // Try cache first
+    let category = guild.channels.cache.get(categoryId) as
+      | CategoryChannel
+      | undefined
+
+    // Fallback: fetch from API if not cached
+    if (!category) {
+      const fetched = await guild.channels.fetch(categoryId)
+      if (fetched && fetched.type === ChannelType.GuildCategory) {
+        category = fetched as CategoryChannel
+      }
+    }
+
+    if (!category || category.type !== ChannelType.GuildCategory) {
+      throw new Error('Invalid category')
+    }
+
+    // If children aren’t cached, ensure full channel cache is populated
+    if (category.children.cache.size === 0) {
+      await guild.channels.fetch() // populates cache
+    }
+
+    return guild.channels.cache.filter((c) => c.parentId === categoryId).size
+  }
+
+  const r1 = '1477856235880452167'
+  const r2 = '1478097431450222663'
+  const r1Count = await getCategoryCount(guild, r1)
+  const r2Count = await getCategoryCount(guild, r2)
+
+  let categoryId: string
+  if (r1Count <= 40) {
+    categoryId = r1
+  } else if (r2Count <= 40) {
+    categoryId = r2
+  } else {
+    return
+  }
 
   const channel = await guild.channels.create({
     name: 'reserve-channel',
