@@ -42,13 +42,32 @@ import { checkBans } from './automaticUnbans'
 
 let lastMatchCreationTime = 0
 
+let debounceTimer: ReturnType<typeof setTimeout> | null = null
+
+function scheduleQueueMessageUpdate(force: boolean) {
+  if (force) {
+    if (debounceTimer) {
+      clearTimeout(debounceTimer)
+      debounceTimer = null
+    }
+    updateQueueMessageNow(true).catch(console.error)
+    return
+  }
+  if (debounceTimer) return
+  debounceTimer = setTimeout(async () => {
+    debounceTimer = null
+    await updateQueueMessageNow(false)
+  }, 10000)
+}
+
+export function updateQueueMessage(force = false): void {
+  scheduleQueueMessageUpdate(force)
+}
+
 // Updates or sends a new queue message for the specified text channel
-export async function updateQueueMessage(
+async function updateQueueMessageNow(
   force = false,
 ): Promise<Message | undefined> {
-  // for now limiting edits to 10% - todo: more robust fix
-  if (!force && Math.random() > 0.1) return
-
   const response = await pool.query(
     'SELECT queue_channel_id, queue_message_id FROM settings',
   )

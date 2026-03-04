@@ -200,7 +200,7 @@ export default {
               const reply = await interaction.editReply({
                 content:
                   joinedQueues.length > 0
-                    ? `You joined: ${joinedQueues.join(', ')}`
+                    ? `You joined: ${joinedQueues.join(', ')}. Please wait — you'll be notified when a match is found!`
                     : 'You left the queue.',
               })
 
