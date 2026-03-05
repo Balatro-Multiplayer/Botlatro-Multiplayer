@@ -694,6 +694,15 @@ export async function createMatchResolved(
           parent: parentCat ?? undefined,
           lockPermissions: false,
         })
+
+        // if it could not be moved into parent cat, simply try again
+        if (channel.parentId !== parentCat) {
+          await channel.edit({
+            parent: parentCat ?? undefined,
+            lockPermissions: false,
+          })
+        }
+
         claimed = true
         break
       }
