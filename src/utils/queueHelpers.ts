@@ -527,7 +527,7 @@ type MatchRequest = {
 
 export const matchQueue: MatchRequest[] = []
 let processingMatch = false
-let nextDelay = 1500
+let nextDelay = 5000
 export const getNextDelay = () => nextDelay
 export const setNextDelay = (v: number) => (nextDelay = v)
 let skipReserves = false
@@ -539,7 +539,7 @@ client.rest.on('rateLimited', (info) => {
     skipReserves = true
   }
   if (info.retryAfter > nextDelay) {
-    nextDelay = info.retryAfter + 1500
+    nextDelay += info.retryAfter
   }
 })
 
@@ -568,13 +568,15 @@ async function processMatchQueue() {
   }
 
   const delay = nextDelay
-  nextDelay = 1500 // reset for next run
+  nextDelay = 5000 // reset for next run
 
   // if we are racking up limits, start aggressively processing matches using reserve channels
   const freeReserves = await getFreeReserveChannelCount()
   if (delay > 10000 && delay < 60000 && freeReserves > 5 && !skipReserves) {
-    processingMatch = false
-    await processMatchQueue()
+    setTimeout(() => {
+      processingMatch = false
+      processMatchQueue()
+    }, 5000)
     return
   }
 
@@ -669,7 +671,7 @@ export async function createMatchResolved(
   let channel: TextChannel | undefined
   let reservedChannelId: string | null = null
   // use reserves if we have more matches waiting or if we're currently rate-limited
-  if (matchQueue.length >= 1 || nextDelay > 1500 || !skipReserves) {
+  if ((matchQueue.length >= 5 || nextDelay > 10000) && !skipReserves) {
     let claimed = false
     while (true) {
       reservedChannelId = await claimReserveChannel()
