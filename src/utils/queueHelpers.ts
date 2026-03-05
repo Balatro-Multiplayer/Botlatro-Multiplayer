@@ -536,6 +536,7 @@ client.rest.on('rateLimited', (info) => {
   console.log(`LIMITED: ${info.retryAfter}`)
   // if we get patch limited to a large extent, then that's reserves causing it, so we skip reserves.
   if (info.method === 'PATCH' && info.retryAfter > 10000) {
+    console.log(`[SKIPPING RESERVES]`)
     skipReserves = true
   }
   if (info.retryAfter > nextDelay) {
@@ -573,6 +574,7 @@ async function processMatchQueue() {
   // if we are racking up limits, start aggressively processing matches using reserve channels
   const freeReserves = await getFreeReserveChannelCount()
   if (delay > 10000 && delay < 60000 && freeReserves > 5 && !skipReserves) {
+    console.log(`[SKIPPING QUEUE]`)
     setTimeout(() => {
       processingMatch = false
       processMatchQueue()
@@ -580,6 +582,7 @@ async function processMatchQueue() {
     return
   }
 
+  console.log(`[PROCESSING MATCH]`)
   setTimeout(() => {
     processingMatch = false
     processMatchQueue()
@@ -672,6 +675,9 @@ export async function createMatchResolved(
   let reservedChannelId: string | null = null
   // use reserves if we have more matches waiting or if we're currently rate-limited
   if ((matchQueue.length >= 5 || nextDelay > 10000) && !skipReserves) {
+    console.log(
+      `[USING RESERVE] matchqueue length: ${matchQueue.length}, delay: ${nextDelay}`,
+    )
     let claimed = false
     while (true) {
       reservedChannelId = await claimReserveChannel()
@@ -686,7 +692,7 @@ export async function createMatchResolved(
         await channel.edit({
           name: channelName,
           permissionOverwrites,
-          // parent: parentCat ?? undefined, // Temporarily removing this for rate limits
+          parent: parentCat ?? undefined,
           lockPermissions: false,
         })
         claimed = true
