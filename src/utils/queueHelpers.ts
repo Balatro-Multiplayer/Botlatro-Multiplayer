@@ -681,8 +681,12 @@ export async function createMatchResolved(
 
       if (fetched && fetched.type === ChannelType.GuildText) {
         channel = fetched as TextChannel
-        await channel.edit({ name: channelName, permissionOverwrites })
-        await channel.setParent(parentCat ?? null, { lockPermissions: false })
+        await channel.edit({
+          name: channelName,
+          permissionOverwrites,
+          // parent: parentCat ?? undefined, // Temporarily removing this for rate limits
+          lockPermissions: false,
+        })
         claimed = true
         break
       }
@@ -732,10 +736,10 @@ export async function createMatchResolved(
     )
   }
 
-  await updateQueueMessage()
-
   // Wait 2 seconds for channel to fully propagate in Discord's API
   await new Promise((resolve) => setTimeout(resolve, 2000))
+
+  // await updateQueueMessage()
 
   // Send queue start messages
   await sendMatchInitMessages(queueId, matchId, channel)
