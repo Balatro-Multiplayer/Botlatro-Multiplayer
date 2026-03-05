@@ -690,9 +690,9 @@ export async function createMatchResolved(
         channel = fetched as TextChannel
         await channel.edit({
           name: channelName,
-          permissionOverwrites,
           parent: parentCat ?? undefined,
           lockPermissions: false,
+          permissionOverwrites,
         })
 
         // if it could not be moved into parent cat, simply try again
@@ -700,6 +700,7 @@ export async function createMatchResolved(
           await channel.edit({
             parent: parentCat ?? undefined,
             lockPermissions: false,
+            permissionOverwrites,
           })
         }
 
