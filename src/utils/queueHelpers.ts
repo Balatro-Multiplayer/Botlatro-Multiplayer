@@ -582,7 +582,7 @@ async function processMatchQueue() {
     return
   }
 
-  console.log(`[PROCESSING MATCH]`)
+  console.log(`[PROCESSING MATCH] delay: ${delay}ms`)
   setTimeout(() => {
     processingMatch = false
     processMatchQueue()
@@ -712,6 +712,7 @@ export async function createMatchResolved(
       })
     }
   } else {
+    console.log(`[CREATING FROM SCRATCH]`)
     skipReserves = false
     channel = await guild.channels.create({
       name: channelName,
