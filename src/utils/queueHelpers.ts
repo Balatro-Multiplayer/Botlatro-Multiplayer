@@ -540,7 +540,7 @@ client.rest.on('rateLimited', (info) => {
     skipReserves = true
   }
   if (info.retryAfter > nextDelay) {
-    nextDelay += info.retryAfter
+    nextDelay = info.retryAfter
   }
 })
 
@@ -560,16 +560,16 @@ async function processMatchQueue() {
   processingMatch = true
 
   const { resolve, reject, userIds, queueId } = matchQueue.shift()!
+  const delay = nextDelay
+  nextDelay = 5000 // reset for next run
 
   try {
+    console.log(`[PROCESSING MATCH] next delay: ${delay}ms`)
     const result = await createMatchResolved(userIds, queueId)
     resolve(result)
   } catch (err) {
     reject(err)
   }
-
-  const delay = nextDelay
-  nextDelay = 5000 // reset for next run
 
   // if we are racking up limits, start aggressively processing matches using reserve channels
   const freeReserves = await getFreeReserveChannelCount()
@@ -582,7 +582,6 @@ async function processMatchQueue() {
     return
   }
 
-  console.log(`[PROCESSING MATCH] delay: ${delay}ms`)
   setTimeout(() => {
     processingMatch = false
     processMatchQueue()
@@ -704,6 +703,7 @@ export async function createMatchResolved(
     }
 
     if (!claimed) {
+      console.log(`[FAILED TO USE RESERVE] [CREATING FROM SCRATCH]`)
       channel = await guild.channels.create({
         name: channelName,
         type: ChannelType.GuildText,
