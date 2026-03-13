@@ -319,6 +319,218 @@ async function fetchStrikesForUsers(userIds: string[]): Promise<StrikeRow[]> {
   return res.rows
 }
 
+async function buildPlayersPage({
+  userIds,
+  page,
+  limit,
+  total,
+  activeBanMap,
+  strikeLatestMap,
+}: {
+  userIds: string[]
+  page: number
+  limit: number
+  total: number
+  activeBanMap: Map<string, BanRow>
+  strikeLatestMap: Map<string, Date | null>
+}) {
+  const strikes = await fetchStrikesForUsers(userIds)
+  const strikesByUser = new Map<string, StrikeRow[]>()
+
+  for (const strike of strikes) {
+    const existing = strikesByUser.get(strike.user_id)
+    if (existing) {
+      existing.push(strike)
+    } else {
+      strikesByUser.set(strike.user_id, [strike])
+    }
+  }
+
+  const issuerIds = [...new Set(strikes.map((strike) => strike.issued_by_id))]
+  const users = await resolveDiscordUsers([...userIds, ...issuerIds])
+
+  const data: ModerationPlayer[] = userIds.map((userId) => {
+    const user = users.get(userId) ?? {
+      discord_id: userId,
+      username: userId,
+      display_name: userId,
+      avatar_url: null,
+    }
+    const userStrikes = (strikesByUser.get(userId) ?? []).map((strike) =>
+      serializeStrike(strike, users),
+    )
+    const activeBan = serializeBan(activeBanMap.get(userId) ?? null)
+    const latestStrikeAt =
+      serializeDate(strikeLatestMap.get(userId) ?? null) ??
+      userStrikes[0]?.issued_at ??
+      null
+
+    return {
+      ...user,
+      strikes: userStrikes,
+      active_ban: activeBan,
+      total_strike_points: userStrikes.reduce(
+        (runningTotal, strike) => runningTotal + strike.amount,
+        0,
+      ),
+      latest_strike_at: latestStrikeAt,
+    }
+  })
+
+  return {
+    data,
+    page,
+    limit,
+    total,
+    totalPages: Math.max(1, Math.ceil(total / limit)),
+  }
+}
+
+async function listModerationPlayersFast({
+  page,
+  limit,
+  includeBans,
+  bansOnly,
+}: {
+  page: number
+  limit: number
+  includeBans: boolean
+  bansOnly: boolean
+}) {
+  const offset = (page - 1) * limit
+  const activeBans = await fetchActiveBans()
+  const activeBanMap = new Map(activeBans.map((ban) => [ban.user_id, ban]))
+
+  if (bansOnly) {
+    const orderedBans = [...activeBans].sort((left, right) => {
+      const leftExpiry = left.expires_at
+        ? left.expires_at.getTime()
+        : Number.MAX_SAFE_INTEGER
+      const rightExpiry = right.expires_at
+        ? right.expires_at.getTime()
+        : Number.MAX_SAFE_INTEGER
+
+      return leftExpiry - rightExpiry
+    })
+    const pageUserIds = orderedBans
+      .slice(offset, offset + limit)
+      .map((ban) => ban.user_id)
+
+    return buildPlayersPage({
+      userIds: pageUserIds,
+      page,
+      limit,
+      total: orderedBans.length,
+      activeBanMap,
+      strikeLatestMap: new Map(),
+    })
+  }
+
+  if (includeBans) {
+    const combinedRows = await pool.query<{
+      user_id: string
+      latest_strike_at: Date | null
+    }>(
+      `
+        WITH strike_users AS (
+          SELECT user_id, MAX(issued_at) AS latest_strike_at
+          FROM strikes
+          GROUP BY user_id
+        ),
+        ban_only_users AS (
+          SELECT b.user_id, NULL::timestamp AS latest_strike_at
+          FROM bans b
+          WHERE (b.expires_at IS NULL OR b.expires_at > NOW())
+            AND NOT EXISTS (
+              SELECT 1
+              FROM strike_users s
+              WHERE s.user_id = b.user_id
+            )
+        ),
+        combined_users AS (
+          SELECT * FROM strike_users
+          UNION ALL
+          SELECT * FROM ban_only_users
+        )
+        SELECT user_id, latest_strike_at
+        FROM combined_users
+        ORDER BY latest_strike_at DESC NULLS LAST, user_id ASC
+        LIMIT $1 OFFSET $2
+      `,
+      [limit, offset],
+    )
+    const totalRes = await pool.query<{ total: string }>(
+      `
+        WITH strike_users AS (
+          SELECT user_id
+          FROM strikes
+          GROUP BY user_id
+        ),
+        ban_only_users AS (
+          SELECT b.user_id
+          FROM bans b
+          WHERE (b.expires_at IS NULL OR b.expires_at > NOW())
+            AND NOT EXISTS (
+              SELECT 1
+              FROM strike_users s
+              WHERE s.user_id = b.user_id
+            )
+        )
+        SELECT COUNT(*)::int AS total
+        FROM (
+          SELECT user_id FROM strike_users
+          UNION ALL
+          SELECT user_id FROM ban_only_users
+        ) combined_users
+      `,
+    )
+    const strikeLatestMap = new Map(
+      combinedRows.rows.map((row) => [row.user_id, row.latest_strike_at]),
+    )
+
+    return buildPlayersPage({
+      userIds: combinedRows.rows.map((row) => row.user_id),
+      page,
+      limit,
+      total: Number(totalRes.rows[0]?.total ?? 0),
+      activeBanMap,
+      strikeLatestMap,
+    })
+  }
+
+  const strikeRows = await pool.query<{
+    user_id: string
+    latest_strike_at: Date | null
+  }>(
+    `
+      SELECT user_id, MAX(issued_at) AS latest_strike_at
+      FROM strikes
+      GROUP BY user_id
+      ORDER BY MAX(issued_at) DESC, user_id ASC
+      LIMIT $1 OFFSET $2
+    `,
+    [limit, offset],
+  )
+  const totalRes = await pool.query<{ total: string }>(
+    `
+      SELECT COUNT(DISTINCT user_id)::int AS total
+      FROM strikes
+    `,
+  )
+  const strikeLatestMap = new Map(
+    strikeRows.rows.map((row) => [row.user_id, row.latest_strike_at]),
+  )
+
+  return buildPlayersPage({
+    userIds: strikeRows.rows.map((row) => row.user_id),
+    page,
+    limit,
+    total: Number(totalRes.rows[0]?.total ?? 0),
+    activeBanMap,
+    strikeLatestMap,
+  })
+}
+
 async function listModerationPlayers({
   page,
   limit,
@@ -334,6 +546,17 @@ async function listModerationPlayers({
   includeBans: boolean
   bansOnly: boolean
 }) {
+  const trimmedSearch = search?.trim().toLowerCase()
+
+  if (!trimmedSearch && sort === 'recent') {
+    return listModerationPlayersFast({
+      page,
+      limit,
+      includeBans,
+      bansOnly,
+    })
+  }
+
   const activeBans = await fetchActiveBans()
   const strikeUserRows = await pool.query<{
     user_id: string
@@ -412,8 +635,6 @@ async function listModerationPlayers({
       latest_strike_at: latestStrikeAt,
     }
   })
-
-  const trimmedSearch = search?.trim().toLowerCase()
 
   if (trimmedSearch) {
     players = players.filter((player) =>
