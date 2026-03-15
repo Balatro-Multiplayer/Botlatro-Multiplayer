@@ -236,15 +236,43 @@ async function resolveDiscordUser(userId: string): Promise<ModerationUser> {
 
 async function resolveDiscordUsers(userIds: string[]) {
   const uniqueUserIds = [...new Set(userIds.filter(Boolean))]
+  if (uniqueUserIds.length === 0) return new Map<string, ModerationUser>()
 
-  const entries = await Promise.all(
-    uniqueUserIds.map(async (userId) => {
-      const profile = await resolveDiscordUser(userId)
-      return [userId, profile] as const
-    }),
+  // Resolve from guild_members table first
+  const dbResult = await pool.query<{
+    user_id: string
+    username: string
+    display_name: string
+    avatar_url: string | null
+  }>(
+    `SELECT user_id, username, display_name, avatar_url
+     FROM guild_members
+     WHERE user_id = ANY($1::text[])`,
+    [uniqueUserIds],
   )
 
-  return new Map(entries)
+  const resolved = new Map<string, ModerationUser>()
+  for (const row of dbResult.rows) {
+    resolved.set(row.user_id, {
+      discord_id: row.user_id,
+      username: row.username,
+      display_name: row.display_name,
+      avatar_url: row.avatar_url,
+    })
+  }
+
+  // Fallback to Discord API for any missing users
+  const missing = uniqueUserIds.filter((id) => !resolved.has(id))
+  if (missing.length > 0) {
+    await Promise.all(
+      missing.map(async (userId) => {
+        const profile = await resolveDiscordUser(userId)
+        resolved.set(userId, profile)
+      }),
+    )
+  }
+
+  return resolved
 }
 
 function serializeBan(ban: BanRow | null): ModerationBan | null {
@@ -531,6 +559,20 @@ async function listModerationPlayersFast({
   })
 }
 
+async function searchModerationUserIds(
+  search: string,
+): Promise<Set<string>> {
+  const pattern = `%${search}%`
+  const res = await pool.query<{ user_id: string }>(
+    `SELECT user_id FROM guild_members
+     WHERE user_id = $1
+        OR username ILIKE $2
+        OR display_name ILIKE $2`,
+    [search, pattern],
+  )
+  return new Set(res.rows.map((r) => r.user_id))
+}
+
 async function listModerationPlayers({
   page,
   limit,
@@ -557,17 +599,29 @@ async function listModerationPlayers({
     })
   }
 
-  const activeBans = await fetchActiveBans()
-  const strikeUserRows = await pool.query<{
-    user_id: string
-    latest_strike_at: Date | null
-  }>(
-    `
-      SELECT user_id, MAX(issued_at) AS latest_strike_at
-      FROM strikes
-      GROUP BY user_id
-    `,
-  )
+  // Search guild_members table to get matching user IDs
+  const searchUserIds = trimmedSearch
+    ? await searchModerationUserIds(trimmedSearch)
+    : null
+
+  const [activeBans, strikeUserRows] = await Promise.all([
+    fetchActiveBans(),
+    searchUserIds && searchUserIds.size > 0
+      ? pool.query<{ user_id: string; latest_strike_at: Date | null }>(
+          `SELECT user_id, MAX(issued_at) AS latest_strike_at
+           FROM strikes
+           WHERE user_id = ANY($1::text[])
+           GROUP BY user_id`,
+          [[...searchUserIds]],
+        )
+      : searchUserIds
+        ? { rows: [] as { user_id: string; latest_strike_at: Date | null }[] }
+        : pool.query<{ user_id: string; latest_strike_at: Date | null }>(
+            `SELECT user_id, MAX(issued_at) AS latest_strike_at
+             FROM strikes
+             GROUP BY user_id`,
+          ),
+  ])
 
   const strikeLatestMap = new Map(
     strikeUserRows.rows.map((row) => [row.user_id, row.latest_strike_at]),
@@ -578,7 +632,9 @@ async function listModerationPlayers({
 
   if (bansOnly) {
     for (const ban of activeBans) {
-      userIds.add(ban.user_id)
+      if (!searchUserIds || searchUserIds.has(ban.user_id)) {
+        userIds.add(ban.user_id)
+      }
     }
   } else {
     for (const row of strikeUserRows.rows) {
@@ -587,9 +643,15 @@ async function listModerationPlayers({
 
     if (includeBans) {
       for (const ban of activeBans) {
-        userIds.add(ban.user_id)
+        if (!searchUserIds || searchUserIds.has(ban.user_id)) {
+          userIds.add(ban.user_id)
+        }
       }
     }
+  }
+
+  if (searchUserIds && userIds.size === 0) {
+    return { data: [], page, limit, total: 0, totalPages: 1 }
   }
 
   const moderationUserIds = [...userIds]
@@ -608,7 +670,7 @@ async function listModerationPlayers({
   const issuerIds = [...new Set(strikes.map((strike) => strike.issued_by_id))]
   const users = await resolveDiscordUsers([...moderationUserIds, ...issuerIds])
 
-  let players: ModerationPlayer[] = moderationUserIds.map((userId) => {
+  const players: ModerationPlayer[] = moderationUserIds.map((userId) => {
     const user = users.get(userId) ?? {
       discord_id: userId,
       username: userId,
@@ -635,14 +697,6 @@ async function listModerationPlayers({
       latest_strike_at: latestStrikeAt,
     }
   })
-
-  if (trimmedSearch) {
-    players = players.filter((player) =>
-      [player.discord_id, player.username, player.display_name].some((value) =>
-        value.toLowerCase().includes(trimmedSearch),
-      ),
-    )
-  }
 
   players.sort((left, right) => {
     if (bansOnly) {
