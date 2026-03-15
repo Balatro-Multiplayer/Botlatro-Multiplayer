@@ -1363,6 +1363,8 @@ moderationRouter.openapi(
   },
 )
 
+const membersFilterQuery = z.enum(['all', 'banned', 'striked'])
+
 const membersListQuerySchema = z.object({
   page: positiveIntQuery
     .optional()
@@ -1386,6 +1388,13 @@ const membersListQuerySchema = z.object({
     .openapi({
       param: { name: 'search', in: 'query' },
       example: 'player',
+    }),
+  filter: membersFilterQuery
+    .optional()
+    .default('all')
+    .openapi({
+      param: { name: 'filter', in: 'query' },
+      example: 'all',
     }),
 })
 
@@ -1419,48 +1428,59 @@ moderationRouter.openapi(
   }),
   async (c) => {
     const query = c.req.valid('query')
-    const { page, limit, search } = query
+    const { page, limit, search, filter } = query
     const offset = (page - 1) * limit
     const trimmedSearch = search?.trim()
 
     try {
-      // Fetch members from guild_members table (with search if provided)
-      let membersResult: { rows: { user_id: string; username: string; display_name: string; avatar_url: string | null }[]; rowCount: number | null }
+      type MemberRow = { user_id: string; username: string; display_name: string; avatar_url: string | null }
+
+      let membersResult: { rows: MemberRow[] }
       let totalResult: { rows: { total: number }[] }
+
+      // Build filter join clause
+      let filterJoin = ''
+      if (filter === 'banned') {
+        filterJoin = `INNER JOIN bans b ON b.user_id = gm.user_id AND (b.expires_at IS NULL OR b.expires_at > NOW())`
+      } else if (filter === 'striked') {
+        filterJoin = `INNER JOIN (SELECT DISTINCT user_id FROM strikes) s ON s.user_id = gm.user_id`
+      }
 
       if (trimmedSearch) {
         const pattern = `%${trimmedSearch}%`
+        const searchWhere = `WHERE (gm.user_id = $1 OR gm.username ILIKE $2 OR gm.display_name ILIKE $2)`
         ;[membersResult, totalResult] = await Promise.all([
-          pool.query<{ user_id: string; username: string; display_name: string; avatar_url: string | null }>(
-            `SELECT user_id, username, display_name, avatar_url
-             FROM guild_members
-             WHERE user_id = $1
-                OR username ILIKE $2
-                OR display_name ILIKE $2
-             ORDER BY display_name ASC
+          pool.query<MemberRow>(
+            `SELECT gm.user_id, gm.username, gm.display_name, gm.avatar_url
+             FROM guild_members gm
+             ${filterJoin}
+             ${searchWhere}
+             ORDER BY gm.display_name ASC
              LIMIT $3 OFFSET $4`,
             [trimmedSearch, pattern, limit, offset],
           ),
           pool.query<{ total: number }>(
             `SELECT COUNT(*)::int AS total
-             FROM guild_members
-             WHERE user_id = $1
-                OR username ILIKE $2
-                OR display_name ILIKE $2`,
+             FROM guild_members gm
+             ${filterJoin}
+             ${searchWhere}`,
             [trimmedSearch, pattern],
           ),
         ])
       } else {
         ;[membersResult, totalResult] = await Promise.all([
-          pool.query<{ user_id: string; username: string; display_name: string; avatar_url: string | null }>(
-            `SELECT user_id, username, display_name, avatar_url
-             FROM guild_members
-             ORDER BY display_name ASC
+          pool.query<MemberRow>(
+            `SELECT gm.user_id, gm.username, gm.display_name, gm.avatar_url
+             FROM guild_members gm
+             ${filterJoin}
+             ORDER BY gm.display_name ASC
              LIMIT $1 OFFSET $2`,
             [limit, offset],
           ),
           pool.query<{ total: number }>(
-            `SELECT COUNT(*)::int AS total FROM guild_members`,
+            `SELECT COUNT(*)::int AS total
+             FROM guild_members gm
+             ${filterJoin}`,
           ),
         ])
       }
