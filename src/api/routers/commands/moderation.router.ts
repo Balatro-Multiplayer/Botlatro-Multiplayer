@@ -1363,4 +1363,179 @@ moderationRouter.openapi(
   },
 )
 
+const membersListQuerySchema = z.object({
+  page: positiveIntQuery
+    .optional()
+    .default(1)
+    .openapi({
+      param: { name: 'page', in: 'query' },
+      example: '1',
+    }),
+  limit: positiveIntQuery
+    .max(100)
+    .optional()
+    .default(20)
+    .openapi({
+      param: { name: 'limit', in: 'query' },
+      example: '20',
+    }),
+  search: z
+    .string()
+    .trim()
+    .optional()
+    .openapi({
+      param: { name: 'search', in: 'query' },
+      example: 'player',
+    }),
+})
+
+moderationRouter.openapi(
+  createRoute({
+    method: 'get',
+    path: '/members',
+    description:
+      'List all guild members with their moderation data (strikes + bans).',
+    request: {
+      query: membersListQuerySchema,
+    },
+    responses: {
+      200: {
+        content: {
+          'application/json': {
+            schema: paginatedPlayersSchema,
+          },
+        },
+        description: 'Paginated guild members with moderation data.',
+      },
+      500: {
+        content: {
+          'application/json': {
+            schema: errorSchema,
+          },
+        },
+        description: 'Internal server error.',
+      },
+    },
+  }),
+  async (c) => {
+    const query = c.req.valid('query')
+    const { page, limit, search } = query
+    const offset = (page - 1) * limit
+    const trimmedSearch = search?.trim()
+
+    try {
+      // Fetch members from guild_members table (with search if provided)
+      let membersResult: { rows: { user_id: string; username: string; display_name: string; avatar_url: string | null }[]; rowCount: number | null }
+      let totalResult: { rows: { total: number }[] }
+
+      if (trimmedSearch) {
+        const pattern = `%${trimmedSearch}%`
+        ;[membersResult, totalResult] = await Promise.all([
+          pool.query<{ user_id: string; username: string; display_name: string; avatar_url: string | null }>(
+            `SELECT user_id, username, display_name, avatar_url
+             FROM guild_members
+             WHERE user_id = $1
+                OR username ILIKE $2
+                OR display_name ILIKE $2
+             ORDER BY display_name ASC
+             LIMIT $3 OFFSET $4`,
+            [trimmedSearch, pattern, limit, offset],
+          ),
+          pool.query<{ total: number }>(
+            `SELECT COUNT(*)::int AS total
+             FROM guild_members
+             WHERE user_id = $1
+                OR username ILIKE $2
+                OR display_name ILIKE $2`,
+            [trimmedSearch, pattern],
+          ),
+        ])
+      } else {
+        ;[membersResult, totalResult] = await Promise.all([
+          pool.query<{ user_id: string; username: string; display_name: string; avatar_url: string | null }>(
+            `SELECT user_id, username, display_name, avatar_url
+             FROM guild_members
+             ORDER BY display_name ASC
+             LIMIT $1 OFFSET $2`,
+            [limit, offset],
+          ),
+          pool.query<{ total: number }>(
+            `SELECT COUNT(*)::int AS total FROM guild_members`,
+          ),
+        ])
+      }
+
+      const total = Number(totalResult.rows[0]?.total ?? 0)
+      const userIds = membersResult.rows.map((r) => r.user_id)
+
+      if (userIds.length === 0) {
+        return c.json(
+          { data: [], page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
+          200,
+        )
+      }
+
+      // Fetch strikes and bans for these users
+      const [strikes, activeBans] = await Promise.all([
+        fetchStrikesForUsers(userIds),
+        fetchActiveBans(),
+      ])
+
+      const activeBanMap = new Map(
+        activeBans
+          .filter((ban) => userIds.includes(ban.user_id))
+          .map((ban) => [ban.user_id, ban]),
+      )
+
+      const strikesByUser = new Map<string, StrikeRow[]>()
+      for (const strike of strikes) {
+        const existing = strikesByUser.get(strike.user_id)
+        if (existing) {
+          existing.push(strike)
+        } else {
+          strikesByUser.set(strike.user_id, [strike])
+        }
+      }
+
+      const issuerIds = [...new Set(strikes.map((s) => s.issued_by_id))]
+      const issuers = await resolveDiscordUsers(issuerIds)
+
+      const data: ModerationPlayer[] = membersResult.rows.map((member) => {
+        const userStrikes = (strikesByUser.get(member.user_id) ?? []).map(
+          (strike) => serializeStrike(strike, issuers),
+        )
+        const activeBan = serializeBan(activeBanMap.get(member.user_id) ?? null)
+
+        return {
+          discord_id: member.user_id,
+          username: member.username,
+          display_name: member.display_name,
+          avatar_url: member.avatar_url,
+          strikes: userStrikes,
+          active_ban: activeBan,
+          total_strike_points: userStrikes.reduce(
+            (sum, s) => sum + s.amount,
+            0,
+          ),
+          latest_strike_at: userStrikes[0]?.issued_at ?? null,
+        }
+      })
+
+      return c.json(
+        {
+          data,
+          page,
+          limit,
+          total,
+          totalPages: Math.max(1, Math.ceil(total / limit)),
+        },
+        200,
+      )
+    } catch (error) {
+      console.error('Error listing members:', error)
+      return c.json({ error: 'Internal server error' }, 500)
+    }
+  },
+)
+
 export { moderationRouter }
