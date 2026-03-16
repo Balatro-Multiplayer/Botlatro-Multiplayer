@@ -9,9 +9,9 @@ export async function calculateExpiryDate(
   const res = await getUserStrikes(user_id)
   let lengthOfBan: number = 14 // default strike expiry timer
 
-  const strikes = res.map((strike: any) => {
+  const strikes = res.map((strike) => {
     const currentDate = new Date()
-    const expired: boolean = strike.expiryDate >= currentDate
+    const expired: boolean = strike.expires_at >= currentDate
     return { amount: strike.amount, expired: expired }
   })
 
@@ -19,13 +19,13 @@ export async function calculateExpiryDate(
     return sum + strike.amount
   }, 0)
 
-  const hasHadSevereStrike: boolean[] = strikes.map((strike) => {
+  const severeStrikes = strikes.filter((strike) => {
     // checks if a user has ever had a more serious incident
     return strike.amount >= 1
   })
 
   lengthOfBan += totalStrikes * 7
-  lengthOfBan += hasHadSevereStrike.length * 14
+  lengthOfBan += severeStrikes.length * 14
 
   return new Date(currentDate.getTime() + dayLength * lengthOfBan)
 }
