@@ -71,15 +71,20 @@ function formatCurrency(value: number) {
   return Number.isInteger(value) ? value.toString() : value.toFixed(2)
 }
 
-function formatFlagLine(flag: z.infer<typeof cheatFlagSchema>) {
+function formatFlagLine(
+  flag: z.infer<typeof cheatFlagSchema>,
+  logUrl: string,
+) {
   const offenders = flag.offenders
     .map((offender) => `${offender.player_name} $${formatCurrency(offender.amount)}`)
     .join(', ')
   const start = flag.start_date
     ? ` at ${new Date(flag.start_date).toISOString()}`
     : ''
+  const gameUrl = new URL(logUrl)
+  gameUrl.searchParams.set('game', flag.game_index.toString())
 
-  return `Game ${flag.game_index + 1} | ${flag.deck} deck | threshold $${formatCurrency(flag.threshold)} | ${offenders}${start}`
+  return `Game ${flag.game_index + 1} | ${flag.deck} deck | threshold $${formatCurrency(flag.threshold)} | ${offenders}${start} | ${gameUrl.toString()}`
 }
 
 monitoringRouter.openapi(sendCheatWarningRoute, async (c) => {
@@ -97,7 +102,7 @@ monitoringRouter.openapi(sendCheatWarningRoute, async (c) => {
     const content = [
       `Warning: suspicious first shop spend detected in uploaded log #${body.log_file_id}`,
       `Log: ${body.log_url}`,
-      ...body.flags.map(formatFlagLine),
+      ...body.flags.map((flag) => formatFlagLine(flag, body.log_url)),
     ].join('\n')
 
     await channel.send({ content })

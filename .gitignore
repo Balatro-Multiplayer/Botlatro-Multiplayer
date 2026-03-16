@@ -22,3 +22,5 @@ strikeData.json
 .claude/settings.local.json
 /.claude
 
+# Artifacts
+dist
