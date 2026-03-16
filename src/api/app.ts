@@ -9,6 +9,7 @@ import { playersRouter } from './routers/commands/players.router'
 import { transcriptsRouter } from './routers/commands/transcriptsRouter'
 import { bountiesRouter } from './routers/commands/bounties.router'
 import { moderationRouter } from './routers/commands/moderation.router'
+import { monitoringRouter } from './routers/commands/monitoring.router'
 import { usersRouter } from './routers/commands/users.router'
 
 const app = new OpenAPIHono({ strict: false })
@@ -40,6 +41,7 @@ app.use('/api/queues/*', bearerAuth({ token }))
 app.use('/api/cron/*', bearerAuth({ token }))
 app.use('/api/transcripts/*', bearerAuth({ token }))
 app.use('/api/moderation/*', bearerAuth({ token }))
+app.use('/api/monitoring/*', bearerAuth({ token }))
 app.use('/api/users/*', bearerAuth({ token }))
 
 app.route('/api/matches', matchesRouter)
@@ -47,5 +49,6 @@ app.route('/api/queues', queuesRouter)
 app.route('/api/cron', cronRouter)
 app.route('/api/transcripts', transcriptsRouter)
 app.route('/api/moderation', moderationRouter)
+app.route('/api/monitoring', monitoringRouter)
 app.route('/api/users', usersRouter)
 export { app }
