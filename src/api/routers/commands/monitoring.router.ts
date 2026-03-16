@@ -1,4 +1,5 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
+import { MessageFlags } from 'discord.js'
 import { client } from '../../../client'
 
 const monitoringRouter = new OpenAPIHono()
@@ -105,7 +106,10 @@ monitoringRouter.openapi(sendCheatWarningRoute, async (c) => {
       ...body.flags.map((flag) => formatFlagLine(flag, body.log_url)),
     ].join('\n')
 
-    await channel.send({ content })
+    await channel.send({
+      content,
+      flags: MessageFlags.SuppressEmbeds,
+    })
 
     return c.json({ success: true as const }, 200)
   } catch (error) {
