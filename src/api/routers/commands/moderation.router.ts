@@ -7,6 +7,7 @@ import { pool } from '../../../db'
 import { calculateExpiryDate } from '../../../utils/calculateExpiryDate'
 import { createEmbedType, logStrike } from '../../../utils/logCommandUse'
 import { sendDm } from '../../../utils/sendDm'
+import { UpdateBanError, updateBan } from '../../../utils/updateBan'
 
 const moderationRouter = new OpenAPIHono()
 
@@ -175,6 +176,16 @@ const createBanBodySchema = z.object({
   reason: z.string().trim().max(500).optional(),
   banned_by_id: discordIdSchema,
 })
+
+const updateBanBodySchema = z
+  .object({
+    updated_by_id: discordIdSchema,
+    length: z.number().positive().optional(),
+    reason: z.string().trim().max(500).optional(),
+  })
+  .refine((body) => body.length !== undefined || body.reason !== undefined, {
+    message: 'Provide at least one field to update.',
+  })
 
 const removeBanBodySchema = z.object({
   unbanned_by_id: discordIdSchema,
@@ -575,9 +586,7 @@ async function listModerationPlayersFast({
   })
 }
 
-async function searchModerationUserIds(
-  search: string,
-): Promise<Set<string>> {
+async function searchModerationUserIds(search: string): Promise<Set<string>> {
   const pattern = `%${search}%`
   const res = await pool.query<{ user_id: string }>(
     `SELECT user_id FROM guild_members
@@ -1341,6 +1350,80 @@ moderationRouter.openapi(
 
 moderationRouter.openapi(
   createRoute({
+    method: 'patch',
+    path: '/bans/{user_id}',
+    description: 'Update an active ban for a user.',
+    request: {
+      params: userIdParamSchema,
+      body: {
+        content: {
+          'application/json': {
+            schema: updateBanBodySchema,
+          },
+        },
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          'application/json': {
+            schema: z.object({
+              ban: moderationBanSchema,
+            }),
+          },
+        },
+        description: 'Updated ban.',
+      },
+      404: {
+        content: {
+          'application/json': {
+            schema: errorSchema,
+          },
+        },
+        description: 'Ban not found.',
+      },
+      500: {
+        content: {
+          'application/json': {
+            schema: errorSchema,
+          },
+        },
+        description: 'Internal server error.',
+      },
+    },
+  }),
+  async (c) => {
+    const { user_id } = c.req.valid('param')
+    const body = c.req.valid('json')
+
+    try {
+      const blame = (await resolveDiscordUser(body.updated_by_id)).username
+      const { updatedBan } = await updateBan({
+        userId: user_id,
+        blame,
+        length: body.length,
+        reason: body.reason,
+      })
+
+      return c.json(
+        {
+          ban: serializeBan(updatedBan)!,
+        },
+        200,
+      )
+    } catch (error) {
+      if (error instanceof UpdateBanError && error.code === 'NOT_FOUND') {
+        return c.json({ error: error.message }, 404)
+      }
+
+      console.error(`Error updating ban for user ${user_id}:`, error)
+      return c.json({ error: 'Internal server error' }, 500)
+    }
+  },
+)
+
+moderationRouter.openapi(
+  createRoute({
     method: 'get',
     path: '/users/search',
     description: 'Search guild members.',
@@ -1471,7 +1554,12 @@ moderationRouter.openapi(
     const trimmedSearch = search?.trim()
 
     try {
-      type MemberRow = { user_id: string; username: string; display_name: string; avatar_url: string | null }
+      type MemberRow = {
+        user_id: string
+        username: string
+        display_name: string
+        avatar_url: string | null
+      }
 
       let membersResult: { rows: MemberRow[] }
       let totalResult: { rows: { total: number }[] }
@@ -1528,7 +1616,13 @@ moderationRouter.openapi(
 
       if (userIds.length === 0) {
         return c.json(
-          { data: [], page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
+          {
+            data: [],
+            page,
+            limit,
+            total,
+            totalPages: Math.max(1, Math.ceil(total / limit)),
+          },
           200,
         )
       }
