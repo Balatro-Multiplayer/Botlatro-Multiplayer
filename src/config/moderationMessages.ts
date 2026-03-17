@@ -1,11 +1,18 @@
-function formatExpiry(expiresAt: Date) {
+function formatExpiry(expiresAt: Date | null) {
+  if (!expiresAt) return 'Never (permanent)'
   return `<t:${Math.floor(expiresAt.getTime() / 1000)}:F>`
 }
 
 export const moderationMessages = {
-  banDm: ({ reason, expiresAt }: { reason: string; expiresAt: Date }) =>
+  banDm: ({ reason, expiresAt }: { reason: string; expiresAt: Date | null }) =>
     `You have been banned from Botlatro matchmaking.\nReason: **${reason}**\nBan expires: ${formatExpiry(expiresAt)}`,
-  banUpdatedDm: ({ reason, expiresAt }: { reason: string; expiresAt: Date }) =>
+  banUpdatedDm: ({
+    reason,
+    expiresAt,
+  }: {
+    reason: string
+    expiresAt: Date | null
+  }) =>
     `Your Botlatro matchmaking ban has been updated.\nReason: **${reason}**\nBan expires: ${formatExpiry(expiresAt)}`,
   banLiftedDm: ({
     reason,

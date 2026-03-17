@@ -73,7 +73,9 @@ export async function updateBan({
   const nextExpiry =
     length == null
       ? existingBan.expires_at
-      : new Date(Date.now() + length * DAY_IN_MS)
+      : length === 0
+        ? null
+        : new Date(Date.now() + length * DAY_IN_MS)
 
   const updatedBanRes = await pool.query<BanRow>(
     `

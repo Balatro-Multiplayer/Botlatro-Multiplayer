@@ -172,7 +172,7 @@ const removeStrikeBodySchema = z.object({
 
 const createBanBodySchema = z.object({
   user_id: discordIdSchema,
-  length: z.number().positive(),
+  length: z.number().min(0),
   reason: z.string().trim().min(1).max(500),
   banned_by_id: discordIdSchema,
 })
@@ -180,7 +180,7 @@ const createBanBodySchema = z.object({
 const updateBanBodySchema = z
   .object({
     updated_by_id: discordIdSchema,
-    length: z.number().positive().optional(),
+    length: z.number().min(0).optional(),
     reason: z.string().trim().min(1).max(500).optional(),
   })
   .refine((body) => body.length !== undefined || body.reason !== undefined, {
@@ -1190,9 +1190,10 @@ moderationRouter.openapi(
 
     try {
       const reason = body.reason.trim()
-      const expiryTime = new Date(
-        Date.now() + body.length * 24 * 60 * 60 * 1000,
-      )
+      const expiryTime =
+        body.length === 0
+          ? null
+          : new Date(Date.now() + body.length * 24 * 60 * 60 * 1000)
       const inserted = await pool.query<BanRow>(
         `
           INSERT INTO bans (user_id, reason, allowed_queue_ids, expires_at, related_strike_ids)
@@ -1215,14 +1216,16 @@ moderationRouter.openapi(
       const blame = (await resolveDiscordUser(body.banned_by_id)).username
       const user = await resolveDiscordUser(body.user_id)
       const embed = createEmbedType(
-        `Ban added for ${user.display_name} for ${body.length} days.`,
+        body.length === 0
+          ? `Permanent ban added for ${user.display_name}.`
+          : `Ban added for ${user.display_name} for ${body.length} days.`,
         '',
         '#ff0000',
         [
           { name: 'Reason', value: reason, inline: true },
           {
             name: 'Expires',
-            value: serializeDate(expiryTime) ?? expiryTime.toISOString(),
+            value: serializeDate(expiryTime) ?? 'Never',
             inline: true,
           },
         ],
