@@ -160,7 +160,7 @@ const strikeIdParamSchema = z.object({
 const giveStrikeBodySchema = z.object({
   user_id: discordIdSchema,
   amount: z.number().int().min(0).max(6),
-  reason: z.string().trim().max(500).optional(),
+  reason: z.string().trim().min(1).max(500),
   reference: z.string().trim().max(500).optional(),
   issued_by_id: discordIdSchema,
 })
@@ -173,7 +173,7 @@ const removeStrikeBodySchema = z.object({
 const createBanBodySchema = z.object({
   user_id: discordIdSchema,
   length: z.number().positive(),
-  reason: z.string().trim().max(500).optional(),
+  reason: z.string().trim().min(1).max(500),
   banned_by_id: discordIdSchema,
 })
 
@@ -181,7 +181,7 @@ const updateBanBodySchema = z
   .object({
     updated_by_id: discordIdSchema,
     length: z.number().positive().optional(),
-    reason: z.string().trim().max(500).optional(),
+    reason: z.string().trim().min(1).max(500).optional(),
   })
   .refine((body) => body.length !== undefined || body.reason !== undefined, {
     message: 'Provide at least one field to update.',
@@ -932,7 +932,7 @@ moderationRouter.openapi(
           )
         ).rowCount ?? 0) > 0
       const finalAmount = hasPriorStrikes && body.amount === 0 ? 1 : body.amount
-      const reason = body.reason?.trim() || 'No reason provided'
+      const reason = body.reason.trim()
       const reference = body.reference?.trim() || 'No reference provided'
       const expiryDate =
         (await calculateExpiryDate(body.user_id)) ??
@@ -1187,7 +1187,7 @@ moderationRouter.openapi(
     const body = c.req.valid('json')
 
     try {
-      const reason = body.reason?.trim() || 'None provided'
+      const reason = body.reason.trim()
       const expiryTime = new Date(
         Date.now() + body.length * 24 * 60 * 60 * 1000,
       )

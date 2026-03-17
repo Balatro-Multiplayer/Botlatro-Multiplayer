@@ -1,7 +1,6 @@
 import {
   ChatInputCommandInteraction,
   GuildChannel,
-  MessageFlags,
 } from 'discord.js'
 import { moderationMessages } from '../../../config/moderationMessages'
 import { calculateExpiryDate } from 'utils/calculateExpiryDate'
@@ -22,8 +21,7 @@ export default {
       const discordChannel = interaction.channel
       const user = interaction.options.getUser('user', true)
       let amount = interaction.options.getInteger('strikes', true)
-      const reason =
-        interaction.options.getString('reason', false) || 'No reason provided'
+      const reason = interaction.options.getString('reason', true).trim()
       const reference =
         interaction.options.getChannel('reference channel', false) ||
         discordChannel
@@ -108,7 +106,7 @@ export default {
       )
 
       await interaction.editReply(
-        `User ${username} given ${amount} strikes ${reason == 'No reason provided' ? `for ${reason}` : ``} (total: ${totalStrikes})`,
+        `User ${username} given ${amount} strikes for ${reason} (total: ${totalStrikes})`,
       )
     } catch (err: any) {
       console.error(err)

@@ -46,7 +46,8 @@ export default {
           option
             .setName('reason')
             .setDescription('The reason to ban this user from the queue')
-            .setRequired(false),
+            .setRequired(true)
+            .setMaxLength(500),
         ),
     )
     .addSubcommand((sub) =>
@@ -64,7 +65,8 @@ export default {
           option
             .setName('reason')
             .setDescription('The reason to unban this user from the queue')
-            .setRequired(false),
+            .setRequired(false)
+            .setMaxLength(500),
         ),
     )
     .addSubcommand((sub) =>
@@ -88,7 +90,8 @@ export default {
           option
             .setName('reason')
             .setDescription('New reason for the ban')
-            .setRequired(false),
+            .setRequired(false)
+            .setMaxLength(500),
         ),
     )
     .addSubcommand((sub) =>

@@ -44,7 +44,7 @@ export default {
           option
             .setName('reason')
             .setDescription('Reason for the strike(s)')
-            .setRequired(false)
+            .setRequired(true)
             .setMaxLength(500),
         )
         .addChannelOption((option) =>

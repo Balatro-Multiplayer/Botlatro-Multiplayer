@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
+import { ChatInputCommandInteraction } from 'discord.js'
 import { moderationMessages } from '../../../config/moderationMessages'
 import { pool } from '../../../db'
 import { createEmbedType, logStrike } from '../../../utils/logCommandUse'
@@ -14,8 +14,7 @@ export default {
     try {
       await interaction.deferReply()
       const user = interaction.options.getUser('user', true)
-      const reason =
-        interaction.options.getString('reason', false) ?? 'None provided'
+      const reason = interaction.options.getString('reason', true).trim()
       const timespan = interaction.options.getNumber('length', true)
 
       // calculate expiry time in ms from days
