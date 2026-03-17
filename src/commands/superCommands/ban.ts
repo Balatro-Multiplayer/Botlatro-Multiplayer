@@ -29,7 +29,9 @@ export default {
         .addNumberOption((option) =>
           option
             .setName('length')
-            .setDescription('The length of the ban in days')
+            .setDescription(
+              'The length of the ban in days. Use 0 for permanent',
+            )
             .setRequired(true),
         )
         // todo: add this back in when we can be arsed
@@ -83,7 +85,9 @@ export default {
         .addNumberOption((option) =>
           option
             .setName('length')
-            .setDescription('New length of the ban in days from now')
+            .setDescription(
+              'New length of the ban in days from now. Use 0 for permanent',
+            )
             .setRequired(false),
         )
         .addStringOption((option) =>

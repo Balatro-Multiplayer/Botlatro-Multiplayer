@@ -16,12 +16,10 @@ export default {
       const user = interaction.options.getUser('user', true)
       const reason = interaction.options.getString('reason', true).trim()
       const timespan = interaction.options.getNumber('length', true)
-
-      // calculate expiry time in ms from days
-      const timespanMs = timespan * 24 * 60 * 60 * 1000
-
-      // add that to current time to get expiry time
-      const expiryTime = new Date(Date.now() + timespanMs)
+      const expiryTime =
+        timespan === 0
+          ? null
+          : new Date(Date.now() + timespan * 24 * 60 * 60 * 1000)
       const moderatorName = await getGuildDisplayName(
         interaction.guild,
         interaction.user.id,
@@ -66,7 +64,10 @@ export default {
         [
           {
             name: 'Length',
-            value: `${timespan} day${timespan === 1 ? '' : 's'}`,
+            value:
+              timespan === 0
+                ? 'Permanent'
+                : `${timespan} day${timespan === 1 ? '' : 's'}`,
             inline: true,
           },
           {
@@ -95,7 +96,9 @@ export default {
       )
 
       await interaction.editReply(
-        `User ${user} banned for ${timespan} days - reason: ${reason}`,
+        timespan === 0
+          ? `User ${user} permanently banned - reason: ${reason}`
+          : `User ${user} banned for ${timespan} days - reason: ${reason}`,
       )
     } catch (err: any) {
       console.error(err)
