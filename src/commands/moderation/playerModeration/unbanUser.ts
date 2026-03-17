@@ -1,6 +1,8 @@
 import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
+import { moderationMessages } from '../../../config/moderationMessages'
 import { pool } from '../../../db'
 import { createEmbedType, logStrike } from '../../../utils/logCommandUse'
+import { sendDm } from '../../../utils/sendDm'
 import { getGuildDisplayName } from './moderationLogUtils'
 
 export default {
@@ -50,6 +52,7 @@ export default {
         moderatorName,
       )
       await logStrike('general', embedType)
+      await sendDm(user, moderationMessages.banLiftedDm({ reason }))
 
       await interaction.editReply(
         `User ${member?.user ?? username} unbanned - reason: ${reason}`,

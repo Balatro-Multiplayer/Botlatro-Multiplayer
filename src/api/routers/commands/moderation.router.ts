@@ -1339,6 +1339,10 @@ moderationRouter.openapi(
         blame,
       )
       await logStrike('general', embed)
+      await sendDm(
+        user_id,
+        moderationMessages.banLiftedDm({ reason: body.reason }),
+      )
 
       return c.json({ success: true as const }, 200)
     } catch (error) {

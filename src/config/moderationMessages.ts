@@ -7,6 +7,14 @@ export const moderationMessages = {
     `You have been banned from Botlatro matchmaking.\nReason: **${reason}**\nBan expires: ${formatExpiry(expiresAt)}`,
   banUpdatedDm: ({ reason, expiresAt }: { reason: string; expiresAt: Date }) =>
     `Your Botlatro matchmaking ban has been updated.\nReason: **${reason}**\nBan expires: ${formatExpiry(expiresAt)}`,
+  banLiftedDm: ({
+    reason,
+    expired = false,
+  }: {
+    reason?: string | null
+    expired?: boolean
+  }) =>
+    `Your Botlatro matchmaking ban has been lifted.${expired ? '\nYour ban expired.' : ''}${reason?.trim() ? `\nReason: **${reason.trim()}**` : ''}`,
   strikeDm: ({
     amount,
     reason,

@@ -1,6 +1,8 @@
 // unban users if ban is timed out
+import { moderationMessages } from '../config/moderationMessages'
 import { pool } from '../db'
 import type { Bans } from 'psqlDB'
+import { sendDm } from './sendDm'
 import { createEmbedType, logStrike } from './logCommandUse'
 import { getGuild } from '../client'
 
@@ -8,6 +10,10 @@ export async function automaticUnban(ban: Bans) {
   // remove ban
   const userId = ban.user_id.toString()
   await pool.query(`DELETE FROM "bans" WHERE user_id = $1`, [userId])
+  await sendDm(
+    userId,
+    moderationMessages.banLiftedDm({ expired: true }),
+  )
 
   const guild = await getGuild()
   const username = (await guild.members.fetch(userId))?.displayName ?? userId
