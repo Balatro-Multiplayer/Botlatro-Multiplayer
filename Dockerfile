@@ -21,9 +21,6 @@ COPY package.json tsconfig.json ./
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/migrations ./migrations
 
-# rename esm migrations to .mjs (recursive, robust)
-RUN node -e "const fs=require('fs'),p=require('path');(function w(d){for(const e of fs.readdirSync(d,{withFileTypes:true})){const f=p.join(d,e.name);if(e.isDirectory())w(f);else if(f.endsWith('.js'))fs.renameSync(f,f.slice(0,-3)+'.mjs')}})('migrations')"
-
 # logs: create a writable dir and expose to app via env
 RUN mkdir -p /app/data/logs
 ENV LOG_DIR=/app/data/logs
