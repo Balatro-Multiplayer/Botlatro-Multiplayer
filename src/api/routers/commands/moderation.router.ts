@@ -2,9 +2,11 @@ import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import type { GuildMember, User } from 'discord.js'
 import type { Bans, Strikes } from 'psqlDB'
 import { client, getGuild } from '../../../client'
+import { moderationMessages } from '../../../config/moderationMessages'
 import { pool } from '../../../db'
 import { calculateExpiryDate } from '../../../utils/calculateExpiryDate'
 import { createEmbedType, logStrike } from '../../../utils/logCommandUse'
+import { sendDm } from '../../../utils/sendDm'
 
 const moderationRouter = new OpenAPIHono()
 
@@ -1185,6 +1187,10 @@ moderationRouter.openapi(
         blame,
       )
       await logStrike('general', embed)
+      await sendDm(
+        body.user_id,
+        moderationMessages.banDm({ reason, expiresAt: expiryTime }),
+      )
 
       return c.json(
         {

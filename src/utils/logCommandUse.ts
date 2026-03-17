@@ -65,6 +65,10 @@ export abstract class Embed {
     if (e.fields) this.setFields(e.fields)
   }
 
+  private canSendToChannel(channel: any) {
+    return !!channel?.isTextBased?.() && 'send' in channel
+  }
+
   // get logging channel (constant for all logs for now)
   public async setLogChannel() {
     const res = await pool.query(
@@ -82,13 +86,29 @@ export abstract class Embed {
         channelId = res.rows[0].logs_channel_id
         break
     }
-    if (channelId !== '') {
-      this.channel = await client.channels.fetch(channelId).catch(() => null)
+    if (!channelId) {
+      console.warn(`[logCommand] missing channel id for logType=${this.logType}`)
+      return
     }
+
+    const channel = await client.channels.fetch(channelId).catch(() => null)
+    if (!this.canSendToChannel(channel)) {
+      console.warn(
+        `[logCommand] invalid channel for logType=${this.logType} channelId=${channelId}`,
+      )
+      return
+    }
+
+    this.channel = channel
   }
 
   // build and send embed to logging channel
   public async logCommand() {
+    if (!this.canSendToChannel(this.channel)) {
+      console.warn(`[logCommand] skipping send for logType=${this.logType}`)
+      return
+    }
+
     // build embed (make sure fields are set)
     this.createEmbed()
     this.addFields()
@@ -97,7 +117,7 @@ export abstract class Embed {
     const message = await this.channel
       .send({ embeds: [this.embed] })
       .catch(() => null)
-    if (this.logType === 'room') {
+    if (this.logType === 'room' && message?.id) {
       await pool.query(
         `
         UPDATE user_room SET log_id = $1 WHERE id = $2

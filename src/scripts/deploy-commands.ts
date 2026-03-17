@@ -4,4 +4,13 @@ import { client } from '../client'
 import * as dotenv from 'dotenv'
 
 dotenv.config()
-setupClientCommands(client, true)
+
+async function main() {
+  await setupClientCommands(client, true)
+  process.exit(0)
+}
+
+void main().catch((error) => {
+  console.error(error)
+  process.exit(1)
+})

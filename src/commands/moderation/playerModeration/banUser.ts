@@ -1,6 +1,8 @@
 import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
+import { moderationMessages } from '../../../config/moderationMessages'
 import { pool } from '../../../db'
 import { createEmbedType, logStrike } from '../../../utils/logCommandUse'
+import { sendDm } from '../../../utils/sendDm'
 
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
@@ -42,6 +44,10 @@ export default {
         `${interaction.user.displayName}`,
       )
       await logStrike('general', embedType)
+      await sendDm(
+        user.id,
+        moderationMessages.banDm({ reason, expiresAt: expiryTime }),
+      )
 
       await interaction.editReply(
         `User ${user} banned for ${timespan} days - reason: ${reason}`,

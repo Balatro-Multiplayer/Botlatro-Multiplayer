@@ -3,6 +3,7 @@ import {
   GuildChannel,
   MessageFlags,
 } from 'discord.js'
+import { moderationMessages } from '../../../config/moderationMessages'
 import { calculateExpiryDate } from 'utils/calculateExpiryDate'
 import { strikeUtils } from 'utils/queryDB'
 import { client } from '../../../client'
@@ -11,6 +12,7 @@ import {
   formatEmbedField,
   logStrike,
 } from '../../../utils/logCommandUse'
+import { sendDm } from '../../../utils/sendDm'
 
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
@@ -80,12 +82,10 @@ export default {
       )
       await logStrike('add_strike', embed, undefined, `<@${user.id ?? 1234}>`)
 
-      // DM the striked user
-      try {
-        await user.send(
-          `You have received **${amount}** strike(s) for: **${reason}**\nYour total strikes: **${totalStrikes}**`,
-        )
-      } catch {}
+      await sendDm(
+        user.id,
+        moderationMessages.strikeDm({ amount, reason, totalStrikes }),
+      )
 
       await interaction.editReply(
         `User ${username} given ${amount} strikes ${reason == 'No reason provided' ? `for ${reason}` : ``} (total: ${totalStrikes})`,
