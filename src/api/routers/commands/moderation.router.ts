@@ -350,6 +350,8 @@ async function fetchActiveBanByUserId(userId: string): Promise<BanRow | null> {
       SELECT *
       FROM bans
       WHERE user_id = $1
+        AND (expires_at IS NULL OR expires_at > NOW())
+      ORDER BY expires_at ASC NULLS LAST
       LIMIT 1
     `,
     [userId],
