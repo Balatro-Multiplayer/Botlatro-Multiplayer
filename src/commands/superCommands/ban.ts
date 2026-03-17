@@ -8,6 +8,7 @@ import banUser from '../moderation/playerModeration/banUser'
 import { getBannedUsers } from '../../utils/queryDB'
 import unbanUser from '../moderation/playerModeration/unbanUser'
 import listBannedUsers from '../moderation/playerModeration/listBannedUsers'
+import updateBan from '../moderation/playerModeration/updateBan'
 
 export default {
   data: new SlashCommandBuilder()
@@ -67,15 +68,40 @@ export default {
         ),
     )
     .addSubcommand((sub) =>
+      sub
+        .setName('update')
+        .setDescription('Update an active queue ban for a user.')
+        .addStringOption((option) =>
+          option
+            .setName('user')
+            .setDescription('The user with the ban to update')
+            .setRequired(true)
+            .setAutocomplete(true),
+        )
+        .addNumberOption((option) =>
+          option
+            .setName('length')
+            .setDescription('New length of the ban in days from now')
+            .setRequired(false),
+        )
+        .addStringOption((option) =>
+          option
+            .setName('reason')
+            .setDescription('New reason for the ban')
+            .setRequired(false),
+        ),
+    )
+    .addSubcommand((sub) =>
       sub.setName('list').setDescription('List all users with a queue ban'),
     ),
 
-  // todo: add autocomplete and execution for subcommand 'remove'
   async execute(interaction: ChatInputCommandInteraction) {
     if (interaction.options.getSubcommand() === 'add') {
       await banUser.execute(interaction)
     } else if (interaction.options.getSubcommand() === 'remove') {
       await unbanUser.execute(interaction)
+    } else if (interaction.options.getSubcommand() === 'update') {
+      await updateBan.execute(interaction)
     } else if (interaction.options.getSubcommand() === 'list') {
       await listBannedUsers.execute(interaction)
     }

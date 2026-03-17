@@ -5,6 +5,8 @@ function formatExpiry(expiresAt: Date) {
 export const moderationMessages = {
   banDm: ({ reason, expiresAt }: { reason: string; expiresAt: Date }) =>
     `You have been banned from Botlatro matchmaking.\nReason: **${reason}**\nBan expires: ${formatExpiry(expiresAt)}`,
+  banUpdatedDm: ({ reason, expiresAt }: { reason: string; expiresAt: Date }) =>
+    `Your Botlatro matchmaking ban has been updated.\nReason: **${reason}**\nBan expires: ${formatExpiry(expiresAt)}`,
   strikeDm: ({
     amount,
     reason,
