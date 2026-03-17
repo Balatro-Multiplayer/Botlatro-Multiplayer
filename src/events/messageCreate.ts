@@ -1,4 +1,9 @@
-import { Events, GuildMember, PermissionFlagsBits } from 'discord.js'
+import {
+  ChannelType,
+  Events,
+  GuildMember,
+  PermissionFlagsBits,
+} from 'discord.js'
 import {
   getCopyPasteByName,
   getDeckByName,
@@ -36,11 +41,10 @@ export default {
 
       const guild = await getGuild()
       const channel = message.channel
-      const category = channel?.parent
       const content = message.content
       const attachments = message.attachments
 
-      if (!guild || !channel || !category) return
+      if (!guild || !channel) return
 
       // Handle !<paste_name> syntax for copy-paste creation/posting
       if (content.startsWith('!')) {
@@ -123,7 +127,12 @@ export default {
       // check if message is in queue category
       const settings = await getSettings()
       const queueCategory = settings.queue_category_id
-      if (category.id !== queueCategory) return
+      const parentCategoryId =
+        channel.parent?.type === ChannelType.GuildCategory
+          ? channel.parent.id
+          : channel.parent?.parentId
+
+      if (!parentCategoryId || parentCategoryId !== queueCategory) return
 
       // ensure message is not in queue channel or queue results channel
       const queueChannelId = settings.queue_channel_id
