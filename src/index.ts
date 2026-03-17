@@ -69,9 +69,11 @@ void client.login(token).catch((error) => {
 })
 setupClientCommands(client, false)
 void runDecayTick().catch((error) => console.error('[DECAY TICK ERROR]', error))
-void replenishReservePoolCronJob().catch((error) =>
-  console.error('[RESERVE POOL CREATION ERROR]', error),
-)
+if (process.env.NODE_ENV !== 'development') {
+  void replenishReservePoolCronJob().catch((error) =>
+    console.error('[RESERVE POOL CREATION ERROR]', error),
+  )
+}
 //void partyDeleteCronJob()
 //void deleteOldTranscriptsCronJob()
 void updateMatchCountCronJob().catch((error) =>
@@ -91,5 +93,3 @@ serve({
 })
 
 console.log(`API server running on port ${port}`)
-
-export default app
