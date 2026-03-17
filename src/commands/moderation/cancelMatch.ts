@@ -6,6 +6,7 @@ import {
   PermissionFlagsBits,
 } from 'discord.js'
 import { COMMAND_HANDLERS } from '../../command-handlers'
+import { formatCancelledMatchResult } from '../../utils/matchHelpers'
 import { getQueueIdFromMatch, getQueueSettings } from '../../utils/queryDB'
 import { getMatchesForAutocomplete } from '../../utils/Autocompletions'
 
@@ -34,13 +35,13 @@ export default {
         return
       }
 
-      const matchCancelCheck =
+      const matchCancelResult =
         await COMMAND_HANDLERS.MODERATION.CANCEL_MATCH(matchId)
 
-      if (matchCancelCheck) {
+      if (matchCancelResult.success) {
         await interaction
           .reply({
-            content: `Successfully cancelled match ${matchId}`,
+            content: formatCancelledMatchResult(matchId, matchCancelResult),
           })
           .catch(() => console.log('Failed to reply'))
       } else {

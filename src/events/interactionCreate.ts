@@ -29,6 +29,7 @@ import {
   advanceDeckBanStep,
   applyDefaultDeckBansAndAdvance,
   endMatch,
+  formatCancelledMatchResult,
   getTeamsInMatch,
   sendWebhook,
   setupDeckSelect,
@@ -1148,19 +1149,43 @@ export default {
             matchId: number,
             log: boolean = false,
           ) {
+            let usedDeferredReply = false
+            let usedMessageUpdate = false
+
             try {
               if (interaction.message && !log) {
-                await interaction
-                  .update({
+                await interaction.update({
                     content: 'The match has been cancelled.',
                     embeds: [],
                     // components: [],
                   })
-                  .catch((err: any) => {
-                    console.log(err)
-                  })
+                usedMessageUpdate = true
               }
-              await endMatch(matchId, true)
+
+              if (
+                !usedMessageUpdate &&
+                !interaction.deferred &&
+                !interaction.replied
+              ) {
+                await interaction.deferReply({
+                  flags: MessageFlags.Ephemeral,
+                })
+                usedDeferredReply = true
+              }
+
+              const result = await endMatch(matchId, true)
+              const cancelMessage = formatCancelledMatchResult(matchId, result)
+
+              if (usedDeferredReply) {
+                await interaction.editReply({
+                  content: cancelMessage,
+                })
+              } else {
+                await interaction.followUp({
+                  content: cancelMessage,
+                  flags: MessageFlags.Ephemeral,
+                })
+              }
             } catch (err) {
               console.error('Error in finishing match:', err)
             }

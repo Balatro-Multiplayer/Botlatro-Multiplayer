@@ -80,8 +80,8 @@ matchesRouter.openapi(
   async (c) => {
     const { id } = c.req.valid('param')
     //todo: add error handling
-    const success = await COMMAND_HANDLERS.MODERATION.CANCEL_MATCH(id)
-    if (success) {
+    const result = await COMMAND_HANDLERS.MODERATION.CANCEL_MATCH(id)
+    if (result.success) {
       return c.json(
         {
           success: true as const,

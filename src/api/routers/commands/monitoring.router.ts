@@ -15,6 +15,7 @@ const offenderSchema = z.object({
 const cheatFlagSchema = z.object({
   game_index: z.number().int().min(0),
   deck: z.string().trim().min(1).max(200),
+  game_mode: z.string().trim().min(1).max(200),
   threshold: z.number().finite().nonnegative(),
   offenders: z.array(offenderSchema).min(1),
   start_date: z.string().datetime().nullable(),
@@ -85,7 +86,7 @@ function formatFlagLine(
   const gameUrl = new URL(logUrl)
   gameUrl.searchParams.set('game', flag.game_index.toString())
 
-  return `Game ${flag.game_index + 1} | ${flag.deck} deck | threshold $${formatCurrency(flag.threshold)} | ${offenders}${start} | ${gameUrl.toString()}`
+  return `Game ${flag.game_index + 1} | ${flag.game_mode} | ${flag.deck} deck | threshold $${formatCurrency(flag.threshold)} | ${offenders}${start} | ${gameUrl.toString()}`
 }
 
 monitoringRouter.openapi(sendCheatWarningRoute, async (c) => {

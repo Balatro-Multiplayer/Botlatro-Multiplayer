@@ -74,7 +74,12 @@ import {
   getStakeEmoteName,
   parseEmoji,
 } from './combinedEmoteCache'
-import { getNextDelay, setNextDelay } from './queueHelpers'
+import {
+  getNextDelay,
+  setNextDelay,
+  setUserQueueRole,
+  updateAllLeaderboardRoles,
+} from './queueHelpers'
 
 require('dotenv').config()
 
@@ -1106,10 +1111,126 @@ export async function updateQueueLogMessage(
   }
 }
 
+export type CancelledMatchMmrRevert = {
+  userId: string
+  revertedChange: number
+}
+
+export type EndMatchResult = {
+  success: boolean
+  cancelled: boolean
+  revertedMmrChanges: CancelledMatchMmrRevert[]
+}
+
+export function formatCancelledMatchResult(
+  matchId: number,
+  result: EndMatchResult,
+): string {
+  if (!result.success) {
+    return `Failed to cancel match ${matchId}.`
+  }
+
+  if (result.revertedMmrChanges.length === 0) {
+    return `Successfully cancelled match ${matchId}.\nNo applied MMR to revert.`
+  }
+
+  const revertedLines = result.revertedMmrChanges.map(
+    ({ userId, revertedChange }) => {
+      const appliedChange =
+        revertedChange > 0 ? `+${revertedChange}` : `${revertedChange}`
+      return `<@${userId}>: removed ${appliedChange} MMR`
+    },
+  )
+
+  return [
+    `Successfully cancelled match ${matchId}.`,
+    `Applied MMR had already been written and was reverted:`,
+    ...revertedLines,
+  ].join('\n')
+}
+
+async function clearCancelledMatchResult(matchId: number): Promise<void> {
+  await pool.query(`UPDATE matches SET winning_team = NULL WHERE id = $1`, [
+    matchId,
+  ])
+  await pool.query(
+    `UPDATE match_users
+     SET elo_change = 0,
+         mmr_after = NULL
+     WHERE match_id = $1`,
+    [matchId],
+  )
+}
+
+async function revertCancelledMatchMmr(
+  queueId: number,
+  defaultElo: number,
+  matchTeams: teamResults,
+): Promise<CancelledMatchMmrRevert[]> {
+  const revertedUpdates = await Promise.all(
+    matchTeams.teams.flatMap((team) =>
+      team.players.map(async (player) => {
+        const currentMmr = player.elo ?? defaultElo
+        const appliedChange = player.elo_change ?? 0
+        const matchWasProcessed =
+          player.mmr_after !== undefined && player.mmr_after !== null
+
+        if (!matchWasProcessed && appliedChange === 0) {
+          return null
+        }
+
+        const revertedMmr = Math.max(
+          0,
+          Math.min(9999, parseFloat((currentMmr - appliedChange).toFixed(1))),
+        )
+        const revertedVolatility = Math.max(
+          (player.volatility ?? 0) - (matchWasProcessed ? 1 : 0),
+          0,
+        )
+
+        await pool.query(
+          `UPDATE queue_users
+           SET elo = $1,
+               volatility = $2
+           WHERE user_id = $3 AND queue_id = $4`,
+          [revertedMmr, revertedVolatility, player.user_id, queueId],
+        )
+
+        if (appliedChange === 0) {
+          return { userId: player.user_id, revertedChange: 0 }
+        }
+
+        return {
+          userId: player.user_id,
+          revertedChange: appliedChange,
+        }
+      }),
+    ),
+  )
+
+  const affectedUserIds = [
+    ...new Set(
+      revertedUpdates.filter((update) => update !== null).map((u) => u.userId),
+    ),
+  ]
+
+  if (affectedUserIds.length > 0) {
+    await Promise.all(
+      affectedUserIds.map((userId) => setUserQueueRole(queueId, userId)),
+    )
+    await updateAllLeaderboardRoles(queueId)
+  }
+
+  return revertedUpdates.filter(
+    (update): update is CancelledMatchMmrRevert =>
+      update !== null && update.revertedChange !== 0,
+  )
+}
+
 export async function endMatch(
   matchId: number,
   cancelled = false,
-): Promise<boolean> {
+): Promise<EndMatchResult> {
   const matchCheck = await getMatchStatus(matchId)
   if (!matchCheck) {
     console.log(`match ${matchId} already closed, running change winner logic`)
@@ -1123,6 +1244,13 @@ export async function endMatch(
 
   if (cancelled) {
     console.log(`Match ${matchId} cancelled.`)
+    const queueSettings = await getQueueSettings(queueId)
+    const revertedMmrChanges = await revertCancelledMatchMmr(
+      queueId,
+      queueSettings.default_elo,
+      matchTeams,
+    )
+    await clearCancelledMatchResult(matchId)
 
     // Generate HTML transcript before deleting the channel
     try {
@@ -1154,13 +1282,21 @@ export async function endMatch(
       )
     }
 
-    return true
+    return {
+      success: true,
+      cancelled: true,
+      revertedMmrChanges,
+    }
   }
 
   const winningTeamId = await getWinningTeamFromMatch(matchId)
   if (!winningTeamId) {
     console.error(`No winning team found for match ${matchId}`)
-    return false
+    return {
+      success: false,
+      cancelled: false,
+      revertedMmrChanges: [],
+    }
   }
 
   const queueSettings = await getQueueSettings(queueId)
@@ -1361,7 +1497,11 @@ export async function endMatch(
     const resultsChannel = await getMatchResultsChannel()
     if (!resultsChannel) {
       console.error(`No results channel found for match ${matchId}`)
-      return false
+      return {
+        success: false,
+        cancelled: false,
+        revertedMmrChanges: [],
+      }
     }
 
     console.log(`Sending results to ${resultsChannel.id} on match ${matchId}`)
@@ -1399,7 +1539,11 @@ export async function endMatch(
     teamResults,
   })
 
-  return true
+  return {
+    success: true,
+    cancelled: false,
+    revertedMmrChanges: [],
+  }
 }
 
 // Send webhook notification (fire-and-forget, never throws)

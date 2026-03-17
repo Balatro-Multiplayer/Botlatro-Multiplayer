@@ -102,6 +102,7 @@ declare module 'psqlDB' {
     match_id: number | null
     team: number | null
     elo_change?: number | null
+    mmr_after?: number | null
   }
 
   export interface Bans {
