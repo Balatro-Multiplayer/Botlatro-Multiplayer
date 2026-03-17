@@ -1,6 +1,7 @@
 import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
 import { pool } from '../../../db'
 import { createEmbedType, logStrike } from '../../../utils/logCommandUse'
+import { getGuildDisplayName } from './moderationLogUtils'
 
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
@@ -9,6 +10,11 @@ export default {
       const user = interaction.options.getString('user', true)
       const reason =
         interaction.options.getString('reason', false) ?? 'None provided'
+      const moderatorName = await getGuildDisplayName(
+        interaction.guild,
+        interaction.user.id,
+        interaction.user.username,
+      )
 
       // Unban user in db todo: add an active flag to ban so we arent removing any log of the original ban
       const res = await pool.query(
@@ -30,18 +36,18 @@ export default {
 
       // log unban
       const embedType = createEmbedType(
-        `Ban removed for ${username}`,
-        '',
-        65280, // green
+        'BAN REMOVED',
+        `<@${user}>`,
+        65280,
         [
           {
-            name: 'Reason:',
-            value: reason ?? 'No reason provided',
-            inline: true,
+            name: 'Reason',
+            value: reason,
+            inline: false,
           },
         ],
         null,
-        `${interaction.user.displayName}`,
+        moderatorName,
       )
       await logStrike('general', embedType)
 

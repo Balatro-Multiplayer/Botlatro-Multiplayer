@@ -333,6 +333,20 @@ async function fetchActiveBans(): Promise<BanRow[]> {
   return res.rows
 }
 
+async function fetchActiveBanByUserId(userId: string): Promise<BanRow | null> {
+  const res = await pool.query<BanRow>(
+    `
+      SELECT *
+      FROM bans
+      WHERE user_id = $1
+      LIMIT 1
+    `,
+    [userId],
+  )
+
+  return res.rows[0] ?? null
+}
+
 async function fetchStrikesForUsers(userIds: string[]): Promise<StrikeRow[]> {
   if (userIds.length === 0) return []
 
@@ -1142,6 +1156,14 @@ moderationRouter.openapi(
         },
         description: 'Created ban.',
       },
+      409: {
+        content: {
+          'application/json': {
+            schema: errorSchema,
+          },
+        },
+        description: 'User already banned.',
+      },
       500: {
         content: {
           'application/json': {
@@ -1164,10 +1186,20 @@ moderationRouter.openapi(
         `
           INSERT INTO bans (user_id, reason, allowed_queue_ids, expires_at, related_strike_ids)
           VALUES ($1, $2, $3, $4, $5)
+          ON CONFLICT (user_id) DO NOTHING
           RETURNING *
         `,
         [body.user_id, reason, [], expiryTime, []],
       )
+
+      if (inserted.rowCount === 0) {
+        const existingBan = await fetchActiveBanByUserId(body.user_id)
+        const expiryText = existingBan?.expires_at
+          ? ` until ${serializeDate(existingBan.expires_at)}`
+          : ''
+
+        return c.json({ error: `User already banned${expiryText}.` }, 409)
+      }
 
       const blame = (await resolveDiscordUser(body.banned_by_id)).username
       const user = await resolveDiscordUser(body.user_id)

@@ -6,6 +6,7 @@ import {
   logStrike,
 } from '../../../utils/logCommandUse'
 import { client } from '../../../client'
+import { formatDiscordDate, getGuildDisplayName } from './moderationLogUtils'
 
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
@@ -18,28 +19,33 @@ export default {
         content: `strike with id ${strikeId} successfully removed`,
       })
 
-      const blame = (await client.users.fetch(interaction.user.id)).username
+      const blame = await getGuildDisplayName(
+        interaction.guild,
+        interaction.user.id,
+        interaction.user.username,
+      )
       const reasonFormat = formatEmbedField(strikeInfo.reason)
 
       // log usage
       const embed = createEmbedType(
-        `#${strikeId} - STRIKE REMOVED`,
-        'desc.',
-        null, // default
+        'STRIKE REMOVED',
+        `<@${strikeInfo.user_id}>`,
+        65280,
         [
+          { name: `Strike`, value: `#${strikeId}`, inline: true },
           { name: `Amount`, value: `${strikeInfo.amount}`, inline: true },
-          { name: `Reason`, value: `${reasonFormat}`, inline: true },
-          { name: `Ref`, value: `<#${strikeInfo.reference}>`, inline: true },
+          {
+            name: `Issued`,
+            value: formatDiscordDate(strikeInfo.issued_at),
+            inline: true,
+          },
+          { name: `Reason`, value: `${reasonFormat}`, inline: false },
+          { name: `Reference`, value: `${strikeInfo.reference}`, inline: true },
         ],
         null,
         `${blame}`,
       )
-      await logStrike(
-        'remove_strike',
-        embed,
-        undefined,
-        `<@${strikeInfo.user_id ?? 1234}>`,
-      )
+      await logStrike('remove_strike', embed)
     } catch (err: any) {
       console.error(err)
     }
