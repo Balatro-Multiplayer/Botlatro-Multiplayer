@@ -1,53 +1,48 @@
 import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
-import { strikeUtils } from '../../../utils/queryDB'
-import {
-  createEmbedType,
-  formatEmbedField,
-  logStrike,
-} from '../../../utils/logCommandUse'
-import { client } from '../../../client'
-import { formatDiscordDate, getGuildDisplayName } from './moderationLogUtils'
+import { COMMAND_HANDLERS } from '../../../command-handlers'
+import { RemoveStrikeError } from '../../../command-handlers/moderation/removeStrike'
+import { getGuildDisplayName } from './moderationLogUtils'
 
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
     try {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral })
-      const strikeId: string = interaction.options.getString('strike', true)
-      const strikeInfo = await strikeUtils.getStrikeFromId(strikeId)
-      await strikeUtils.removeStrikeById(strikeId)
-      await interaction.editReply({
-        content: `strike with id ${strikeId} successfully removed`,
-      })
 
+      const strikeId = interaction.options.getString('strike', true)
+      const reason = interaction.options.getString('reason', false)
       const blame = await getGuildDisplayName(
         interaction.guild,
         interaction.user.id,
         interaction.user.username,
       )
-      const reasonFormat = formatEmbedField(strikeInfo.reason)
 
-      // log usage
-      const embed = createEmbedType(
-        'STRIKE REMOVED',
-        `<@${strikeInfo.user_id}>`,
-        65280,
-        [
-          { name: `Strike`, value: `#${strikeId}`, inline: true },
-          { name: `Amount`, value: `${strikeInfo.amount}`, inline: true },
-          {
-            name: `Issued`,
-            value: formatDiscordDate(strikeInfo.issued_at),
-            inline: true,
-          },
-          { name: `Reason`, value: `${reasonFormat}`, inline: false },
-          { name: `Reference`, value: `${strikeInfo.reference}`, inline: true },
-        ],
-        null,
-        `${blame}`,
-      )
-      await logStrike('remove_strike', embed)
+      const { strike, removalReason } =
+        await COMMAND_HANDLERS.MODERATION.REMOVE_STRIKE({
+          strikeId,
+          blame,
+          reason,
+        })
+
+      const removalReasonText = removalReason
+        ? ` Removal reason: ${removalReason}`
+        : ''
+
+      await interaction.editReply({
+        content: `Removed strike #${strikeId} (${strike.amount}). Original reason: ${strike.reason}.${removalReasonText}`,
+      })
     } catch (err: any) {
       console.error(err)
+
+      if (err instanceof RemoveStrikeError) {
+        await interaction.editReply({
+          content: `strike with id ${interaction.options.getString('strike', true)} not found`,
+        })
+        return
+      }
+
+      await interaction.editReply({
+        content: 'Failed to remove strike.',
+      })
     }
   },
 }

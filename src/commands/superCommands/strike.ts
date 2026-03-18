@@ -76,6 +76,13 @@ export default {
             .setRequired(true)
             .setAutocomplete(true)
             .setMaxLength(500),
+        )
+        .addStringOption((option) =>
+          option
+            .setName('reason')
+            .setDescription('Reason for removing strike')
+            .setRequired(false)
+            .setMaxLength(500),
         ),
     ),
 

@@ -4,11 +4,10 @@ import type { Bans, Strikes } from 'psqlDB'
 import { COMMAND_HANDLERS } from '../../../command-handlers'
 import { CreateBanError } from '../../../command-handlers/moderation/createBan'
 import { RemoveBanError } from '../../../command-handlers/moderation/removeBan'
+import { RemoveStrikeError } from '../../../command-handlers/moderation/removeStrike'
 import { UpdateBanError } from '../../../command-handlers/moderation/updateBan'
 import { client, getGuild } from '../../../client'
 import { pool } from '../../../db'
-import { calculateExpiryDate } from '../../../utils/calculateExpiryDate'
-import { createEmbedType, logStrike } from '../../../utils/logCommandUse'
 
 const moderationRouter = new OpenAPIHono()
 
@@ -927,61 +926,15 @@ moderationRouter.openapi(
     const body = c.req.valid('json')
 
     try {
-      const hasPriorStrikes =
-        ((
-          await pool.query(
-            `SELECT id FROM strikes WHERE user_id = $1 LIMIT 1`,
-            [body.user_id],
-          )
-        ).rowCount ?? 0) > 0
-      const finalAmount = hasPriorStrikes && body.amount === 0 ? 1 : body.amount
-      const reason = body.reason.trim()
-      const reference = body.reference?.trim() || 'No reference provided'
-      const expiryDate =
-        (await calculateExpiryDate(body.user_id)) ??
-        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-
-      const inserted = await pool.query<StrikeRow>(
-        `
-          INSERT INTO strikes (user_id, reason, issued_by_id, issued_at, expires_at, amount, reference)
-          VALUES ($1, $2, $3, NOW(), $4, $5, $6)
-          RETURNING *
-        `,
-        [
-          body.user_id,
-          reason,
-          body.issued_by_id,
-          expiryDate,
-          finalAmount,
-          reference,
-        ],
-      )
-
-      const strike = inserted.rows[0]
-      const allStrikes = await fetchStrikesForUsers([body.user_id])
-      const totalStrikes = allStrikes.reduce(
-        (total, entry) => total + entry.amount,
-        0,
-      )
       const blame = (await resolveDiscordUser(body.issued_by_id)).username
-
-      const embed = createEmbedType(
-        `#${strike.id} - STRIKE GIVEN`,
-        `<@${body.user_id}>`,
-        null,
-        [
-          {
-            name: 'Amount',
-            value: `${finalAmount} (total: ${totalStrikes})`,
-            inline: true,
-          },
-          { name: 'Reason', value: reason, inline: true },
-          { name: 'Ref', value: reference, inline: true },
-        ],
-        null,
+      const { strike } = await COMMAND_HANDLERS.MODERATION.CREATE_STRIKE({
+        userId: body.user_id,
+        issuedById: body.issued_by_id,
         blame,
-      )
-      await logStrike('add_strike', embed, undefined, `<@${body.user_id}>`)
+        amount: body.amount,
+        reason: body.reason,
+        reference: body.reference ?? 'No reference provided',
+      })
 
       const issuers = await resolveDiscordUsers([
         body.user_id,
@@ -1050,45 +1003,18 @@ moderationRouter.openapi(
     const body = c.req.valid('json')
 
     try {
-      const existing = await pool.query<StrikeRow>(
-        `SELECT * FROM strikes WHERE id = $1 LIMIT 1`,
-        [id],
-      )
-      const strike = existing.rows[0]
-
-      if (!strike) {
-        return c.json({ error: 'Strike not found' }, 404)
-      }
-
-      await pool.query(`DELETE FROM strikes WHERE id = $1`, [id])
-
       const blame = (await resolveDiscordUser(body.removed_by_id)).username
-      const fields = [
-        { name: 'Amount', value: `${strike.amount}`, inline: true },
-        { name: 'Reason', value: strike.reason, inline: true },
-        { name: 'Ref', value: strike.reference, inline: true },
-      ]
-
-      if (body.reason?.trim()) {
-        fields.push({
-          name: 'Removal Reason',
-          value: body.reason.trim(),
-          inline: false,
-        })
-      }
-
-      const embed = createEmbedType(
-        `#${strike.id} - STRIKE REMOVED`,
-        `<@${strike.user_id}>`,
-        null,
-        fields,
-        null,
+      await COMMAND_HANDLERS.MODERATION.REMOVE_STRIKE({
+        strikeId: id,
         blame,
-      )
-      await logStrike('remove_strike', embed, undefined, `<@${strike.user_id}>`)
+        reason: body.reason,
+      })
 
       return c.json({ success: true as const }, 200)
     } catch (error) {
+      if (error instanceof RemoveStrikeError) {
+        return c.json({ error: error.message }, 404)
+      }
       console.error(`Error removing strike ${id}:`, error)
       return c.json({ error: 'Internal server error' }, 500)
     }
