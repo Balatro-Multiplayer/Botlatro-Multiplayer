@@ -51,12 +51,12 @@ import {
   updatePlayerWinStreak,
 } from './queryDB'
 import { Decks, MatchUsers, Stakes, teamResults } from 'psqlDB'
+import dotenv from 'dotenv'
 import { QueryResult } from 'pg' // import * as fs from 'fs'
 // import * as path from 'path'
 // import { glob } from 'glob'
 // import { parseLogLines } from './transcriptHelpers'
 import { client, getGuild } from '../client'
-import { env } from '../env'
 import {
   calculateNewMMR,
   calculatePredictedMMR,
@@ -80,6 +80,10 @@ import {
   setUserQueueRole,
   updateAllLeaderboardRoles,
 } from './queueHelpers'
+
+require('dotenv').config()
+
+dotenv.config()
 
 export async function getRandomDeck(
   includeCustomDecks: boolean = false,
@@ -327,7 +331,7 @@ export async function advanceDeckBanStep(
   const nextStep = step + 1
   const nextTeamId = (startingTeamId + nextStep) % 2
   const nextMember = await client.guilds
-    .fetch(env.GUILD_ID)
+    .fetch(process.env.GUILD_ID!)
     .then((g) =>
       g.members.fetch(matchTeams.teams[nextTeamId].players[0].user_id),
     )
@@ -1371,8 +1375,8 @@ export async function endMatch(
 
   try {
     const guild =
-      client.guilds.cache.get(env.GUILD_ID) ??
-      (await client.guilds.fetch(env.GUILD_ID))
+      client.guilds.cache.get(process.env.GUILD_ID!) ??
+      (await client.guilds.fetch(process.env.GUILD_ID!))
 
     // Compute title with deck/stake info
     let titleText = `${queueSettings.queue_name} Match #${matchId} 🏆`
@@ -1544,8 +1548,8 @@ export async function endMatch(
 
 // Send webhook notification (fire-and-forget, never throws)
 export function sendWebhook(action: string, payload: any): void {
-  const webhookUrl = env.WEBHOOK_URL
-  const webhookSecret = env.WEBHOOK_QUERY_SECRET
+  const webhookUrl = process.env.WEBHOOK_URL
+  const webhookSecret = process.env.WEBHOOK_QUERY_SECRET
 
   if (!webhookUrl || !webhookSecret) return
 

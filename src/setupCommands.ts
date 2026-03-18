@@ -2,8 +2,10 @@ import { Client } from 'discord.js'
 import fs from 'node:fs'
 import path from 'node:path'
 import { REST, Routes } from 'discord.js'
-import { env } from './env'
+import * as dotenv from 'dotenv'
 import { attachDiscordRateLimitLogging } from './utils/discordRateLimitLogger'
+require('dotenv').config()
+dotenv.config()
 
 type DiscordApplication = {
   id: string
@@ -11,9 +13,9 @@ type DiscordApplication = {
 }
 
 export function setupClientCommands(client: Client, deploy: boolean = false) {
-  const token = env.DISCORD_TOKEN
-  const clientId = env.CLIENT_ID
-  const guildId = env.GUILD_ID
+  const token = process.env.DISCORD_TOKEN || ''
+  const clientId = process.env.CLIENT_ID || ''
+  const guildId = process.env.GUILD_ID || ''
 
   const commands = []
   const foldersPath = path.join(__dirname, 'commands')

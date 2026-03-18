@@ -1,11 +1,10 @@
 // src/routers/commands/cron.router.ts
 import { OpenAPIHono } from '@hono/zod-openapi'
 import { health } from '../../../testCron'
-import { env } from '../../../env'
 
 const cronRouter = new OpenAPIHono()
 
-const CRON_SECRET = env.CRON_SECRET
+const CRON_SECRET = process.env.CRON_SECRET || 'test-secret'
 
 cronRouter.post('/run-task', async (c) => {
   const key = c.req.header('x-cron-key')

@@ -3,7 +3,6 @@ import path from 'node:path'
 import fs from 'fs/promises'
 import { createTranscript, ExportReturnType } from 'discord-html-transcripts'
 import { TextChannel } from 'discord.js'
-import { env } from '../env'
 
 /**
  * Generate an HTML transcript from a Discord text channel and store it in the database
@@ -82,7 +81,7 @@ export async function getMatchTranscript(
   const channelId = String(match.rows[0].channel_id)
   console.log(`channelId: ${channelId}`)
 
-  const logDir = env.LOG_DIR
+  const logDir = process.env.LOG_DIR || path.join(process.cwd(), 'logs')
 
   // iterate over log directory
   async function walk(dir: string): Promise<string | null> {

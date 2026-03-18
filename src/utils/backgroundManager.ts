@@ -1,6 +1,5 @@
 import { loadImage } from 'skia-canvas'
 import path from 'path'
-import { env } from '../env'
 
 // Background metadata
 export interface Background {
@@ -41,7 +40,7 @@ export const BACKGROUNDS: Background[] = [
 export async function preloadBackgrounds(): Promise<void> {
   console.log('Preloading background images...')
 
-  const bgDir = env.ASSETS_DIR
+  const bgDir = process.env.ASSETS_DIR || path.join(process.cwd(), 'assets')
 
   for (const bg of BACKGROUNDS) {
     try {

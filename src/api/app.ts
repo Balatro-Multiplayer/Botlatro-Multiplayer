@@ -11,10 +11,14 @@ import { bountiesRouter } from './routers/commands/bounties.router'
 import { moderationRouter } from './routers/commands/moderation.router'
 import { monitoringRouter } from './routers/commands/monitoring.router'
 import { usersRouter } from './routers/commands/users.router'
-import { env } from '../env'
 
 const app = new OpenAPIHono({ strict: false })
-const token = env.API_TOKEN
+const token = process.env.API_TOKEN
+
+if (!token) {
+  console.error('no token you dumb fuck')
+  process.exit(1)
+}
 
 app.get('/', (c) => c.text('Hello Bun!'))
 app.doc('/swagger', {

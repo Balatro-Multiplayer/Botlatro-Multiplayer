@@ -1,6 +1,9 @@
 import '../register-paths'
 import { pool } from '../db'
 import { client, getGuild } from '../client'
+import * as dotenv from 'dotenv'
+
+dotenv.config()
 
 /**
  * Backfill script to populate display_name for all existing users

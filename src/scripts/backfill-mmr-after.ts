@@ -1,5 +1,8 @@
 import '../register-paths'
 import { pool } from '../db'
+import * as dotenv from 'dotenv'
+
+dotenv.config()
 
 /**
  * Backfill script to populate mmr_after for all existing match_users records
