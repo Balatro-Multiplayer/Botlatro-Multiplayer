@@ -1003,10 +1003,9 @@ moderationRouter.openapi(
     const body = c.req.valid('json')
 
     try {
-      const blame = (await resolveDiscordUser(body.removed_by_id)).username
       await COMMAND_HANDLERS.MODERATION.REMOVE_STRIKE({
         strikeId: id,
-        blame,
+        removedById: body.removed_by_id,
         reason: body.reason,
       })
 

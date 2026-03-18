@@ -1,7 +1,6 @@
 import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
 import { COMMAND_HANDLERS } from '../../../command-handlers'
 import { RemoveStrikeError } from '../../../command-handlers/moderation/removeStrike'
-import { getGuildDisplayName } from './moderationLogUtils'
 
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
@@ -10,25 +9,15 @@ export default {
 
       const strikeId = interaction.options.getString('strike', true)
       const reason = interaction.options.getString('reason', false)
-      const blame = await getGuildDisplayName(
-        interaction.guild,
-        interaction.user.id,
-        interaction.user.username,
-      )
 
-      const { strike, removalReason } =
-        await COMMAND_HANDLERS.MODERATION.REMOVE_STRIKE({
-          strikeId,
-          blame,
-          reason,
-        })
-
-      const removalReasonText = removalReason
-        ? ` Removal reason: ${removalReason}`
-        : ''
+      const { message } = await COMMAND_HANDLERS.MODERATION.REMOVE_STRIKE({
+        strikeId,
+        removedById: interaction.user.id,
+        reason,
+      })
 
       await interaction.editReply({
-        content: `Removed strike #${strikeId} (${strike.amount}). Original reason: ${strike.reason}.${removalReasonText}`,
+        content: message,
       })
     } catch (err: any) {
       console.error(err)

@@ -1,4 +1,5 @@
 import type { Strikes } from 'psqlDB'
+import { client, getGuild } from '../../client'
 import { pool } from '../../db'
 import { createEmbedType, logStrike } from '../../utils/logCommandUse'
 
@@ -13,7 +14,8 @@ export class RemoveStrikeError extends Error {
 
 type RemoveStrikeParams = {
   strikeId: number | string
-  blame: string
+  removedById?: string
+  blame?: string | null
   reason?: string | null
 }
 
@@ -29,11 +31,50 @@ function formatDiscordDate(date: Date | null | undefined) {
   return `<t:${timestamp}:f>`
 }
 
+async function resolveBlame({
+  removedById,
+  blame,
+}: Pick<RemoveStrikeParams, 'removedById' | 'blame'>) {
+  const trimmedBlame = blame?.trim()
+  if (trimmedBlame) return trimmedBlame
+  if (!removedById) return 'Unknown moderator'
+
+  try {
+    const guild = await getGuild()
+    const member =
+      guild.members.cache.get(removedById) ??
+      (await guild.members.fetch(removedById))
+    return member.displayName
+  } catch {}
+
+  try {
+    const user =
+      client.users.cache.get(removedById) ??
+      (await client.users.fetch(removedById))
+    return user.globalName ?? user.username ?? removedById
+  } catch {
+    return removedById
+  }
+}
+
+function createRemoveStrikeMessage(
+  strike: Pick<StrikeRow, 'id' | 'amount' | 'reason'>,
+  removalReason: string | null,
+) {
+  const removalReasonText = removalReason
+    ? ` Removal reason: ${removalReason}`
+    : ''
+
+  return `Removed strike #${strike.id} (${strike.amount}). Original reason: ${strike.reason}.${removalReasonText}`
+}
+
 export async function removeStrike({
   strikeId,
+  removedById,
   blame,
   reason,
 }: RemoveStrikeParams) {
+  const resolvedBlame = await resolveBlame({ removedById, blame })
   const removedRes = await pool.query<StrikeRow>(
     `
       DELETE FROM strikes
@@ -80,12 +121,13 @@ export async function removeStrike({
     65280,
     fields,
     null,
-    blame,
+    resolvedBlame,
   )
   await logStrike('remove_strike', embed)
 
   return {
     strike,
     removalReason: trimmedReason,
+    message: createRemoveStrikeMessage(strike, trimmedReason),
   }
 }
