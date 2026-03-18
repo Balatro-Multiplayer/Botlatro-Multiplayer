@@ -10,11 +10,13 @@ import {
 } from './queueLock'
 import { addLeaderboardRole } from './addLeaderboardRole'
 import { editQueueRole } from './editQueueRole'
+import { removeBan } from './removeBan'
 import { updateBan } from './updateBan'
 
 export const MODERATION_COMMAND_HANDLERS = {
   CANCEL_MATCH: cancelMatch,
   CREATE_BAN: createBan,
+  REMOVE_BAN: removeBan,
   LOCK_QUEUE: lockQueue,
   UNLOCK_QUEUE: unlockQueue,
   LOCK_ALL_QUEUES: lockAllQueuesHandler,

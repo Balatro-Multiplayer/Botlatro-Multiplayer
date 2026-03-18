@@ -3,13 +3,12 @@ import type { GuildMember, User } from 'discord.js'
 import type { Bans, Strikes } from 'psqlDB'
 import { COMMAND_HANDLERS } from '../../../command-handlers'
 import { CreateBanError } from '../../../command-handlers/moderation/createBan'
+import { RemoveBanError } from '../../../command-handlers/moderation/removeBan'
 import { UpdateBanError } from '../../../command-handlers/moderation/updateBan'
 import { client, getGuild } from '../../../client'
-import { moderationMessages } from '../../../config/moderationMessages'
 import { pool } from '../../../db'
 import { calculateExpiryDate } from '../../../utils/calculateExpiryDate'
 import { createEmbedType, logStrike } from '../../../utils/logCommandUse'
-import { sendDm } from '../../../utils/sendDm'
 
 const moderationRouter = new OpenAPIHono()
 
@@ -191,7 +190,7 @@ const updateBanBodySchema = z
 
 const removeBanBodySchema = z.object({
   unbanned_by_id: discordIdSchema,
-  reason: z.string().trim().max(500).optional(),
+  reason: z.string().trim().min(1).max(500),
 })
 
 const guildSearchQuerySchema = z.object({
@@ -1268,57 +1267,19 @@ moderationRouter.openapi(
     const body = c.req.valid('json')
 
     try {
-      const removed = await pool.query<BanRow>(
-        `
-          DELETE FROM bans
-          WHERE user_id = $1
-            AND (expires_at IS NULL OR expires_at > NOW())
-          RETURNING *
-        `,
-        [user_id],
-      )
-
-      const ban = removed.rows[0]
-
-      if (!ban) {
-        return c.json({ error: 'Ban not found' }, 404)
-      }
-
       const blame = (await resolveDiscordUser(body.unbanned_by_id)).username
-      const user = await resolveDiscordUser(user_id)
-      const fields = [
-        { name: 'Reason', value: ban.reason, inline: true },
-        {
-          name: 'Expires',
-          value: serializeDate(ban.expires_at) ?? 'Never',
-          inline: true,
-        },
-      ]
-
-      if (body.reason?.trim()) {
-        fields.push({
-          name: 'Removal Reason',
-          value: body.reason.trim(),
-          inline: false,
-        })
-      }
-
-      const embed = createEmbedType(
-        `Ban removed for ${user.display_name}`,
-        '',
-        '#00ff00',
-        fields,
-        null,
+      await COMMAND_HANDLERS.MODERATION.REMOVE_BAN({
+        userId: user_id,
         blame,
-      )
-      await logStrike('general', embed)
-      await sendDm(
-        user_id,
-        moderationMessages.banLiftedDm({ reason: body.reason }),
-      )
+        reason: body.reason,
+      })
 
       return c.json({ success: true as const }, 200)
     } catch (error) {
+      if (error instanceof RemoveBanError) {
+        return c.json({ error: error.message }, 404)
+      }
+
       console.error(`Error removing ban for user ${user_id}:`, error)
       return c.json({ error: 'Internal server error' }, 500)
     }

@@ -1,8 +1,6 @@
-import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
-import { moderationMessages } from '../../../config/moderationMessages'
-import { pool } from '../../../db'
-import { createEmbedType, logStrike } from '../../../utils/logCommandUse'
-import { sendDm } from '../../../utils/sendDm'
+import { ChatInputCommandInteraction } from 'discord.js'
+import { COMMAND_HANDLERS } from '../../../command-handlers'
+import { RemoveBanError } from '../../../command-handlers/moderation/removeBan'
 import { getGuildDisplayName } from './moderationLogUtils'
 
 export default {
@@ -10,55 +8,43 @@ export default {
     try {
       await interaction.deferReply()
       const user = interaction.options.getString('user', true)
-      const reason =
-        interaction.options.getString('reason', false) ?? 'None provided'
+      const reason = interaction.options.getString('reason', true).trim()
       const moderatorName = await getGuildDisplayName(
         interaction.guild,
         interaction.user.id,
         interaction.user.username,
       )
 
-      // Unban user in db todo: add an active flag to ban so we arent removing any log of the original ban
-      const res = await pool.query(
-        `
-        DELETE FROM "bans" WHERE user_id = $1 RETURNING *
-      `,
-        [user],
-      )
-
-      // get username from user id
-      const member = await interaction.guild?.members.fetch(user)
+      let member = null
+      try {
+        member = await interaction.guild?.members.fetch(user)
+      } catch {}
       const username = member?.displayName ?? user
 
-      if (res.rowCount === 0) {
-        return await interaction.editReply(
-          `User ${username} can not be found with a valid ban to remove.`,
-        )
-      }
-
-      // log unban
-      const embedType = createEmbedType(
-        'BAN REMOVED',
-        `<@${user}>`,
-        65280,
-        [
-          {
-            name: 'Reason',
-            value: reason,
-            inline: false,
-          },
-        ],
-        null,
-        moderatorName,
-      )
-      await logStrike('general', embedType)
-      await sendDm(user, moderationMessages.banLiftedDm({ reason }))
+      await COMMAND_HANDLERS.MODERATION.REMOVE_BAN({
+        userId: user,
+        blame: moderatorName,
+        reason,
+      })
 
       await interaction.editReply(
         `User ${member?.user ?? username} unbanned - reason: ${reason}`,
       )
     } catch (err: any) {
       console.error(err)
+      if (err instanceof RemoveBanError) {
+        const user = interaction.options.getString('user', true)
+        let member = null
+        try {
+          member = await interaction.guild?.members.fetch(user)
+        } catch {}
+        const username = member?.displayName ?? user
+        await interaction.editReply(
+          `User ${username} can not be found with a valid ban to remove.`,
+        )
+        return
+      }
+      await interaction.editReply('Failed to remove ban.')
     }
   },
 }

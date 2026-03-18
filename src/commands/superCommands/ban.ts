@@ -67,7 +67,7 @@ export default {
           option
             .setName('reason')
             .setDescription('The reason to unban this user from the queue')
-            .setRequired(false)
+            .setRequired(true)
             .setMaxLength(500),
         ),
     )
