@@ -2,6 +2,7 @@ import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import type { GuildMember, User } from 'discord.js'
 import type { Bans, Strikes } from 'psqlDB'
 import { COMMAND_HANDLERS } from '../../../command-handlers'
+import { CreateBanError } from '../../../command-handlers/moderation/createBan'
 import { UpdateBanError } from '../../../command-handlers/moderation/updateBan'
 import { client, getGuild } from '../../../client'
 import { moderationMessages } from '../../../config/moderationMessages'
@@ -1190,62 +1191,28 @@ moderationRouter.openapi(
     const body = c.req.valid('json')
 
     try {
-      const reason = body.reason.trim()
-      const expiryTime =
-        body.length === 0
-          ? null
-          : new Date(Date.now() + body.length * 24 * 60 * 60 * 1000)
-      const inserted = await pool.query<BanRow>(
-        `
-          INSERT INTO bans (user_id, reason, allowed_queue_ids, expires_at, related_strike_ids)
-          VALUES ($1, $2, $3, $4, $5)
-          ON CONFLICT (user_id) DO NOTHING
-          RETURNING *
-        `,
-        [body.user_id, reason, [], expiryTime, []],
-      )
-
-      if (inserted.rowCount === 0) {
-        const existingBan = await fetchActiveBanByUserId(body.user_id)
-        const expiryText = existingBan?.expires_at
-          ? ` until ${serializeDate(existingBan.expires_at)}`
-          : ''
-
-        return c.json({ error: `User already banned${expiryText}.` }, 409)
-      }
-
       const blame = (await resolveDiscordUser(body.banned_by_id)).username
-      const user = await resolveDiscordUser(body.user_id)
-      const embed = createEmbedType(
-        body.length === 0
-          ? `Permanent ban added for ${user.display_name}.`
-          : `Ban added for ${user.display_name} for ${body.length} days.`,
-        '',
-        '#ff0000',
-        [
-          { name: 'Reason', value: reason, inline: true },
-          {
-            name: 'Expires',
-            value: serializeDate(expiryTime) ?? 'Never',
-            inline: true,
-          },
-        ],
-        null,
+      const { ban } = await COMMAND_HANDLERS.MODERATION.CREATE_BAN({
+        userId: body.user_id,
         blame,
-      )
-      await logStrike('general', embed)
-      await sendDm(
-        body.user_id,
-        moderationMessages.banDm({ reason, expiresAt: expiryTime }),
-      )
+        length: body.length,
+        reason: body.reason,
+      })
 
       return c.json(
         {
-          ban: serializeBan(inserted.rows[0])!,
+          ban: serializeBan(ban)!,
         },
         200,
       )
     } catch (error) {
+      if (error instanceof CreateBanError) {
+        const expiryText = error.expiresAt
+          ? ` until ${serializeDate(error.expiresAt)}`
+          : ''
+        return c.json({ error: `User already banned${expiryText}.` }, 409)
+      }
+
       console.error('Error creating ban:', error)
       return c.json({ error: 'Internal server error' }, 500)
     }

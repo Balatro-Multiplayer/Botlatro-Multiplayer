@@ -1,99 +1,28 @@
 import { ChatInputCommandInteraction } from 'discord.js'
-import { moderationMessages } from '../../../config/moderationMessages'
-import { pool } from '../../../db'
-import { createEmbedType, logStrike } from '../../../utils/logCommandUse'
-import { sendDm } from '../../../utils/sendDm'
+import { COMMAND_HANDLERS } from '../../../command-handlers'
+import { CreateBanError } from '../../../command-handlers/moderation/createBan'
 import { formatDiscordDate, getGuildDisplayName } from './moderationLogUtils'
-
-type ExistingBanRow = {
-  expires_at: Date | null
-}
 
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
+    const user = interaction.options.getUser('user', true)
+
     try {
       await interaction.deferReply()
-      const user = interaction.options.getUser('user', true)
       const reason = interaction.options.getString('reason', true).trim()
       const timespan = interaction.options.getNumber('length', true)
-      const expiryTime =
-        timespan === 0
-          ? null
-          : new Date(Date.now() + timespan * 24 * 60 * 60 * 1000)
       const moderatorName = await getGuildDisplayName(
         interaction.guild,
         interaction.user.id,
         interaction.user.username,
       )
 
-      // Ban user in db
-      const res = await pool.query(
-        `
-        INSERT INTO "bans" (user_id, reason, allowed_queue_ids, expires_at, related_strike_ids) 
-        VALUES ($1, $2, $3, $4, $5)
-        ON CONFLICT (user_id) DO NOTHING
-        RETURNING expires_at
-      `,
-        [user.id, reason, [], expiryTime, []], // related strikes are not used as its a manual ban, and date is set manually for the same reason. todo: add individual queue ban logic
-      )
-
-      if (res.rowCount === 0) {
-        const existingBan = await pool.query<ExistingBanRow>(
-          `
-          SELECT expires_at
-          FROM "bans"
-          WHERE user_id = $1
-          LIMIT 1
-        `,
-          [user.id],
-        )
-        const existingExpiry = existingBan.rows[0]?.expires_at
-        const expiryText = existingExpiry
-          ? ` until ${formatDiscordDate(existingExpiry)}`
-          : ''
-
-        await interaction.editReply(`User ${user} already banned${expiryText}.`)
-        return
-      }
-
-      // log ban
-      const embedType = createEmbedType(
-        'BAN ADDED',
-        `<@${user.id}>`,
-        16711680,
-        [
-          {
-            name: 'Length',
-            value:
-              timespan === 0
-                ? 'Permanent'
-                : `${timespan} day${timespan === 1 ? '' : 's'}`,
-            inline: true,
-          },
-          {
-            name: 'Expires',
-            value: formatDiscordDate(expiryTime),
-            inline: true,
-          },
-          {
-            name: 'Reason',
-            value: reason,
-            inline: false,
-          },
-          {
-            name: 'Source',
-            value: 'Manual ban',
-            inline: true,
-          },
-        ],
-        null,
-        moderatorName,
-      )
-      await logStrike('general', embedType)
-      await sendDm(
-        user.id,
-        moderationMessages.banDm({ reason, expiresAt: expiryTime }),
-      )
+      await COMMAND_HANDLERS.MODERATION.CREATE_BAN({
+        userId: user.id,
+        blame: moderatorName,
+        length: timespan,
+        reason,
+      })
 
       await interaction.editReply(
         timespan === 0
@@ -102,6 +31,13 @@ export default {
       )
     } catch (err: any) {
       console.error(err)
+      if (err instanceof CreateBanError) {
+        const expiryText = err.expiresAt
+          ? ` until ${formatDiscordDate(err.expiresAt)}`
+          : ''
+        await interaction.editReply(`User ${user} already banned${expiryText}.`)
+        return
+      }
       await interaction.editReply('Failed to ban user.')
     }
   },

@@ -1,6 +1,7 @@
 import { deleteQueueRole } from 'utils/queryDB'
 import { addQueueRole } from './addQueueRole'
 import { cancelMatch } from './cancelMatch'
+import { createBan } from './createBan'
 import {
   lockAllQueuesHandler,
   lockQueue,
@@ -13,6 +14,7 @@ import { updateBan } from './updateBan'
 
 export const MODERATION_COMMAND_HANDLERS = {
   CANCEL_MATCH: cancelMatch,
+  CREATE_BAN: createBan,
   LOCK_QUEUE: lockQueue,
   UNLOCK_QUEUE: unlockQueue,
   LOCK_ALL_QUEUES: lockAllQueuesHandler,
