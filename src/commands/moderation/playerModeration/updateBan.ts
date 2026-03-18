@@ -1,5 +1,6 @@
 import { ChatInputCommandInteraction } from 'discord.js'
-import { UpdateBanError, updateBan } from '../../../utils/updateBan'
+import { COMMAND_HANDLERS } from '../../../command-handlers'
+import { UpdateBanError } from '../../../command-handlers/moderation/updateBan'
 import { formatDiscordDate, getGuildDisplayName } from './moderationLogUtils'
 
 export default {
@@ -23,7 +24,7 @@ export default {
         interaction.user.id,
         interaction.user.username,
       )
-      const { updatedBan } = await updateBan({
+      const { updatedBan } = await COMMAND_HANDLERS.MODERATION.UPDATE_BAN({
         userId,
         blame: moderatorName,
         length: nextLength,

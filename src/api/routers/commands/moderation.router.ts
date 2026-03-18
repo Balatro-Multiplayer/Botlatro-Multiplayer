@@ -1,13 +1,14 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import type { GuildMember, User } from 'discord.js'
 import type { Bans, Strikes } from 'psqlDB'
+import { COMMAND_HANDLERS } from '../../../command-handlers'
+import { UpdateBanError } from '../../../command-handlers/moderation/updateBan'
 import { client, getGuild } from '../../../client'
 import { moderationMessages } from '../../../config/moderationMessages'
 import { pool } from '../../../db'
 import { calculateExpiryDate } from '../../../utils/calculateExpiryDate'
 import { createEmbedType, logStrike } from '../../../utils/logCommandUse'
 import { sendDm } from '../../../utils/sendDm'
-import { UpdateBanError, updateBan } from '../../../utils/updateBan'
 
 const moderationRouter = new OpenAPIHono()
 
@@ -1407,7 +1408,7 @@ moderationRouter.openapi(
 
     try {
       const blame = (await resolveDiscordUser(body.updated_by_id)).username
-      const { updatedBan } = await updateBan({
+      const { updatedBan } = await COMMAND_HANDLERS.MODERATION.UPDATE_BAN({
         userId: user_id,
         blame,
         length: body.length,

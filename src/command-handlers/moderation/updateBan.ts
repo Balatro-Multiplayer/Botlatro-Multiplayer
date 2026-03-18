@@ -1,9 +1,9 @@
 import type { Bans } from 'psqlDB'
-import { client } from '../client'
-import { moderationMessages } from '../config/moderationMessages'
-import { pool } from '../db'
-import { createEmbedType, logStrike } from './logCommandUse'
-import { sendDm } from './sendDm'
+import { client } from '../../client'
+import { moderationMessages } from '../../config/moderationMessages'
+import { pool } from '../../db'
+import { createEmbedType, logStrike } from '../../utils/logCommandUse'
+import { sendDm } from '../../utils/sendDm'
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000
 
