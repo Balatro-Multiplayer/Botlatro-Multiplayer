@@ -10,6 +10,7 @@ import { BACKGROUNDS, getBackgroundById } from '../../utils/backgroundManager'
 import { Canvas } from 'skia-canvas'
 import path from 'path'
 import { loadImage } from 'skia-canvas'
+import { env } from '../../env'
 
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
@@ -60,7 +61,7 @@ export async function generateBackgroundPreview(
   ctx.scale(scale, scale)
   ctx.imageSmoothingEnabled = false
 
-  const bgDir = process.env.ASSETS_DIR || path.join(process.cwd(), 'assets')
+  const bgDir = env.ASSETS_DIR
 
   // Draw background
   const bg = await loadImage(path.join(bgDir, 'backgrounds', backgroundFilename))

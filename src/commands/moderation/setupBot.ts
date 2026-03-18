@@ -8,6 +8,7 @@ import {
 } from 'discord.js'
 import { pool } from '../../db'
 import { client } from '../../client'
+import { env } from '../../env'
 
 class Settings {
   qId: string
@@ -108,8 +109,8 @@ class Settings {
     guild
       ? (this.guild = guild)
       : (this.guild =
-          client.guilds.cache.get(process.env.GUILD_ID!) ??
-          (await client.guilds.fetch(process.env.GUILD_ID!)))
+          client.guilds.cache.get(env.GUILD_ID) ??
+          (await client.guilds.fetch(env.GUILD_ID)))
   }
 }
 
@@ -328,8 +329,8 @@ export default {
 
     // get guild object
     // const guild =
-    //   client.guilds.cache.get(process.env.GUILD_ID!) ??
-    //   (await client.guilds.fetch(process.env.GUILD_ID!))
+    //   client.guilds.cache.get(env.GUILD_ID) ??
+    //   (await client.guilds.fetch(env.GUILD_ID))
 
     // // old category id
     // const res = await pool.query(

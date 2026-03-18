@@ -18,6 +18,7 @@ import {
   TextDisplayBuilder,
 } from 'discord.js'
 import { pool } from '../db'
+import { env } from '../env'
 import {
   createMatch,
   joinQueues,
@@ -1729,8 +1730,8 @@ export default {
 
           const client = interaction.client
           const guild =
-            client.guilds.cache.get(process.env.GUILD_ID!) ??
-            (await client.guilds.fetch(process.env.GUILD_ID!))
+            client.guilds.cache.get(env.GUILD_ID) ??
+            (await client.guilds.fetch(env.GUILD_ID))
 
           const member = await guild.members.fetch(memberId)
           if (!member) {

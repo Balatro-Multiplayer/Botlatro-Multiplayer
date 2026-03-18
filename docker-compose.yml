@@ -48,9 +48,11 @@ services:
   deploy-commands:
     build: .
     environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432/nkqueue
       DISCORD_TOKEN: ${DISCORD_TOKEN}
       CLIENT_ID: ${CLIENT_ID}
       GUILD_ID: ${GUILD_ID}
+      API_TOKEN: ${API_TOKEN}
     depends_on:
       seed-settings:
         condition: service_completed_successfully
