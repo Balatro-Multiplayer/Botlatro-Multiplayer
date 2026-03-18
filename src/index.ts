@@ -8,16 +8,14 @@ import {
 } from './utils/cronJobs'
 import { app } from './api/app'
 import { client } from './client'
+import { env } from './env'
 
 import fs from 'node:fs'
 import path from 'node:path'
-import * as dotenv from 'dotenv'
 import { setupClientCommands } from 'setupCommands'
 import { serve } from '@hono/node-server'
 import { preloadBackgrounds } from './utils/backgroundManager'
 import { attachDiscordRateLimitLogging } from './utils/discordRateLimitLogger'
-
-dotenv.config()
 
 process.on('uncaughtException', (error: Error) => {
   console.error('[UNCAUGHT EXCEPTION]', error)
@@ -35,7 +33,7 @@ process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
 setupClientCommands(client)
 attachDiscordRateLimitLogging(client.rest, 'bot')
 
-const token = process.env.DISCORD_TOKEN || ''
+const token = env.DISCORD_TOKEN
 
 client.removeAllListeners()
 const eventsPath = path.join(__dirname, 'events')
@@ -69,7 +67,7 @@ void client.login(token).catch((error) => {
 })
 setupClientCommands(client, false)
 void runDecayTick().catch((error) => console.error('[DECAY TICK ERROR]', error))
-if (process.env.NODE_ENV !== 'development') {
+if (env.NODE_ENV !== 'development') {
   void replenishReservePoolCronJob().catch((error) =>
     console.error('[RESERVE POOL CREATION ERROR]', error),
   )
@@ -84,7 +82,7 @@ void deleteExpiredStrikesCronJob().catch((error) =>
 )
 
 // Start API server
-const port = Number(process.env.PORT) || 4931
+const port = env.PORT
 console.log(`Starting API server on port ${port}`)
 
 serve({

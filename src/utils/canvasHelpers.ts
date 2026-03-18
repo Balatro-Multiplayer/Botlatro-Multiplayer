@@ -7,9 +7,10 @@ import {
 import { StatsCanvasPlayerData } from 'psqlDB'
 import { client, getGuild } from 'client'
 import path from 'path'
+import { env } from '../env'
 
-const bgDir = process.env.ASSETS_DIR || path.join(process.cwd(), 'assets')
-const fontDir = process.env.FONTS_DIR || path.join(process.cwd(), 'fonts')
+const bgDir = env.ASSETS_DIR
+const fontDir = env.FONTS_DIR
 
 const font = 'm6x11'
 

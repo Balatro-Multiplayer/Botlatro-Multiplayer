@@ -16,6 +16,7 @@ import {
 } from 'psqlDB'
 import { client, getGuild } from '../client'
 import { QueryResult } from 'pg'
+import { env } from '../env'
 import { endMatch } from './matchHelpers'
 
 // Get the helper role
@@ -1978,8 +1979,8 @@ export async function getStatsCanvasUserData(
       if (queueRoleRes.rowCount && queueRoleRes.rowCount > 0) {
         const queueRole = queueRoleRes.rows[0]
         const guild =
-          client.guilds.cache.get(process.env.GUILD_ID!) ??
-          (await client.guilds.fetch(process.env.GUILD_ID!))
+          client.guilds.cache.get(env.GUILD_ID) ??
+          (await client.guilds.fetch(env.GUILD_ID))
         const role =
           guild.roles.cache.get(queueRole.role_id) ||
           (await guild.roles.fetch(queueRole.role_id))
@@ -2008,8 +2009,8 @@ export async function getStatsCanvasUserData(
       if (nextRankRes.rowCount && nextRankRes.rowCount > 0) {
         const nextRank = nextRankRes.rows[0]
         const guild =
-          client.guilds.cache.get(process.env.GUILD_ID!) ??
-          (await client.guilds.fetch(process.env.GUILD_ID!))
+          client.guilds.cache.get(env.GUILD_ID) ??
+          (await client.guilds.fetch(env.GUILD_ID))
         const nextRole =
           guild.roles.cache.get(nextRank.role_id) ||
           (await guild.roles.fetch(nextRank.role_id))

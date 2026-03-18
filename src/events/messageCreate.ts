@@ -198,7 +198,7 @@ export default {
 
       // // THIS IS FOR PROD, USE ABOVE BLOCK FOR DEV
       // Unused now
-      // const logDir = process.env.LOG_DIR || path.join(process.cwd(), 'logs')
+      // const logDir = env.LOG_DIR
       // fs.mkdirSync(logDir, { recursive: true })
       //
       // // sanitize channel name for filesystem
