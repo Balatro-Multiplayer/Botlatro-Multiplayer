@@ -87,7 +87,9 @@ export abstract class Embed {
         break
     }
     if (!channelId) {
-      console.warn(`[logCommand] missing channel id for logType=${this.logType}`)
+      console.warn(
+        `[logCommand] missing channel id for logType=${this.logType}`,
+      )
       return
     }
 

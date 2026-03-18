@@ -73,12 +73,12 @@ function formatCurrency(value: number) {
   return Number.isInteger(value) ? value.toString() : value.toFixed(2)
 }
 
-function formatFlagLine(
-  flag: z.infer<typeof cheatFlagSchema>,
-  logUrl: string,
-) {
+function formatFlagLine(flag: z.infer<typeof cheatFlagSchema>, logUrl: string) {
   const offenders = flag.offenders
-    .map((offender) => `${offender.player_name} $${formatCurrency(offender.amount)}`)
+    .map(
+      (offender) =>
+        `${offender.player_name} $${formatCurrency(offender.amount)}`,
+    )
     .join(', ')
   const start = flag.start_date
     ? ` at ${new Date(flag.start_date).toISOString()}`
@@ -95,10 +95,7 @@ monitoringRouter.openapi(sendCheatWarningRoute, async (c) => {
     const channel = await client.channels.fetch(CHEAT_WARNING_CHANNEL_ID)
 
     if (!channel?.isTextBased() || !('send' in channel)) {
-      return c.json(
-        { error: 'Cheat warning channel unavailable' },
-        500,
-      )
+      return c.json({ error: 'Cheat warning channel unavailable' }, 500)
     }
 
     const content = [

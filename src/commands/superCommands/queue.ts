@@ -44,9 +44,7 @@ export default {
         .setDescription('Locks all queues and removes everyone from them.'),
     )
     .addSubcommand((sub) =>
-      sub
-        .setName('unlock-all')
-        .setDescription('Unlocks all queues.'),
+      sub.setName('unlock-all').setDescription('Unlocks all queues.'),
     ),
   async execute(interaction: ChatInputCommandInteraction) {
     if (interaction.options.getSubcommand() === 'lock') {

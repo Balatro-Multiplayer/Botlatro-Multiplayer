@@ -13,6 +13,7 @@ client.commands = new Collection()
 
 export const getGuild = async (): Promise<Guild> => {
   return (
-    client.guilds.cache.get(env.GUILD_ID) ?? (await client.guilds.fetch(env.GUILD_ID))
+    client.guilds.cache.get(env.GUILD_ID) ??
+    (await client.guilds.fetch(env.GUILD_ID))
   )
 }

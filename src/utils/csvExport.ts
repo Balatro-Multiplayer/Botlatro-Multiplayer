@@ -105,7 +105,9 @@ export async function exportSeasonData(): Promise<{
       LEFT JOIN queues q ON m.queue_id = q.id
       ORDER BY m.created_at DESC
     `)
-    console.log(`[CSV Export] Fetched ${matchesResult.rows.length} matches in ${Date.now() - matchesStart}ms`)
+    console.log(
+      `[CSV Export] Fetched ${matchesResult.rows.length} matches in ${Date.now() - matchesStart}ms`,
+    )
 
     // Fetch match users with display names
     console.log('[CSV Export] Fetching match users data...')
@@ -121,12 +123,16 @@ export async function exportSeasonData(): Promise<{
       LEFT JOIN users u ON mu.user_id = u.user_id
       ORDER BY mu.match_id, mu.team, mu.user_id
     `)
-    console.log(`[CSV Export] Fetched ${matchUsersResult.rows.length} match users in ${Date.now() - matchUsersStart}ms`)
+    console.log(
+      `[CSV Export] Fetched ${matchUsersResult.rows.length} match users in ${Date.now() - matchUsersStart}ms`,
+    )
 
     // Fetch queue users with display names and queue names (stats calculated separately for performance)
     console.log('[CSV Export] Fetching queue users data...')
     const queueUsersStart = Date.now()
-    const queueUsersResult = await pool.query<Omit<QueueUserData, 'wins' | 'losses' | 'games_played'>>(`
+    const queueUsersResult = await pool.query<
+      Omit<QueueUserData, 'wins' | 'losses' | 'games_played'>
+    >(`
       SELECT
         qu.user_id,
         u.display_name,
@@ -143,7 +149,9 @@ export async function exportSeasonData(): Promise<{
       LEFT JOIN queues q ON qu.queue_id = q.id
       ORDER BY qu.queue_id, qu.elo DESC
     `)
-    console.log(`[CSV Export] Fetched ${queueUsersResult.rows.length} queue users in ${Date.now() - queueUsersStart}ms`)
+    console.log(
+      `[CSV Export] Fetched ${queueUsersResult.rows.length} queue users in ${Date.now() - queueUsersStart}ms`,
+    )
 
     // Calculate stats for each queue user (more efficient than a complex join)
     console.log('[CSV Export] Calculating user statistics...')
@@ -167,21 +175,32 @@ export async function exportSeasonData(): Promise<{
     `)
 
     // Create a lookup map for stats
-    const statsMap = new Map<string, { wins: number; losses: number; games_played: number }>()
+    const statsMap = new Map<
+      string,
+      { wins: number; losses: number; games_played: number }
+    >()
     for (const stat of statsResult.rows) {
       statsMap.set(`${stat.user_id}_${stat.queue_id}`, {
         wins: stat.wins,
         losses: stat.losses,
-        games_played: stat.games_played
+        games_played: stat.games_played,
       })
     }
 
     // Merge stats with queue users
-    const queueUsersWithStats: QueueUserData[] = queueUsersResult.rows.map(user => {
-      const stats = statsMap.get(`${user.user_id}_${user.queue_id}`) || { wins: 0, losses: 0, games_played: 0 }
-      return { ...user, ...stats }
-    })
-    console.log(`[CSV Export] Calculated statistics in ${Date.now() - statsStart}ms`)
+    const queueUsersWithStats: QueueUserData[] = queueUsersResult.rows.map(
+      (user) => {
+        const stats = statsMap.get(`${user.user_id}_${user.queue_id}`) || {
+          wins: 0,
+          losses: 0,
+          games_played: 0,
+        }
+        return { ...user, ...stats }
+      },
+    )
+    console.log(
+      `[CSV Export] Calculated statistics in ${Date.now() - statsStart}ms`,
+    )
 
     // Generate CSV strings
     console.log('[CSV Export] Generating CSV files...')
@@ -223,12 +242,17 @@ export async function exportSeasonData(): Promise<{
       'volatility',
       'queue_join_time',
     ])
-    console.log(`[CSV Export] Generated CSV files in ${Date.now() - csvStart}ms`)
+    console.log(
+      `[CSV Export] Generated CSV files in ${Date.now() - csvStart}ms`,
+    )
 
     // Generate summary statistics
     const totalMatches = matchesResult.rows.length
     const totalQueueUsers = queueUsersWithStats.length
-    const totalGamesPlayed = queueUsersWithStats.reduce((sum, user) => sum + user.games_played, 0)
+    const totalGamesPlayed = queueUsersWithStats.reduce(
+      (sum, user) => sum + user.games_played,
+      0,
+    )
 
     const summary = [
       'Season Summary',

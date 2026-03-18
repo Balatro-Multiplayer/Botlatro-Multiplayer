@@ -10,7 +10,9 @@ const combinedEmoteCache = new Map<string, string>()
  * "Red Deck" with no emote_name => "red"
  */
 export function getDeckEmoteName(deck: Decks): string {
-  return deck.emote_name ?? deck.deck_name.replace(/\s*Deck$/i, '').toLowerCase()
+  return (
+    deck.emote_name ?? deck.deck_name.replace(/\s*Deck$/i, '').toLowerCase()
+  )
 }
 
 /**
@@ -18,7 +20,9 @@ export function getDeckEmoteName(deck: Decks): string {
  * "White Stake" with no emote_name => "white"
  */
 export function getStakeEmoteName(stake: Stakes): string {
-  return stake.emote_name ?? stake.stake_name.replace(/\s*Stake$/i, '').toLowerCase()
+  return (
+    stake.emote_name ?? stake.stake_name.replace(/\s*Stake$/i, '').toLowerCase()
+  )
 }
 
 /**
@@ -76,7 +80,10 @@ export function getCombinedOrFallback(
   deckEmote: string,
   stakeEmote: string,
 ): string {
-  return getCombinedEmote(deckEmoteName, stakeEmoteName) ?? `${deckEmote} ${stakeEmote}`
+  return (
+    getCombinedEmote(deckEmoteName, stakeEmoteName) ??
+    `${deckEmote} ${stakeEmote}`
+  )
 }
 
 /**

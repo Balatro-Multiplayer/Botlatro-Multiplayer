@@ -216,7 +216,9 @@ async function importMatchHistory(
     if (m.queue_channel !== rankedChannelId) return false // Only from ranked channel
     const matchDate = new Date(m.time)
     if (matchDate < SEASON_START_DATE) return false // Only Season 4+
-    const hasNonZeroMmrChange = m.teams.flat().some((player) => player.mmr_change !== 0)
+    const hasNonZeroMmrChange = m.teams
+      .flat()
+      .some((player) => player.mmr_change !== 0)
     if (!hasNonZeroMmrChange) return false // Skip matches where all players have 0 MMR change
     return true
   })

@@ -1061,7 +1061,12 @@ export async function userInMatch(userId: string): Promise<boolean> {
 
 // Get active match counts grouped by queue, matching the select menu filter and order
 export async function getActiveMatchCountsByQueue(): Promise<
-  { queue_id: number; queue_name: string; active_matches: number; players_in_queue: number }[]
+  {
+    queue_id: number
+    queue_name: string
+    active_matches: number
+    players_in_queue: number
+  }[]
 > {
   const res = await pool.query(
     `SELECT q.id AS queue_id, q.queue_name,
@@ -1763,7 +1768,9 @@ export async function getStatsCanvasUserData(
   })
 
   // Calculate percentiles for each stat using CTEs
-  const playerStatsTable = isHistorical ? 'queue_users_seasons qus' : 'queue_users qu'
+  const playerStatsTable = isHistorical
+    ? 'queue_users_seasons qus'
+    : 'queue_users qu'
   const playerAlias = isHistorical ? 'qus' : 'qu'
   const seasonJoinFilter = season !== undefined ? 'AND m.season = $6' : ''
   const seasonWhereFilter = isHistorical ? 'AND qus.season = $6' : ''

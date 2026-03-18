@@ -187,7 +187,11 @@ export async function handleVoting(
 
       // Ensure vote field exists
       if (!fields[embedFieldIndex]) {
-        fields[embedFieldIndex] = { name: `${voteType}:`, value: '-', inline: false }
+        fields[embedFieldIndex] = {
+          name: `${voteType}:`,
+          value: '-',
+          inline: false,
+        }
       }
       fields[embedFieldIndex] = {
         ...fields[embedFieldIndex],
@@ -212,7 +216,11 @@ export async function handleVoting(
 
     // Update embed for display
     if (!fields[embedFieldIndex]) {
-      fields[embedFieldIndex] = { name: `${voteType}:`, value: '', inline: false }
+      fields[embedFieldIndex] = {
+        name: `${voteType}:`,
+        value: '',
+        inline: false,
+      }
     }
     fields[embedFieldIndex] = {
       ...fields[embedFieldIndex],

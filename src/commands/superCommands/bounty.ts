@@ -88,9 +88,7 @@ export default {
     )
 
     .addSubcommand((sub) =>
-      sub
-        .setName('list')
-        .setDescription('[BOUNTY HELPER] List all bounties'),
+      sub.setName('list').setDescription('[BOUNTY HELPER] List all bounties'),
     )
 
     .addSubcommand((sub) =>

@@ -64,7 +64,9 @@ export async function generateBackgroundPreview(
   const bgDir = env.ASSETS_DIR
 
   // Draw background
-  const bg = await loadImage(path.join(bgDir, 'backgrounds', backgroundFilename))
+  const bg = await loadImage(
+    path.join(bgDir, 'backgrounds', backgroundFilename),
+  )
   ctx.drawImage(bg, 0, 0)
 
   const buffer = await canvas.toBuffer('png', { quality: 1.0, density: scale })

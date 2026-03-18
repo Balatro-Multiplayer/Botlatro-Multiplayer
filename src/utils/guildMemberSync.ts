@@ -4,10 +4,14 @@ import { getGuild } from '../client'
 
 export async function syncAllGuildMembers() {
   const guild = await getGuild()
-  console.log(`[GUILD SYNC] Fetching all members from guild (${guild.memberCount} expected)...`)
+  console.log(
+    `[GUILD SYNC] Fetching all members from guild (${guild.memberCount} expected)...`,
+  )
 
   const members = await guild.members.fetch()
-  console.log(`[GUILD SYNC] Fetched ${members.size} members, upserting to DB...`)
+  console.log(
+    `[GUILD SYNC] Fetched ${members.size} members, upserting to DB...`,
+  )
 
   const batchSize = 500
   const memberArray = [...members.values()]
@@ -28,7 +32,10 @@ export async function syncAllGuildMembers() {
 }
 
 export async function upsertGuildMember(member: GuildMember) {
-  const avatarUrl = member.user.displayAvatarURL({ extension: 'png', size: 128 })
+  const avatarUrl = member.user.displayAvatarURL({
+    extension: 'png',
+    size: 128,
+  })
   await pool.query(
     `INSERT INTO guild_members (user_id, username, display_name, avatar_url)
      VALUES ($1, $2, $3, $4)
@@ -49,7 +56,9 @@ export async function upsertGuildMembers(members: GuildMember[]) {
   for (let i = 0; i < members.length; i++) {
     const m = members[i]
     const offset = i * 4
-    values.push(`($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4})`)
+    values.push(
+      `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4})`,
+    )
     params.push(
       m.id,
       m.user.username,

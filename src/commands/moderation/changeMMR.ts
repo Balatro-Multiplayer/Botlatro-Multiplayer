@@ -9,10 +9,7 @@ import {
   updatePlayerElo,
 } from '../../utils/queryDB'
 import { pool } from '../../db'
-import {
-  setUserQueueRole,
-  updateAllLeaderboardRoles,
-} from 'utils/queueHelpers'
+import { setUserQueueRole, updateAllLeaderboardRoles } from 'utils/queueHelpers'
 import { getGuild } from '../../client'
 
 export default {

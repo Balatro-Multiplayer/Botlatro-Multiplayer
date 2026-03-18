@@ -33,7 +33,8 @@ async function backfillMmrAfter() {
     while (processedCount < totalRecords) {
       try {
         // Calculate mmr_after using window function and update in a single query
-        const result = await pool.query(`
+        const result = await pool.query(
+          `
           WITH user_current_elo AS (
             SELECT user_id, elo, queue_id
             FROM queue_users
@@ -70,13 +71,17 @@ async function backfillMmrAfter() {
           FROM calculated_mmr cm
           WHERE mu.match_id = cm.match_id AND mu.user_id = cm.user_id
           RETURNING mu.match_id, mu.user_id
-        `, [batchSize, processedCount])
+        `,
+          [batchSize, processedCount],
+        )
 
         const updatedCount = result.rowCount || 0
         processedCount += updatedCount
 
         const progress = ((processedCount / totalRecords) * 100).toFixed(1)
-        console.log(`Progress: ${processedCount}/${totalRecords} (${progress}%)`)
+        console.log(
+          `Progress: ${processedCount}/${totalRecords} (${progress}%)`,
+        )
 
         // If no rows were updated, we're done
         if (updatedCount === 0) {
@@ -84,7 +89,10 @@ async function backfillMmrAfter() {
         }
       } catch (err) {
         errorCount++
-        console.error(`Error processing batch starting at ${processedCount}:`, err)
+        console.error(
+          `Error processing batch starting at ${processedCount}:`,
+          err,
+        )
         // Continue to next batch even if this one failed
         processedCount += batchSize
       }

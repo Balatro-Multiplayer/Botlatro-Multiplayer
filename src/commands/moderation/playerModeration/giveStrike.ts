@@ -1,7 +1,4 @@
-import {
-  ChatInputCommandInteraction,
-  GuildChannel,
-} from 'discord.js'
+import { ChatInputCommandInteraction, GuildChannel } from 'discord.js'
 import { moderationMessages } from '../../../config/moderationMessages'
 import { calculateExpiryDate } from 'utils/calculateExpiryDate'
 import { strikeUtils } from 'utils/queryDB'

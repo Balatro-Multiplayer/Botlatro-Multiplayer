@@ -7,7 +7,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d nkqueue || exit 1"]
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d nkqueue || exit 1']
       interval: 5s
       timeout: 5s
       retries: 20
@@ -24,7 +24,7 @@ services:
       db:
         condition: service_healthy
     command: npx node-pg-migrate up
-    restart: "no"
+    restart: 'no'
 
   seed-settings:
     image: postgres:16
@@ -33,7 +33,7 @@ services:
         condition: service_completed_successfully
     environment:
       PGPASSWORD: postgres
-    restart: "no"
+    restart: 'no'
     command: >
       bash -lc "
       psql -h db -U postgres -d nkqueue -v ON_ERROR_STOP=1 -c
@@ -57,7 +57,7 @@ services:
       seed-settings:
         condition: service_completed_successfully
     command: node dist/scripts/deploy-commands.js
-    restart: "no"
+    restart: 'no'
 
   bot:
     build: .
@@ -77,7 +77,7 @@ services:
     volumes:
       - botlogs:/app/data/logs
     ports:
-      - "4931:4931"
+      - '4931:4931'
     restart: unless-stopped
     deploy:
       resources:

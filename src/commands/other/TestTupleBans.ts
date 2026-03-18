@@ -19,7 +19,10 @@ export default {
       await tupleGen.init()
       const tupleBans = tupleGen.getTupleBans()
       const output = tupleBans
-        .map((tuple) => tuple.combinedEmote ?? `${tuple.deckEmoji} - ${tuple.stakeEmoji}`)
+        .map(
+          (tuple) =>
+            tuple.combinedEmote ?? `${tuple.deckEmoji} - ${tuple.stakeEmoji}`,
+        )
         .join('\n')
       await interaction.editReply(`tuples generated: \n${output}`)
     } catch (err: any) {

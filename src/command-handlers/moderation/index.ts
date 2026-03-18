@@ -1,7 +1,12 @@
 import { deleteQueueRole } from 'utils/queryDB'
 import { addQueueRole } from './addQueueRole'
 import { cancelMatch } from './cancelMatch'
-import { lockAllQueuesHandler, lockQueue, unlockAllQueuesHandler, unlockQueue } from './queueLock'
+import {
+  lockAllQueuesHandler,
+  lockQueue,
+  unlockAllQueuesHandler,
+  unlockQueue,
+} from './queueLock'
 import { addLeaderboardRole } from './addLeaderboardRole'
 import { editQueueRole } from './editQueueRole'
 

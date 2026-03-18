@@ -1156,10 +1156,10 @@ export default {
             try {
               if (interaction.message && !log) {
                 await interaction.update({
-                    content: 'The match has been cancelled.',
-                    embeds: [],
-                    // components: [],
-                  })
+                  content: 'The match has been cancelled.',
+                  embeds: [],
+                  // components: [],
+                })
                 usedMessageUpdate = true
               }
 

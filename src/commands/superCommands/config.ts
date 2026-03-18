@@ -52,7 +52,9 @@ export default {
     .addSubcommand((sub) =>
       sub
         .setName('toggle-dms')
-        .setDescription('Set if you would like to be sent DMs by the bot when you get into a match'),
+        .setDescription(
+          'Set if you would like to be sent DMs by the bot when you get into a match',
+        ),
     ),
 
   async execute(interaction: ChatInputCommandInteraction) {

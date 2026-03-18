@@ -1,4 +1,9 @@
-import { ChannelType, ChatInputCommandInteraction, MessageFlags, PermissionFlagsBits } from 'discord.js'
+import {
+  ChannelType,
+  ChatInputCommandInteraction,
+  MessageFlags,
+  PermissionFlagsBits,
+} from 'discord.js'
 import { addReserveChannel } from '../../utils/queryDB'
 import { pool } from '../../db'
 

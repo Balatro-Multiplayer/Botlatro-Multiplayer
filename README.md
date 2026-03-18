@@ -1,8 +1,8 @@
 <img src="/logo.png" alt="" height="100">
 
-# Botlatro Multiplayer 
+# Botlatro Multiplayer
 
-Built as a replacement for the NeatQueue discord bot, bespoke for the balatro multiplayer server. 
+Built as a replacement for the NeatQueue discord bot, bespoke for the balatro multiplayer server.
 
 ## Overview
 

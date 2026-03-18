@@ -405,8 +405,12 @@ statsRouter.openapi(
   }),
   async (c) => {
     const { user_id, queue_id } = c.req.valid('param')
-    const { limit, start_date, end_date, season: seasonParam } =
-      c.req.valid('query')
+    const {
+      limit,
+      start_date,
+      end_date,
+      season: seasonParam,
+    } = c.req.valid('query')
 
     try {
       const season = seasonParam ?? (await getActiveSeason())

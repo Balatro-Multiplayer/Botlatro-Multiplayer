@@ -15,7 +15,8 @@ export default {
       // Check if at least one optional field is provided
       if (mmrThreshold === null && emote === null) {
         await interaction.editReply({
-          content: 'You must provide at least one field to update (mmr-threshold or emote).',
+          content:
+            'You must provide at least one field to update (mmr-threshold or emote).',
         })
         return
       }

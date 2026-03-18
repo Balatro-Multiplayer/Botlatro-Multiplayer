@@ -248,11 +248,15 @@ export default {
     .addSubcommand((sub) =>
       sub
         .setName('reserve-channels')
-        .setDescription('[ADMIN] Pre-create reserve channels for the match pool')
+        .setDescription(
+          '[ADMIN] Pre-create reserve channels for the match pool',
+        )
         .addIntegerOption((option) =>
           option
             .setName('count')
-            .setDescription('Number of reserve channels to create (default: 25)')
+            .setDescription(
+              'Number of reserve channels to create (default: 25)',
+            )
             .setRequired(false)
             .setMinValue(1)
             .setMaxValue(45),
@@ -286,9 +290,7 @@ export default {
         .addStringOption((option) =>
           option
             .setName('emote-name')
-            .setDescription(
-              'Emote name for emote/combo lookups.',
-            )
+            .setDescription('Emote name for emote/combo lookups.')
             .setRequired(false)
             .setMaxLength(100),
         ),

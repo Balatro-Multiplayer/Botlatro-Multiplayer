@@ -1,8 +1,5 @@
 import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
-import {
-  getBountyByName,
-  getBountyCompletions,
-} from '../../../utils/queryDB'
+import { getBountyByName, getBountyCompletions } from '../../../utils/queryDB'
 
 export default {
   async execute(interaction: ChatInputCommandInteraction) {

@@ -10,10 +10,7 @@ export async function automaticUnban(ban: Bans) {
   // remove ban
   const userId = ban.user_id.toString()
   await pool.query(`DELETE FROM "bans" WHERE user_id = $1`, [userId])
-  await sendDm(
-    userId,
-    moderationMessages.banLiftedDm({ expired: true }),
-  )
+  await sendDm(userId, moderationMessages.banLiftedDm({ expired: true }))
 
   const guild = await getGuild()
   const username = (await guild.members.fetch(userId))?.displayName ?? userId

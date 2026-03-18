@@ -357,9 +357,13 @@ export class TupleBans {
     // get the tupleBan object from the chosenDeck and chosenStake object
 
     const deckEmoteName =
-      chosenDeck?.emote_name ?? chosenDeck?.name.replace(/\s*Deck$/i, '').toLowerCase() ?? ''
+      chosenDeck?.emote_name ??
+      chosenDeck?.name.replace(/\s*Deck$/i, '').toLowerCase() ??
+      ''
     const stakeEmoteName =
-      chosenStake?.emote_name ?? chosenStake?.name.replace(/\s*Stake$/i, '').toLowerCase() ?? ''
+      chosenStake?.emote_name ??
+      chosenStake?.name.replace(/\s*Stake$/i, '').toLowerCase() ??
+      ''
     const combinedEmote =
       chosenDeck?.name && chosenStake?.name
         ? getCombinedEmote(deckEmoteName, stakeEmoteName)

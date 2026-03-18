@@ -28,15 +28,18 @@ export async function generateAndStoreHtmlTranscript(
     const base64Transcript = Buffer.from(transcript).toString('base64')
 
     // Store in database
-    await pool.query(
-      `UPDATE matches SET transcript_html = $1 WHERE id = $2`,
-      [base64Transcript, matchId],
-    )
+    await pool.query(`UPDATE matches SET transcript_html = $1 WHERE id = $2`, [
+      base64Transcript,
+      matchId,
+    ])
 
     console.log(`Generated and stored HTML transcript for match ${matchId}`)
     return transcript as string
   } catch (err) {
-    console.error(`Failed to generate HTML transcript for match ${matchId}:`, err)
+    console.error(
+      `Failed to generate HTML transcript for match ${matchId}:`,
+      err,
+    )
     return null
   }
 }

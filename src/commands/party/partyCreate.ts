@@ -1,7 +1,4 @@
-import {
-  ChatInputCommandInteraction,
-  MessageFlags,
-} from 'discord.js'
+import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
 import { partyUtils } from '../../utils/queryDB'
 
 export default {

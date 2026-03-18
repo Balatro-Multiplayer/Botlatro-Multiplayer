@@ -24,10 +24,10 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
-          
+
             # Crash out on error
             set -e
-          
+
             # CD to correct dir
             cd /root/newQueue/Botlatro-Multiplayer
 
