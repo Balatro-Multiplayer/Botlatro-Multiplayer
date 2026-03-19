@@ -12,17 +12,20 @@ export abstract class Embed {
   color: ColorResolvable = '#99A5A5' // grey
   title: string = 'TITLE'
   description: string = ' '
+  footer: { text: string } | null = null
   blame: string = ' '
   logType: string = 'command' // default to a command type log
   id: number | undefined = undefined
 
   // create embed based on instance values
   public createEmbed() {
+    const footer = this.footer ?? { text: `Issued by: ${this.blame}` }
+
     this.embed = new EmbedBuilder()
       .setTitle(this.title) // Title
       .setDescription(this.description) // Description
       .setColor(this.color) // Color
-      .setFooter({ text: `Issued by: ${this.blame}` }) // Footer
+      .setFooter(footer) // Footer
       .setTimestamp()
   }
 
@@ -54,15 +57,23 @@ export abstract class Embed {
   public setTitle(title: string) {
     this.title = title
   }
+  public setDescription(description: string) {
+    this.description = description
+  }
+  public setFooter(footer: { text: string } | null) {
+    this.footer = footer
+  }
   public setBlame(blame: string) {
     this.blame = blame
   }
 
   public setAll(e: EmbedType) {
-    if (e.title) this.setTitle(e.title)
-    if (e.color) this.setColor(e.color)
-    if (e.blame) this.setBlame(e.blame)
-    if (e.fields) this.setFields(e.fields)
+    if (e.title != null) this.setTitle(e.title)
+    if (e.description != null) this.setDescription(e.description)
+    if (e.color != null) this.setColor(e.color)
+    if (e.blame != null) this.setBlame(e.blame)
+    if (e.fields != null) this.setFields(e.fields)
+    if (e.footer !== undefined) this.setFooter(e.footer)
   }
 
   private canSendToChannel(channel: any) {
