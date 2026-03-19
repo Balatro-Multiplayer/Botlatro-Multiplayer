@@ -192,6 +192,32 @@ const removeBanBodySchema = z.object({
   reason: z.string().trim().min(1).max(500),
 })
 
+const cancelPlayerSeasonWinsMatchSchema = z.object({
+  match_id: z.number(),
+  queue_id: z.number(),
+  queue_name: z.string().nullable(),
+  created_at: z.string(),
+  success: z.boolean(),
+  cancelled: z.boolean(),
+  reverted_mmr_changes: z.array(
+    z.object({
+      user_id: z.string(),
+      reverted_change: z.number(),
+    }),
+  ),
+  message: z.string(),
+  error: z.string().nullable(),
+})
+
+const cancelPlayerSeasonWinsResponseSchema = z.object({
+  player_id: z.string(),
+  season: z.number(),
+  matches_found: z.number(),
+  matches_cancelled: z.number(),
+  failures: z.number(),
+  results: z.array(cancelPlayerSeasonWinsMatchSchema),
+})
+
 const guildSearchQuerySchema = z.object({
   q: z
     .string()
@@ -769,6 +795,77 @@ async function serializeGuildMember(
     }),
   }
 }
+
+moderationRouter.openapi(
+  createRoute({
+    method: 'post',
+    path: '/players/{user_id}/cancel-season-wins',
+    description:
+      "Cancel every match the player won in the current active season and revert the applied MMR.",
+    request: {
+      params: userIdParamSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          'application/json': {
+            schema: cancelPlayerSeasonWinsResponseSchema,
+          },
+        },
+        description: 'Current-season wins cancelled.',
+      },
+      500: {
+        content: {
+          'application/json': {
+            schema: errorSchema,
+          },
+        },
+        description: 'Internal server error.',
+      },
+    },
+  }),
+  async (c) => {
+    const { user_id } = c.req.valid('param')
+
+    try {
+      const result =
+        await COMMAND_HANDLERS.MODERATION.CANCEL_PLAYER_SEASON_WINS(user_id)
+
+      return c.json(
+        {
+          player_id: result.playerId,
+          season: result.season,
+          matches_found: result.matchesFound,
+          matches_cancelled: result.matchesCancelled,
+          failures: result.failures,
+          results: result.results.map((matchResult) => ({
+            match_id: matchResult.matchId,
+            queue_id: matchResult.queueId,
+            queue_name: matchResult.queueName,
+            created_at: matchResult.createdAt,
+            success: matchResult.success,
+            cancelled: matchResult.cancelled,
+            reverted_mmr_changes: matchResult.revertedMmrChanges.map(
+              (change) => ({
+                user_id: change.userId,
+                reverted_change: change.revertedChange,
+              }),
+            ),
+            message: matchResult.message,
+            error: matchResult.error,
+          })),
+        },
+        200,
+      )
+    } catch (error) {
+      console.error(
+        `Error cancelling current-season wins for user ${user_id}:`,
+        error,
+      )
+      return c.json({ error: 'Internal server error' }, 500)
+    }
+  },
+)
 
 moderationRouter.openapi(
   createRoute({
