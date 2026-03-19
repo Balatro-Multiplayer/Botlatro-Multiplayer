@@ -1477,6 +1477,13 @@ const membersListQuerySchema = z.object({
       param: { name: 'filter', in: 'query' },
       example: 'all',
     }),
+  sort: moderationSortQuery
+    .optional()
+    .default('alphabetical')
+    .openapi({
+      param: { name: 'sort', in: 'query' },
+      example: 'alphabetical',
+    }),
 })
 
 moderationRouter.openapi(
@@ -1509,7 +1516,7 @@ moderationRouter.openapi(
   }),
   async (c) => {
     const query = c.req.valid('query')
-    const { page, limit, search, filter } = query
+    const { page, limit, search, filter, sort } = query
     const offset = (page - 1) * limit
     const trimmedSearch = search?.trim()
 
@@ -1532,6 +1539,19 @@ moderationRouter.openapi(
         filterJoin = `INNER JOIN (SELECT DISTINCT user_id FROM strikes) s ON s.user_id = gm.user_id`
       }
 
+      const sortJoin =
+        sort === 'recent'
+          ? `LEFT JOIN (
+               SELECT user_id, MAX(issued_at) AS latest_strike_at
+               FROM strikes
+               GROUP BY user_id
+             ) ls ON ls.user_id = gm.user_id`
+          : ''
+      const orderBy =
+        sort === 'recent'
+          ? 'ORDER BY ls.latest_strike_at DESC NULLS LAST, gm.display_name ASC'
+          : 'ORDER BY gm.display_name ASC'
+
       if (trimmedSearch) {
         const pattern = `%${trimmedSearch}%`
         const searchWhere = `WHERE (gm.user_id = $1 OR gm.username ILIKE $2 OR gm.display_name ILIKE $2)`
@@ -1540,8 +1560,9 @@ moderationRouter.openapi(
             `SELECT gm.user_id, gm.username, gm.display_name, gm.avatar_url
              FROM guild_members gm
              ${filterJoin}
+             ${sortJoin}
              ${searchWhere}
-             ORDER BY gm.display_name ASC
+             ${orderBy}
              LIMIT $3 OFFSET $4`,
             [trimmedSearch, pattern, limit, offset],
           ),
@@ -1559,7 +1580,8 @@ moderationRouter.openapi(
             `SELECT gm.user_id, gm.username, gm.display_name, gm.avatar_url
              FROM guild_members gm
              ${filterJoin}
-             ORDER BY gm.display_name ASC
+             ${sortJoin}
+             ${orderBy}
              LIMIT $1 OFFSET $2`,
             [limit, offset],
           ),
