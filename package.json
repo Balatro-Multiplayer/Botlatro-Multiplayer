@@ -15,6 +15,7 @@
     "migrate-neatqueue": "bun run src/scripts/import-neatqueue-data.ts",
     "migrate-strikes": "bun run src/scripts/import-strike-data.ts",
     "backfill-mmr": "bun run src/scripts/backfill-mmr-after.ts",
+    "cancel-player-season-wins": "bun run src/scripts/cancel-player-season-wins.ts",
     "format": "prettier --write ."
   },
   "keywords": [],
