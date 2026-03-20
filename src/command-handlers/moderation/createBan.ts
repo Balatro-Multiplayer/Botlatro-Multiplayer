@@ -3,6 +3,7 @@ import { moderationMessages } from '../../config/moderationMessages'
 import { pool } from '../../db'
 import { createEmbedType, logStrike } from '../../utils/logCommandUse'
 import { sendDm } from '../../utils/sendDm'
+import { resolveModerationTarget } from './resolveModerationTarget'
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000
 
@@ -79,9 +80,10 @@ export async function createBan({
   }
 
   const ban = upsertedBan.rows[0]
+  const target = await resolveModerationTarget(userId)
   const embedType = createEmbedType(
     'BAN ADDED',
-    `<@${userId}>`,
+    target.fullLabel,
     16711680,
     [
       {

@@ -2,6 +2,7 @@ import type { Strikes } from 'psqlDB'
 import { client, getGuild } from '../../client'
 import { pool } from '../../db'
 import { createEmbedType, logStrike } from '../../utils/logCommandUse'
+import { resolveModerationTarget } from './resolveModerationTarget'
 
 export class RemoveStrikeError extends Error {
   code: 'NOT_FOUND'
@@ -90,6 +91,7 @@ export async function removeStrike({
   }
 
   const trimmedReason = reason?.trim() || null
+  const target = await resolveModerationTarget(strike.user_id)
   const fields = [
     { name: 'Strike', value: `#${strike.id}`, inline: true },
     { name: 'Amount', value: `${strike.amount}`, inline: true },
@@ -117,7 +119,7 @@ export async function removeStrike({
 
   const embed = createEmbedType(
     'STRIKE REMOVED',
-    `<@${strike.user_id}>`,
+    target.fullLabel,
     65280,
     fields,
     null,

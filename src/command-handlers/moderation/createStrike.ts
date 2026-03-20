@@ -4,6 +4,7 @@ import { pool } from '../../db'
 import { calculateExpiryDate } from '../../utils/calculateExpiryDate'
 import { createEmbedType, logStrike } from '../../utils/logCommandUse'
 import { sendDm } from '../../utils/sendDm'
+import { resolveModerationTarget } from './resolveModerationTarget'
 
 const DEFAULT_STRIKE_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000
 
@@ -84,10 +85,11 @@ export async function createStrike({
     [userId],
   )
   const totalStrikes = Number(totalRes.rows[0]?.total ?? 0)
+  const target = await resolveModerationTarget(userId)
 
   const embed = createEmbedType(
     'STRIKE ADDED',
-    `<@${userId}>`,
+    target.fullLabel,
     16711680,
     [
       { name: 'Strike', value: `#${strike.id}`, inline: true },

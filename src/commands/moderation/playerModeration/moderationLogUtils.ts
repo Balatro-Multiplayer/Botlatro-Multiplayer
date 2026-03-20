@@ -97,14 +97,14 @@ export function createModerationListEmbed({
   return embed
 }
 
-export function formatBanLogEntry(ban: Bans) {
+export function formatBanLogEntry(ban: Bans, targetLabel: string) {
   const relatedStrikes =
     ban.related_strike_ids && ban.related_strike_ids.length > 0
       ? ban.related_strike_ids.map((id) => `#${id}`).join(', ')
       : 'Manual'
 
   return [
-    `<@${ban.user_id}>`,
+    targetLabel,
     `Reason: ${normalizeText(ban.reason, 220)}`,
     `Expires: ${formatDatePair(ban.expires_at)}`,
     `Source: ${relatedStrikes}`,
