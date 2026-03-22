@@ -28,7 +28,7 @@ async function backfillTranscriptLobbyCodes() {
               WHERE mtlc.match_id = m.id
             )
           )
-        ORDER BY m.id ASC
+        ORDER BY m.created_at DESC, m.id DESC
       `,
       [forceAll],
     )
