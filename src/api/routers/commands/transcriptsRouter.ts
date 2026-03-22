@@ -3,6 +3,7 @@ import {
   getMatchTranscript,
   getMatchHtmlTranscript,
 } from '../../../utils/exportTranscripts'
+import { searchTranscriptLobbyCodes } from '../../../utils/transcriptLobbyCodes'
 
 const transcriptsRouter = new OpenAPIHono()
 
@@ -82,6 +83,62 @@ transcriptsRouter.openapi(
         error: 'Transcript not found for this match.',
       },
       404,
+    )
+  },
+)
+
+transcriptsRouter.openapi(
+  createRoute({
+    method: 'get',
+    path: '/lobby-codes/search',
+    description:
+      'Search normalized transcript lobby codes extracted from match transcripts.',
+    request: {
+      query: z.object({
+        query: z.string().min(1).openapi({
+          example: 'abcde',
+        }),
+        limit: z.coerce.number().int().min(1).max(100).default(50).openapi({
+          example: 25,
+        }),
+      }),
+    },
+    responses: {
+      200: {
+        content: {
+          'application/json': {
+            schema: z.object({
+              success: z.literal(true),
+              normalized_query: z.string(),
+              mode: z.enum(['exact', 'prefix']),
+              results: z.array(
+                z.object({
+                  match_id: z.number(),
+                  created_at: z.string(),
+                  queue_name: z.string().nullable(),
+                  matched_codes: z.array(z.string()),
+                  lobby_codes: z.array(z.string()),
+                }),
+              ),
+            }),
+          },
+        },
+        description: 'Transcript lobby code results returned successfully.',
+      },
+    },
+  }),
+  async (c) => {
+    const { query, limit } = c.req.valid('query')
+    const results = await searchTranscriptLobbyCodes(query, limit)
+
+    return c.json(
+      {
+        success: true as const,
+        normalized_query: results.normalizedQuery,
+        mode: results.mode,
+        results: results.results,
+      },
+      200,
     )
   },
 )

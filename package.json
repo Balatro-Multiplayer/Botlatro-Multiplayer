@@ -15,6 +15,7 @@
     "migrate-neatqueue": "bun run src/scripts/import-neatqueue-data.ts",
     "migrate-strikes": "bun run src/scripts/import-strike-data.ts",
     "backfill-mmr": "bun run src/scripts/backfill-mmr-after.ts",
+    "backfill-transcript-lobby-codes": "bun run src/scripts/backfill-transcript-lobby-codes.ts",
     "format": "prettier --write ."
   },
   "keywords": [],

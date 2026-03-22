@@ -4,6 +4,42 @@ import fs from 'fs/promises'
 import { createTranscript, ExportReturnType } from 'discord-html-transcripts'
 import { TextChannel } from 'discord.js'
 import { env } from '../env'
+import {
+  upsertTranscriptLobbyCodesFromMessages,
+  upsertTranscriptLobbyCodesFromTextTranscript,
+} from './transcriptLobbyCodes'
+
+async function fetchUserMessageContents(
+  channel: TextChannel,
+): Promise<string[]> {
+  const contents: string[] = []
+  let before: string | undefined
+
+  while (true) {
+    const messages = await channel.messages.fetch({
+      limit: 100,
+      ...(before ? { before } : {}),
+    })
+
+    if (messages.size === 0) {
+      break
+    }
+
+    for (const message of messages.values()) {
+      if (message.author?.bot) continue
+      if (!message.content?.trim()) continue
+      contents.push(message.content)
+    }
+
+    before = messages.lastKey()
+
+    if (messages.size < 100 || !before) {
+      break
+    }
+  }
+
+  return contents
+}
 
 /**
  * Generate an HTML transcript from a Discord text channel and store it in the database
@@ -16,6 +52,22 @@ export async function generateAndStoreHtmlTranscript(
   channel: TextChannel,
 ): Promise<string | null> {
   try {
+    try {
+      const messageContents = await fetchUserMessageContents(channel)
+      const lobbyCodes = await upsertTranscriptLobbyCodesFromMessages(
+        matchId,
+        messageContents,
+      )
+      console.log(
+        `Stored ${lobbyCodes.length} transcript lobby code(s) for match ${matchId}`,
+      )
+    } catch (error) {
+      console.error(
+        `Failed to extract transcript lobby codes for match ${matchId}:`,
+        error,
+      )
+    }
+
     // Generate HTML transcript using discord-html-transcripts
     const transcript = await createTranscript(channel, {
       returnType: ExportReturnType.String,
@@ -114,8 +166,25 @@ export async function getMatchTranscript(
     return console.error('Transcript not found.')
   }
 
+  const transcript = await fs.readFile(logFile, 'utf8')
+
+  try {
+    const lobbyCodes = await upsertTranscriptLobbyCodesFromTextTranscript(
+      matchId,
+      transcript,
+    )
+    console.log(
+      `Indexed ${lobbyCodes.length} transcript lobby code(s) from text log for match ${matchId}`,
+    )
+  } catch (error) {
+    console.error(
+      `Failed to index transcript lobby codes from text log for match ${matchId}:`,
+      error,
+    )
+  }
+
   return {
     matchId: matchId,
-    transcript: await fs.readFile(logFile, 'utf8'),
+    transcript,
   }
 }
