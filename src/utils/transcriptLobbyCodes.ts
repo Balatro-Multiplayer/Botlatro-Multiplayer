@@ -257,6 +257,17 @@ type TranscriptLobbyCodeSearchResultRow = {
   queue_name: string | null
   matched_codes: string[] | null
   lobby_codes: string[] | null
+  players: Array<{
+    user_id: string
+    display_name: string | null
+    team: number | null
+  }> | null
+}
+
+export type TranscriptLobbyCodeSearchPlayer = {
+  user_id: string
+  display_name: string | null
+  team: number | null
 }
 
 export type TranscriptLobbyCodeSearchResult = {
@@ -265,6 +276,7 @@ export type TranscriptLobbyCodeSearchResult = {
   queue_name: string | null
   matched_codes: string[]
   lobby_codes: string[]
+  players: TranscriptLobbyCodeSearchPlayer[]
 }
 
 export async function searchTranscriptLobbyCodes(
@@ -295,7 +307,22 @@ export async function searchTranscriptLobbyCodes(
         m.created_at,
         q.queue_name,
         ARRAY_AGG(DISTINCT filtered.lobby_code ORDER BY filtered.lobby_code) AS matched_codes,
-        ARRAY_AGG(DISTINCT all_codes.lobby_code ORDER BY all_codes.lobby_code) AS lobby_codes
+        ARRAY_AGG(DISTINCT all_codes.lobby_code ORDER BY all_codes.lobby_code) AS lobby_codes,
+        COALESCE(
+          (
+            SELECT JSONB_AGG(player_row ORDER BY player_row.team ASC, player_row.user_id ASC)
+            FROM (
+              SELECT DISTINCT
+                mu.user_id,
+                u.display_name,
+                mu.team
+              FROM match_users mu
+              LEFT JOIN users u ON u.user_id = mu.user_id
+              WHERE mu.match_id = m.id
+            ) AS player_row
+          ),
+          '[]'::jsonb
+        ) AS players
       FROM matches m
       JOIN match_transcript_lobby_codes filtered
         ON filtered.match_id = m.id
@@ -320,6 +347,7 @@ export async function searchTranscriptLobbyCodes(
       queue_name: row.queue_name,
       matched_codes: row.matched_codes ?? [],
       lobby_codes: row.lobby_codes ?? [],
+      players: row.players ?? [],
     })),
   }
 }

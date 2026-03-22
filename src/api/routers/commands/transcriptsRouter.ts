@@ -118,6 +118,13 @@ transcriptsRouter.openapi(
                   queue_name: z.string().nullable(),
                   matched_codes: z.array(z.string()),
                   lobby_codes: z.array(z.string()),
+                  players: z.array(
+                    z.object({
+                      user_id: z.string(),
+                      display_name: z.string().nullable(),
+                      team: z.number().nullable(),
+                    }),
+                  ),
                 }),
               ),
             }),
