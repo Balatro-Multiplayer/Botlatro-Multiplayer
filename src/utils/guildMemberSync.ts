@@ -21,13 +21,6 @@ export async function syncAllGuildMembers() {
     await upsertGuildMembers(batch)
   }
 
-  // Remove members no longer in the guild
-  const allIds = memberArray.map((m) => m.id)
-  await pool.query(
-    `DELETE FROM guild_members WHERE user_id != ALL($1::text[])`,
-    [allIds],
-  )
-
   console.log(`[GUILD SYNC] Done. ${members.size} members synced.`)
 }
 
@@ -76,8 +69,4 @@ export async function upsertGuildMembers(members: GuildMember[]) {
        avatar_url = EXCLUDED.avatar_url`,
     params,
   )
-}
-
-export async function removeGuildMember(userId: string) {
-  await pool.query(`DELETE FROM guild_members WHERE user_id = $1`, [userId])
 }
