@@ -2278,7 +2278,7 @@ export async function getBmpctuUser(channelId: string) {
   `,
     [channelId],
   )
-  return res.rows[0].user_id
+  return res.rows[0]?.user_id
 }
 
 // set a room to inactive
@@ -2329,8 +2329,8 @@ export async function getLogAndChannelId(channelId: string, userId: string) {
     SELECT room_log_id FROM settings WHERE singleton = true
   `)
   return {
-    logId: res.rows[0].log_id,
-    logChannelId: settingsRes.rows[0].room_log_id,
+    logId: res.rows[0]?.log_id,
+    logChannelId: settingsRes.rows[0]?.room_log_id,
   }
 }
 

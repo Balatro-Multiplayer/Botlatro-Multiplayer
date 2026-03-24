@@ -249,7 +249,7 @@ export async function handleVoting(
         // Delete the old message and send a new one
         const channel = interaction.channel as GuildChannel
         const components = interaction.message.components
-        await interaction.message.delete()
+        await interaction.message.delete().catch(() => null)
 
         if (channel && channel.isTextBased()) {
           await channel.send({
@@ -391,7 +391,7 @@ export async function handleTwoPlayerMatchVoting(
 
       const channel = interaction.channel as GuildChannel
       const components = interaction.message.components
-      await interaction.message.delete()
+      await interaction.message.delete().catch(() => null)
 
       if (channel && channel.isTextBased()) {
         const newMessage = await channel.send({

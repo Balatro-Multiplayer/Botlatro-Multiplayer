@@ -26,6 +26,10 @@ export default {
       const channelName = channel.name
       const userId = await getBmpctuUser(channelId)
       await removeRoomFromDb(channelId)
+      if (!userId) {
+        await channel.delete()
+        return await interaction.editReply({ content: `${channelName} deleted (no user found for room).` })
+      }
       const member = await interaction.guild!.members.fetch(userId)
       channel.send({ content: `Closing channel, this may take 6-7 seconds.` }) // send mention
       const tBlacklist = await interaction.guild!.roles.fetch(
@@ -52,12 +56,16 @@ export default {
           content: `Channel ${channelId ?? ''} is already deleted. updating DB.`,
         })
       }
-      const message = await logChannel.messages.fetch(logId)
-      const oldEmbed = message?.embeds[0]
+      if (!logId) {
+        await channel.delete()
+        return await interaction.editReply({ content: `${channelName} deleted (no log entry found).` })
+      }
+      const message = await logChannel.messages.fetch(logId).catch(() => null)
+      const oldEmbed = message?.embeds?.[0]
       if (oldEmbed) {
         const embed = EmbedBuilder.from(oldEmbed)
         embed.setColor(65280) // green
-        message.edit({ embeds: [embed] })
+        message!.edit({ embeds: [embed] })
       }
 
       await channel.delete()

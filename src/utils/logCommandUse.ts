@@ -23,7 +23,7 @@ export abstract class Embed {
 
     this.embed = new EmbedBuilder()
       .setTitle(this.title) // Title
-      .setDescription(this.description) // Description
+      .setDescription(this.description || null) // Description (null if empty)
       .setColor(this.color) // Color
       .setFooter(footer) // Footer
       .setTimestamp()

@@ -65,7 +65,7 @@ export default {
       }
       const embedType = createEmbedType(
         `Room created for ${user.displayName}`,
-        '',
+        null,
         16776960, // yellow (pending room)
         [
           {
