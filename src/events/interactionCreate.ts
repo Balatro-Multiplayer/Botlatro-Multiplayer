@@ -1253,7 +1253,7 @@ export default {
             new ActionRowBuilder<ButtonBuilder>().addComponents(
               new ButtonBuilder()
                 .setCustomId(`helpers-confirm-${matchId}`)
-                .setLabel('Yes, Call Helpers')
+                .setLabel('Yes, I already pinged them')
                 .setStyle(ButtonStyle.Danger),
               new ButtonBuilder()
                 .setCustomId(`helpers-cancel-${matchId}`)
@@ -1263,7 +1263,7 @@ export default {
 
           await interaction.reply({
             content:
-              'Are you sure you want to call helpers into this match?\nIf your opponent is AFK, please do not call helpers until 5 minutes after the lobby has been made.',
+              '⚠️ **Before calling helpers, make sure you have already pinged your opponent in this channel.**\nCalling helpers without pinging your opponent first is a punishable offense.\nIf your opponent is AFK, please do not call helpers until 5 minutes after the lobby has been made.\n\nHave you already pinged your opponent?',
             components: [confirmRow],
             flags: MessageFlags.Ephemeral,
           })
