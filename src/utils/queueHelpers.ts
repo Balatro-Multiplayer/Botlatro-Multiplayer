@@ -294,11 +294,17 @@ export async function joinQueues(
 
     // Check role lock (stored in queue.role_lock_id)
     if (queue.role_lock_id && !member.roles.cache.has(queue.role_lock_id)) {
-      const role = guild.roles.cache.get(queue.role_lock_id)
-      const roleName = role ? role.name : 'required role'
-      await interaction.editReply({
-        content: `You need the **${roleName}** role to join the ${queue.queue_name} queue.`,
-      })
+      if (queue.queue_name.toLowerCase().includes('ranked')) {
+        await interaction.editReply({
+          content: `You need the **Ranked** role to join the ${queue.queue_name} queue. To get it, read <#1359668188195065957> and click agree, then go to <#1426589419690791075>.`,
+        })
+      } else {
+        const role = guild.roles.cache.get(queue.role_lock_id)
+        const roleName = role ? role.name : 'required role'
+        await interaction.editReply({
+          content: `You need the **${roleName}** role to join the ${queue.queue_name} queue.`,
+        })
+      }
       return null
     }
 
