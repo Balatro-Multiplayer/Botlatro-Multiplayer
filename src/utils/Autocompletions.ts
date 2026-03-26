@@ -38,6 +38,7 @@ export async function strikeAutocomplete(interaction: AutocompleteInteraction) {
         'Offensive language',
         'R-slur',
         'Self r-slur',
+        'Not pinging opponent before calling helpers',
       ]
       const q = value.toLowerCase()
       const filtered = q
