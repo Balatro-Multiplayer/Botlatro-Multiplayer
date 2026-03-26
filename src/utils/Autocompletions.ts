@@ -29,6 +29,26 @@ export async function strikeAutocomplete(interaction: AutocompleteInteraction) {
     const name = focused.name
     const value = String(focused.value ?? '')
 
+    if (name === 'reason') {
+      const presets = [
+        'Failure to vote',
+        'AFK in queue',
+        'AFK during a game',
+        'Harassment',
+        'Offensive language',
+        'R-slur',
+        'Self r-slur',
+      ]
+      const q = value.toLowerCase()
+      const filtered = q
+        ? presets.filter((r) => r.toLowerCase().includes(q))
+        : presets
+      await interaction.respond(
+        filtered.slice(0, 25).map((r) => ({ name: r, value: r })),
+      )
+      return
+    }
+
     if (name === 'user') {
       const userIds = await strikeUtils.getUserIdsWithStrikes()
       const uniqueIds = [...new Set(userIds)]
@@ -142,6 +162,25 @@ export async function strikeAutocomplete(interaction: AutocompleteInteraction) {
     console.error('autocomplete error:', err)
     if (!interaction.responded) await interaction.respond([])
   }
+}
+
+const BAN_REASON_PRESETS = [
+  'Repeated offenses',
+  'Severe harassment',
+  'Cheating in ranked across multiple games',
+]
+
+export async function banReasonAutocomplete(
+  interaction: AutocompleteInteraction,
+) {
+  const value = String(interaction.options.getFocused(true).value ?? '')
+  const q = value.toLowerCase()
+  const filtered = q
+    ? BAN_REASON_PRESETS.filter((r) => r.toLowerCase().includes(q))
+    : BAN_REASON_PRESETS
+  await interaction.respond(
+    filtered.slice(0, 25).map((r) => ({ name: r, value: r })),
+  )
 }
 
 export async function roomDeleteAutoCompletion(

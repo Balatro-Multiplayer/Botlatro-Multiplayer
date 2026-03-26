@@ -9,6 +9,7 @@ import { getBannedUsers } from '../../utils/queryDB'
 import unbanUser from '../moderation/playerModeration/unbanUser'
 import listBannedUsers from '../moderation/playerModeration/listBannedUsers'
 import updateBan from '../moderation/playerModeration/updateBan'
+import { banReasonAutocomplete } from '../../utils/Autocompletions'
 
 export default {
   data: new SlashCommandBuilder()
@@ -49,7 +50,8 @@ export default {
             .setName('reason')
             .setDescription('The reason to ban this user from the queue')
             .setRequired(true)
-            .setMaxLength(500),
+            .setMaxLength(500)
+            .setAutocomplete(true),
         ),
     )
     .addSubcommand((sub) =>
@@ -68,7 +70,8 @@ export default {
             .setName('reason')
             .setDescription('The reason to unban this user from the queue')
             .setRequired(true)
-            .setMaxLength(500),
+            .setMaxLength(500)
+            .setAutocomplete(true),
         ),
     )
     .addSubcommand((sub) =>
@@ -95,7 +98,8 @@ export default {
             .setName('reason')
             .setDescription('New reason for the ban')
             .setRequired(false)
-            .setMaxLength(500),
+            .setMaxLength(500)
+            .setAutocomplete(true),
         ),
     )
     .addSubcommand((sub) =>
@@ -115,7 +119,14 @@ export default {
   },
 
   async autocomplete(interaction: AutocompleteInteraction) {
-    const currentValue = interaction.options.getFocused().toLowerCase()
+    const focused = interaction.options.getFocused(true)
+
+    if (focused.name === 'reason') {
+      await banReasonAutocomplete(interaction)
+      return
+    }
+
+    const currentValue = String(focused.value ?? '').toLowerCase()
     const bannedUsers = await getBannedUsers()
 
     const users = (
