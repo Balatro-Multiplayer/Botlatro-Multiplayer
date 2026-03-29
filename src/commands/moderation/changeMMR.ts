@@ -9,6 +9,7 @@ import {
   updatePlayerElo,
 } from '../../utils/queryDB'
 import { pool } from '../../db'
+import { logModerationEvent } from '../../utils/logModerationEvent'
 import { setUserQueueRole, updateAllLeaderboardRoles } from 'utils/queueHelpers'
 import { getGuild } from '../../client'
 
@@ -42,6 +43,13 @@ export default {
             console.error('Background leaderboard role update failed:', err),
           )
         }
+
+        await logModerationEvent({
+          action: 'mmr_change',
+          moderatorId: interaction.user.id,
+          targetId: user.id,
+          details: { queueName, queueId, newElo },
+        })
 
         await interaction.reply({
           content: `Set **${member.displayName}**'s MMR in **${queueName}** to **${newElo}**.`,

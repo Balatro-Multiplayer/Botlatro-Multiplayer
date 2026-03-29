@@ -4,6 +4,7 @@ import {
   AutocompleteInteraction,
 } from 'discord.js'
 import { pool } from '../../db'
+import { logModerationEvent } from '../../utils/logModerationEvent'
 import { getQueueNames } from '../../utils/queryDB'
 import { updateQueueMessage } from '../../utils/queueHelpers'
 
@@ -19,6 +20,12 @@ export default {
       if (res.rowCount === 0) {
         return interaction.reply(`Failed to delete queue ${queueName}.`)
       }
+
+      await logModerationEvent({
+        action: 'queue_delete',
+        moderatorId: interaction.user.id,
+        details: { queueName },
+      })
 
       await updateQueueMessage()
       return interaction.reply({

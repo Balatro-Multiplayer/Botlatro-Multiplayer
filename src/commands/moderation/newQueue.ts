@@ -1,5 +1,6 @@
 import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
 import { pool } from '../../db'
+import { logModerationEvent } from '../../utils/logModerationEvent'
 import { updateQueueMessage } from '../../utils/queueHelpers'
 
 export default {
@@ -94,6 +95,17 @@ export default {
           useTupleBans,
         ],
       )
+
+      await logModerationEvent({
+        action: 'queue_create',
+        moderatorId: interaction.user.id,
+        details: {
+          queueName,
+          defaultElo,
+          membersPerTeam,
+          numberOfTeams,
+        },
+      })
 
       await updateQueueMessage()
       await interaction.reply({

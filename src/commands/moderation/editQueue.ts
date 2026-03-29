@@ -1,5 +1,6 @@
 import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
 import { pool } from '../../db'
+import { logModerationEvent } from '../../utils/logModerationEvent'
 import { updateQueueMessage } from '../../utils/queueHelpers'
 
 export default {
@@ -124,6 +125,32 @@ export default {
         })
         return
       }
+
+      const changedFields: Record<string, unknown> = {}
+      if (queueDesc != null) changedFields.queue_desc = queueDesc
+      if (membersPerTeam != null) changedFields.members_per_team = membersPerTeam
+      if (numberOfTeams != null) changedFields.number_of_teams = numberOfTeams
+      if (eloSearchStart != null) changedFields.elo_search_start = eloSearchStart
+      if (eloSearchIncrement != null) changedFields.elo_search_increment = eloSearchIncrement
+      if (eloSearchSpeed != null) changedFields.elo_search_speed = eloSearchSpeed
+      if (defaultElo != null) changedFields.default_elo = defaultElo
+      if (maxPartyEloDifference != null) changedFields.max_party_elo_difference = maxPartyEloDifference
+      if (bestOf != null) changedFields.best_of_allowed = bestOf
+      if (deckBanFirstNum != null) changedFields.first_deck_ban_num = deckBanFirstNum
+      if (deckBanSecondNum != null) changedFields.second_deck_ban_num = deckBanSecondNum
+      if (roleLockId != null) changedFields.role_lock_id = roleLockId
+      if (vetoMmrThreshold != null) changedFields.veto_mmr_threshold = vetoMmrThreshold
+      if (color != null) changedFields.color = color
+      if (instaqueueMin != null) changedFields.instaqueue_min = instaqueueMin
+      if (instaqueueMax != null) changedFields.instaqueue_max = instaqueueMax
+      if (useTupleBans != null) changedFields.use_tuple_bans = useTupleBans
+      if (queueIcon != null) changedFields.queue_icon = queueIcon
+
+      await logModerationEvent({
+        action: 'queue_edit',
+        moderatorId: interaction.user.id,
+        details: { queueName, changedFields },
+      })
 
       await updateQueueMessage()
 

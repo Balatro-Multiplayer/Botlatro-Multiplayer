@@ -1,4 +1,5 @@
 import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
+import { logModerationEvent } from '../../utils/logModerationEvent'
 import { setDecayValues } from '../../utils/queryDB'
 
 export default {
@@ -10,6 +11,11 @@ export default {
       const interval = interaction.options.getNumber('decay-interval')!
       const grace = interaction.options.getNumber('grace-period') || 24 * 7 // 1 week default grace
       await setDecayValues({ threshold, amount, interval, grace })
+      await logModerationEvent({
+        action: 'decay_set',
+        moderatorId: interaction.user.id,
+        details: { threshold, amount, interval, grace },
+      })
       await interaction.editReply({ content: 'decay values set' })
     } catch (err: any) {
       console.error(err)

@@ -5,6 +5,7 @@ import {
   SlashCommandBuilder,
 } from 'discord.js'
 import { pool } from '../../db'
+import { logModerationEvent } from '../../utils/logModerationEvent'
 import { getActiveSeason } from '../../utils/queryDB'
 
 export default {
@@ -92,6 +93,17 @@ export default {
         `ALTER TABLE matches ALTER COLUMN season SET DEFAULT ${newSeason}`,
       )
       console.log(`[Reset Season] Matches default season set to ${newSeason}`)
+
+      await logModerationEvent({
+        action: 'season_reset',
+        moderatorId: interaction.user.id,
+        details: {
+          previousSeason: currentSeason,
+          newSeason,
+          playersSnapshotted: snapshotResult.rowCount,
+          playersReset: resetResult.rowCount,
+        },
+      })
 
       await interaction.editReply({
         content: `**Step 3/3:** Complete!\n\nSeason **${currentSeason}** has been archived and season **${newSeason}** has begun.\n\n**Actions taken:**\n- Snapshotted ${snapshotResult.rowCount} player stats for season ${currentSeason}\n- Reset ${resetResult.rowCount} players to default MMR\n- Active season is now **${newSeason}**`,
