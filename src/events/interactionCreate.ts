@@ -1259,6 +1259,10 @@ export default {
                 .setCustomId(`helpers-cancel-${matchId}`)
                 .setLabel('Cancel')
                 .setStyle(ButtonStyle.Secondary),
+              new ButtonBuilder()
+                .setCustomId(`helpers-howping-${matchId}`)
+                .setLabel('How do I ping?')
+                .setStyle(ButtonStyle.Secondary),
             )
 
           await interaction.reply({
@@ -1295,6 +1299,14 @@ export default {
         if (interaction.customId.startsWith('helpers-cancel-')) {
           await interaction.deferUpdate()
           await interaction.deleteReply()
+        }
+
+        if (interaction.customId.startsWith('helpers-howping-')) {
+          await interaction.reply({
+            content:
+              'To ping your opponent, type `@` followed by their username in this match channel and send it as a message. This notifies them directly. You must do this before calling helpers.',
+            flags: MessageFlags.Ephemeral,
+          })
         }
 
         if (interaction.customId.startsWith('contest-confirm-')) {
