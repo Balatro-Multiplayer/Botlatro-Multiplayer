@@ -36,7 +36,7 @@ export default {
       }
 
       const matchCancelResult =
-        await COMMAND_HANDLERS.MODERATION.CANCEL_MATCH(matchId)
+        await COMMAND_HANDLERS.MODERATION.CANCEL_MATCH(matchId, interaction.user.id)
 
       if (matchCancelResult.success) {
         await interaction

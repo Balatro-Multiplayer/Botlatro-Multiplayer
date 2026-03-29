@@ -1,4 +1,5 @@
 import { pool } from '../../db'
+import { logModerationEvent } from '../../utils/logModerationEvent'
 import { formatCancelledMatchResult } from '../../utils/matchHelpers'
 import { getActiveSeason } from '../../utils/queryDB'
 import { cancelMatch } from './cancelMatch'
@@ -62,6 +63,7 @@ async function getWonMatchesForSeason(
 
 export async function cancelPlayerSeasonWins(
   playerId: string,
+  moderatorId?: string,
 ): Promise<CancelPlayerSeasonWinsResult> {
   const season = await getActiveSeason()
   const matches = await getWonMatchesForSeason(playerId, season)
@@ -106,6 +108,21 @@ export async function cancelPlayerSeasonWins(
         error: error instanceof Error ? error.message : 'Unknown error',
       })
     }
+  }
+
+  if (moderatorId && matchesCancelled > 0) {
+    await logModerationEvent({
+      action: 'season_wins_cancel',
+      moderatorId,
+      targetId: playerId,
+      details: {
+        season,
+        matchesFound: matches.length,
+        matchesCancelled,
+        failures,
+        matchIds: results.filter((r) => r.success).map((r) => r.matchId),
+      },
+    })
   }
 
   return {

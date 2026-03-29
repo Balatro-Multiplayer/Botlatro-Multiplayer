@@ -3,6 +3,7 @@ import { moderationMessages } from '../../config/moderationMessages'
 import { pool } from '../../db'
 import { calculateExpiryDate } from '../../utils/calculateExpiryDate'
 import { createEmbedType, logStrike } from '../../utils/logCommandUse'
+import { logModerationEvent } from '../../utils/logModerationEvent'
 import { sendDm } from '../../utils/sendDm'
 import { resolveModerationTarget } from './resolveModerationTarget'
 
@@ -108,6 +109,19 @@ export async function createStrike({
   )
 
   await logStrike('add_strike', embed)
+  await logModerationEvent({
+    action: 'strike_create',
+    moderatorId: issuedById,
+    targetId: userId,
+    reason: trimmedReason,
+    details: {
+      strikeId: strike.id,
+      amount: finalAmount,
+      totalStrikes,
+      reference: trimmedReference,
+      expiresAt: expiresAt.toISOString(),
+    },
+  })
   await sendDm(
     userId,
     moderationMessages.strikeDm({

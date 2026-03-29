@@ -21,9 +21,9 @@ export default {
       let queueLock = false
 
       if (lock) {
-        queueLock = await COMMAND_HANDLERS.MODERATION.LOCK_QUEUE(queueId)
+        queueLock = await COMMAND_HANDLERS.MODERATION.LOCK_QUEUE(queueId, interaction.user.id)
       } else {
-        queueLock = await COMMAND_HANDLERS.MODERATION.UNLOCK_QUEUE(queueId)
+        queueLock = await COMMAND_HANDLERS.MODERATION.UNLOCK_QUEUE(queueId, interaction.user.id)
       }
 
       if (queueLock) {

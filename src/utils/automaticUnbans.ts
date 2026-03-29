@@ -2,6 +2,7 @@
 import { moderationMessages } from '../config/moderationMessages'
 import { pool } from '../db'
 import type { Bans } from 'psqlDB'
+import { logModerationEvent } from './logModerationEvent'
 import { sendDm } from './sendDm'
 import { createEmbedType, logStrike } from './logCommandUse'
 import { getGuild } from '../client'
@@ -31,6 +32,16 @@ export async function automaticUnban(ban: Bans) {
     `Server`,
   )
   await logStrike('general', embedType)
+  await logModerationEvent({
+    action: 'ban_expire',
+    moderatorId: 'system',
+    targetId: userId,
+    details: {
+      banId: ban.id,
+      originalReason: ban.reason,
+      expiredAt: ban.expires_at?.toISOString() ?? null,
+    },
+  })
 }
 
 // check all bans for timeout. todo: replace with an api call from external service that is running a cronjob

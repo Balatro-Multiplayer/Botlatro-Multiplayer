@@ -3,6 +3,7 @@ import { client } from '../../client'
 import { moderationMessages } from '../../config/moderationMessages'
 import { pool } from '../../db'
 import { createEmbedType, logStrike } from '../../utils/logCommandUse'
+import { logModerationEvent } from '../../utils/logModerationEvent'
 import { sendDm } from '../../utils/sendDm'
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000
@@ -124,6 +125,19 @@ export async function updateBan({
     blame,
   )
   await logStrike('general', embed)
+  await logModerationEvent({
+    action: 'ban_update',
+    moderatorId: blame,
+    targetId: userId,
+    reason: updatedBan.reason,
+    details: {
+      banId: updatedBan.id,
+      oldReason: existingBan.reason,
+      newReason: updatedBan.reason,
+      oldExpiresAt: existingBan.expires_at?.toISOString() ?? null,
+      newExpiresAt: updatedBan.expires_at?.toISOString() ?? null,
+    },
+  })
 
   if (updatedBan.expires_at) {
     await sendDm(

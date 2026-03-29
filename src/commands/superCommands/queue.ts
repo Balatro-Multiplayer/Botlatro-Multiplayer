@@ -53,7 +53,7 @@ export default {
       await queueLock.execute(interaction, false)
     } else if (interaction.options.getSubcommand() === 'lock-all') {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral })
-      const count = await COMMAND_HANDLERS.MODERATION.LOCK_ALL_QUEUES()
+      const count = await COMMAND_HANDLERS.MODERATION.LOCK_ALL_QUEUES(interaction.user.id)
       await interaction.editReply(
         count > 0
           ? `Locked **${count}** queue(s) and removed all players from them.`
@@ -61,7 +61,7 @@ export default {
       )
     } else if (interaction.options.getSubcommand() === 'unlock-all') {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral })
-      const success = await COMMAND_HANDLERS.MODERATION.UNLOCK_ALL_QUEUES()
+      const success = await COMMAND_HANDLERS.MODERATION.UNLOCK_ALL_QUEUES(interaction.user.id)
       await interaction.editReply(
         success ? 'All queues have been unlocked.' : 'Failed to unlock queues.',
       )

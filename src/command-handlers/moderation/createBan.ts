@@ -2,6 +2,7 @@ import type { Bans } from 'psqlDB'
 import { moderationMessages } from '../../config/moderationMessages'
 import { pool } from '../../db'
 import { createEmbedType, logStrike } from '../../utils/logCommandUse'
+import { logModerationEvent } from '../../utils/logModerationEvent'
 import { sendDm } from '../../utils/sendDm'
 import { resolveModerationTarget } from './resolveModerationTarget'
 
@@ -112,6 +113,18 @@ export async function createBan({
   )
 
   await logStrike('general', embedType)
+  await logModerationEvent({
+    action: 'ban_create',
+    moderatorId: blame,
+    targetId: userId,
+    reason: trimmedReason,
+    details: {
+      banId: ban.id,
+      lengthDays: length === 0 ? null : length,
+      expiresAt: expiryTime?.toISOString() ?? null,
+      permanent: length === 0,
+    },
+  })
   await sendDm(
     userId,
     moderationMessages.banDm({ reason: trimmedReason, expiresAt: expiryTime }),

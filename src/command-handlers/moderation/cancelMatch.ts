@@ -1,11 +1,20 @@
+import { logModerationEvent } from '../../utils/logModerationEvent'
 import { EndMatchResult, endMatch } from '../../utils/matchHelpers'
 
-/**
- * Cancels an ongoing match by its unique identifier.
- *
- * @param {number} matchId - The unique identifier of the match to be canceled.
- * @return {Promise<boolean>} A promise that resolves to true if the match was successfully canceled, otherwise false.
- */
-export async function cancelMatch(matchId: number): Promise<EndMatchResult> {
-  return await endMatch(matchId, true)
+export async function cancelMatch(
+  matchId: number,
+  moderatorId?: string,
+): Promise<EndMatchResult> {
+  const result = await endMatch(matchId, true)
+  if (result.success && moderatorId) {
+    await logModerationEvent({
+      action: 'match_cancel',
+      moderatorId,
+      details: {
+        matchId,
+        revertedMmrChanges: result.revertedMmrChanges,
+      },
+    })
+  }
+  return result
 }

@@ -3,6 +3,7 @@ import { client } from '../../client'
 import { moderationMessages } from '../../config/moderationMessages'
 import { pool } from '../../db'
 import { createEmbedType, logStrike } from '../../utils/logCommandUse'
+import { logModerationEvent } from '../../utils/logModerationEvent'
 import { sendDm } from '../../utils/sendDm'
 
 export class RemoveBanError extends Error {
@@ -81,6 +82,17 @@ export async function removeBan({ userId, blame, reason }: RemoveBanParams) {
     blame,
   )
   await logStrike('general', embed)
+  await logModerationEvent({
+    action: 'ban_remove',
+    moderatorId: blame,
+    targetId: userId,
+    reason: trimmedReason,
+    details: {
+      banId: removedBan.id,
+      originalReason: removedBan.reason,
+      expiresAt: removedBan.expires_at?.toISOString() ?? null,
+    },
+  })
   await sendDm(userId, moderationMessages.banLiftedDm({ reason: trimmedReason }))
 
   return {

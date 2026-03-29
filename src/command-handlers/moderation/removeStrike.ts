@@ -2,6 +2,7 @@ import type { Strikes } from 'psqlDB'
 import { client, getGuild } from '../../client'
 import { pool } from '../../db'
 import { createEmbedType, logStrike } from '../../utils/logCommandUse'
+import { logModerationEvent } from '../../utils/logModerationEvent'
 import { resolveModerationTarget } from './resolveModerationTarget'
 
 export class RemoveStrikeError extends Error {
@@ -126,6 +127,18 @@ export async function removeStrike({
     resolvedBlame,
   )
   await logStrike('remove_strike', embed)
+  await logModerationEvent({
+    action: 'strike_remove',
+    moderatorId: removedById ?? 'unknown',
+    targetId: strike.user_id,
+    reason: trimmedReason,
+    details: {
+      strikeId: strike.id,
+      amount: strike.amount,
+      originalReason: strike.reason,
+      reference: strike.reference,
+    },
+  })
 
   return {
     strike,

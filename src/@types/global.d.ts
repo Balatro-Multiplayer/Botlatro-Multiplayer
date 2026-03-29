@@ -242,6 +242,16 @@ declare module 'psqlDB' {
     completed_at: Date
   }
 
+  export interface ModerationEvent {
+    id: number
+    action: string
+    moderator_id: string
+    target_id: string | null
+    reason: string | null
+    details: Record<string, unknown> | null
+    created_at: Date
+  }
+
   export interface QueueUsersSeason {
     id: number
     user_id: string
