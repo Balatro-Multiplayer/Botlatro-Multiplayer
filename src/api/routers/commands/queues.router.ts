@@ -107,6 +107,51 @@ queuesRouter.openapi(
 queuesRouter.openapi(
   createRoute({
     method: 'post',
+    path: '/lock-all',
+    description: 'Lock all queues.',
+    request: {
+      body: {
+        content: {
+          'application/json': {
+            schema: z.object({
+              moderatorId: z.string().optional(),
+            }),
+          },
+        },
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          'application/json': {
+            schema: z.object({
+              success: z.boolean(),
+              count: z.number(),
+            }),
+          },
+        },
+        description: 'All queues processed successfully.',
+      },
+    },
+  }),
+  async (c) => {
+    const { moderatorId } = c.req.valid('json')
+    const count = await COMMAND_HANDLERS.MODERATION.LOCK_ALL_QUEUES(
+      moderatorId,
+    )
+    return c.json(
+      {
+        success: true as const,
+        count,
+      },
+      200,
+    )
+  },
+)
+
+queuesRouter.openapi(
+  createRoute({
+    method: 'post',
     path: '/roles/{id}',
     description: 'Create and add a queue role.',
     request: {
