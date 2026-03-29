@@ -12,6 +12,7 @@ import listQueueRoles from 'commands/moderation/listQueueRoles'
 import listQueueUsers from '../moderation/listQueueUsers'
 import { strikeAutocomplete } from '../../utils/Autocompletions'
 import listStrikes from '../moderation/playerModeration/listStrikes'
+import viewQueueSettings from '../moderation/viewQueueSettings'
 
 export default {
   data: new SlashCommandBuilder()
@@ -67,6 +68,18 @@ export default {
             .setDescription('The user to list strike(s) of')
             .setRequired(true),
         ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('queue-settings')
+        .setDescription('[ADMIN] View all settings for a queue')
+        .addStringOption((option) =>
+          option
+            .setName('queue-name')
+            .setDescription('The queue to view settings for')
+            .setAutocomplete(true)
+            .setRequired(true),
+        ),
     ),
 
   async execute(interaction: ChatInputCommandInteraction) {
@@ -80,6 +93,8 @@ export default {
       await listQueueUsers.execute(interaction)
     } else if (interaction.options.getSubcommand() === 'strikes') {
       await listStrikes.execute(interaction)
+    } else if (interaction.options.getSubcommand() === 'queue-settings') {
+      await viewQueueSettings.execute(interaction)
     }
   },
 
@@ -91,7 +106,11 @@ export default {
     }
     if (subcommand === 'users-in-party') {
       await ListUsersInSpecificParty.autocomplete(interaction)
-    } else if (subcommand === 'queue-roles' || subcommand === 'queue-users') {
+    } else if (
+      subcommand === 'queue-roles' ||
+      subcommand === 'queue-users' ||
+      subcommand === 'queue-settings'
+    ) {
       await queue.autocomplete(interaction)
     }
   },
