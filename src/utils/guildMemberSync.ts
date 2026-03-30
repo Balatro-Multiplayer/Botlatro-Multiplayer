@@ -13,7 +13,7 @@ export async function syncAllGuildMembers() {
   const chunkSize = 1000
 
   while (true) {
-    const chunk = await guild.members.fetch({ limit: chunkSize, after })
+    const chunk = await guild.members.list({ limit: chunkSize, after })
     if (chunk.size === 0) break
 
     await upsertGuildMembers([...chunk.values()])
