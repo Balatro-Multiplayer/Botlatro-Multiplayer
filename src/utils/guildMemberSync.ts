@@ -8,20 +8,22 @@ export async function syncAllGuildMembers() {
     `[GUILD SYNC] Fetching all members from guild (${guild.memberCount} expected)...`,
   )
 
-  const members = await guild.members.fetch()
-  console.log(
-    `[GUILD SYNC] Fetched ${members.size} members, upserting to DB...`,
-  )
+  let after = '0'
+  let totalSynced = 0
+  const chunkSize = 1000
 
-  const batchSize = 500
-  const memberArray = [...members.values()]
+  while (true) {
+    const chunk = await guild.members.fetch({ limit: chunkSize, after })
+    if (chunk.size === 0) break
 
-  for (let i = 0; i < memberArray.length; i += batchSize) {
-    const batch = memberArray.slice(i, i + batchSize)
-    await upsertGuildMembers(batch)
+    await upsertGuildMembers([...chunk.values()])
+    totalSynced += chunk.size
+
+    if (chunk.size < chunkSize) break
+    after = chunk.last()!.id
   }
 
-  console.log(`[GUILD SYNC] Done. ${members.size} members synced.`)
+  console.log(`[GUILD SYNC] Done. ${totalSynced} members synced.`)
 }
 
 export async function upsertGuildMember(member: GuildMember) {
