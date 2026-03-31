@@ -33,6 +33,7 @@ bountiesRouter.openapi(
                   id: z.number(),
                   bounty_id: z.number(),
                   user_id: z.string(),
+                  display_name: z.string(),
                   is_first: z.boolean(),
                   completed_at: z.string(),
                   bounty_name: z.string(),
@@ -96,6 +97,7 @@ bountiesRouter.openapi(
                 z.object({
                   id: z.number(),
                   bounty_id: z.number(),
+                  display_name: z.string(),
                   user_id: z.string(),
                   is_first: z.boolean(),
                   completed_at: z.string(),

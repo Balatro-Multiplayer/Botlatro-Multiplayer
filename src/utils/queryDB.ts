@@ -2616,9 +2616,13 @@ export async function getUserBounties(
 // Get all users who completed a bounty
 export async function getBountyCompletions(
   bountyId: number,
-): Promise<UserBounty[]> {
-  const res = await pool.query<UserBounty>(
-    `SELECT * FROM user_bounties WHERE bounty_id = $1 ORDER BY completed_at`,
+): Promise<(UserBounty & { display_name: string })[]> {
+  const res = await pool.query(
+    `SELECT ub.*, u.display_name
+     FROM user_bounties ub
+     LEFT JOIN users u ON u.user_id = ub.user_id
+     WHERE ub.bounty_id = $1
+     ORDER BY ub.completed_at`,
     [bountyId],
   )
   return res.rows
