@@ -2601,11 +2601,12 @@ export async function revokeBounty(
 // Get all bounties for a user (with bounty details)
 export async function getUserBounties(
   userId: string,
-): Promise<(UserBounty & { bounty_name: string; description: string })[]> {
+): Promise<(UserBounty & { bounty_name: string; description: string; display_name: string })[]> {
   const res = await pool.query(
-    `SELECT ub.*, b.bounty_name, b.description
+    `SELECT ub.*, b.bounty_name, b.description, u.display_name
      FROM user_bounties ub
      JOIN bounties b ON b.id = ub.bounty_id
+     JOIN users u ON u.user_id = ub.user_id
      WHERE ub.user_id = $1
      ORDER BY ub.completed_at DESC`,
     [userId],
