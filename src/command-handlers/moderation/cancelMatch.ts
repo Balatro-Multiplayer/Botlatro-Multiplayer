@@ -1,5 +1,9 @@
 import { logModerationEvent } from '../../utils/logModerationEvent'
-import { EndMatchResult, endMatch } from '../../utils/matchHelpers'
+import {
+  EndMatchResult,
+  endMatch,
+  finalizeCancelledMatch as finalizeCancelledMatchState,
+} from '../../utils/matchHelpers'
 
 export async function cancelMatch(
   matchId: number,
@@ -13,6 +17,25 @@ export async function cancelMatch(
       details: {
         matchId,
         revertedMmrChanges: result.revertedMmrChanges,
+      },
+    })
+  }
+  return result
+}
+
+export async function finalizeCancelledMatch(
+  matchId: number,
+  moderatorId?: string,
+): Promise<EndMatchResult> {
+  const result = await finalizeCancelledMatchState(matchId)
+  if (result.success && moderatorId) {
+    await logModerationEvent({
+      action: 'match_cancel',
+      moderatorId,
+      details: {
+        matchId,
+        revertedMmrChanges: [],
+        finalizedOnly: true,
       },
     })
   }

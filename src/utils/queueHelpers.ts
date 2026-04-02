@@ -44,6 +44,19 @@ let lastMatchCreationTime = 0
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
+function isUnknownMemberError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+
+  const code =
+    'code' in error && typeof error.code === 'number' ? error.code : null
+  const message =
+    'message' in error && typeof error.message === 'string'
+      ? error.message
+      : null
+
+  return code === 10007 || message === 'Unknown Member'
+}
+
 function scheduleQueueMessageUpdate(force: boolean) {
   if (force) {
     if (debounceTimer) {
@@ -906,7 +919,20 @@ export async function setUserQueueRole(
   const leaderboardRole = await getLeaderboardQueueRole(queueId, userId)
 
   const guild = await getGuild()
-  const member = await guild.members.fetch({ user: userId, force: true })
+  const member = await guild.members
+    .fetch({ user: userId, force: true })
+    .catch((err) => {
+      if (isUnknownMemberError(err)) {
+        console.log(
+          `Skipping queue role update for ${userId} in queue ${queueId}: user not in guild`,
+        )
+        return null
+      }
+
+      throw err
+    })
+
+  if (!member) return
   const currentRoleIds = member.roles.cache.map((role) => role.id)
 
   const mmrRoles = allQueueRoles.filter((role) => role.mmr_threshold !== null)

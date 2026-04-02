@@ -1211,16 +1211,74 @@ async function revertCancelledMatchMmr(
   ]
 
   if (affectedUserIds.length > 0) {
-    await Promise.all(
-      affectedUserIds.map((userId) => setUserQueueRole(queueId, userId)),
-    )
-    await updateAllLeaderboardRoles(queueId)
+    try {
+      await Promise.all(
+        affectedUserIds.map((userId) => setUserQueueRole(queueId, userId)),
+      )
+      await updateAllLeaderboardRoles(queueId)
+    } catch (err) {
+      console.error(
+        `Failed to refresh roles after cancelling match in queue ${queueId}:`,
+        err,
+      )
+    }
   }
 
   return revertedUpdates.filter(
     (update): update is CancelledMatchMmrRevert =>
-      update !== null && update.revertedChange !== 0,
+     update !== null && update.revertedChange !== 0,
   )
+}
+
+async function finalizeCancelledMatchState(
+  matchId: number,
+  queueId: number,
+  matchTeams: teamResults,
+): Promise<EndMatchResult> {
+  await clearCancelledMatchResult(matchId)
+
+  try {
+    const matchChannel = await getMatchChannel(matchId)
+    if (matchChannel) {
+      await generateAndStoreHtmlTranscript(matchId, matchChannel)
+    }
+  } catch (err) {
+    console.error(
+      `Failed to generate transcript for cancelled match ${matchId}:`,
+      err,
+    )
+  }
+
+  const wasSuccessfullyDeleted = await deleteMatchChannel(matchId).catch(
+    () => null,
+  )
+  if (!wasSuccessfullyDeleted) {
+    console.log(`Channel id not found / failed to delete match ${matchId}`)
+  }
+
+  try {
+    await updateQueueLogMessage(matchId, queueId, matchTeams, true)
+  } catch (err) {
+    console.error(`Failed to update queue log message for match ${matchId}:`, err)
+  }
+
+  return {
+    success: true,
+    cancelled: true,
+    revertedMmrChanges: [],
+  }
+}
+
+export async function finalizeCancelledMatch(
+  matchId: number,
+): Promise<EndMatchResult> {
+  await closeMatch(matchId)
+
+  const matchTeams = await getTeamsInMatch(matchId)
+  const queueId = await getQueueIdFromMatch(matchId)
+
+  console.log(`Finalizing cancelled match ${matchId} without MMR revert.`)
+  return finalizeCancelledMatchState(matchId, queueId, matchTeams)
 }
 
 export async function endMatch(
@@ -1246,41 +1304,13 @@ export async function endMatch(
       queueSettings.default_elo,
       matchTeams,
     )
-    await clearCancelledMatchResult(matchId)
-
-    // Generate HTML transcript before deleting the channel
-    try {
-      const matchChannel = await getMatchChannel(matchId)
-      if (matchChannel) {
-        await generateAndStoreHtmlTranscript(matchId, matchChannel)
-      }
-    } catch (err) {
-      console.error(
-        `Failed to generate transcript for cancelled match ${matchId}:`,
-        err,
-      )
-    }
-
-    const wasSuccessfullyDeleted = await deleteMatchChannel(matchId).catch(
-      () => null,
+    const finalizedResult = await finalizeCancelledMatchState(
+      matchId,
+      queueId,
+      matchTeams,
     )
-    if (!wasSuccessfullyDeleted) {
-      console.log(`Channel id not found / failed to delete match ${matchId}`)
-    }
-
-    // Update queue log message for cancelled match
-    try {
-      await updateQueueLogMessage(matchId, queueId, matchTeams, true)
-    } catch (err) {
-      console.error(
-        `Failed to update queue log message for match ${matchId}:`,
-        err,
-      )
-    }
-
     return {
-      success: true,
-      cancelled: true,
+      ...finalizedResult,
       revertedMmrChanges,
     }
   }

@@ -218,6 +218,12 @@ const cancelPlayerSeasonWinsResponseSchema = z.object({
   results: z.array(cancelPlayerSeasonWinsMatchSchema),
 })
 
+const cancelPlayerSeasonWinsBodySchema = z
+  .object({
+    finalize_only: z.boolean().optional().default(false),
+  })
+  .optional()
+
 const guildSearchQuerySchema = z.object({
   q: z
     .string()
@@ -804,6 +810,13 @@ moderationRouter.openapi(
       "Cancel every match the player won in the current active season and revert the applied MMR.",
     request: {
       params: userIdParamSchema,
+      body: {
+        content: {
+          'application/json': {
+            schema: cancelPlayerSeasonWinsBodySchema,
+          },
+        },
+      },
     },
     responses: {
       200: {
@@ -826,10 +839,16 @@ moderationRouter.openapi(
   }),
   async (c) => {
     const { user_id } = c.req.valid('param')
+    const body = c.req.valid('json')
 
     try {
-      const result =
-        await COMMAND_HANDLERS.MODERATION.CANCEL_PLAYER_SEASON_WINS(user_id)
+      const result = await COMMAND_HANDLERS.MODERATION.CANCEL_PLAYER_SEASON_WINS(
+        user_id,
+        undefined,
+        {
+          finalizeOnly: body?.finalize_only ?? false,
+        },
+      )
 
       return c.json(
         {

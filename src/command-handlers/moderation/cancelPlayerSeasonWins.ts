@@ -2,7 +2,7 @@ import { pool } from '../../db'
 import { logModerationEvent } from '../../utils/logModerationEvent'
 import { formatCancelledMatchResult } from '../../utils/matchHelpers'
 import { getActiveSeason } from '../../utils/queryDB'
-import { cancelMatch } from './cancelMatch'
+import { cancelMatch, finalizeCancelledMatch } from './cancelMatch'
 
 type WonMatchRow = {
   match_id: number
@@ -64,6 +64,9 @@ async function getWonMatchesForSeason(
 export async function cancelPlayerSeasonWins(
   playerId: string,
   moderatorId?: string,
+  options?: {
+    finalizeOnly?: boolean
+  },
 ): Promise<CancelPlayerSeasonWinsResult> {
   const season = await getActiveSeason()
   const matches = await getWonMatchesForSeason(playerId, season)
@@ -74,7 +77,9 @@ export async function cancelPlayerSeasonWins(
 
   for (const match of matches) {
     try {
-      const cancelResult = await cancelMatch(match.match_id)
+      const cancelResult = options?.finalizeOnly
+        ? await finalizeCancelledMatch(match.match_id)
+        : await cancelMatch(match.match_id)
 
       if (cancelResult.success) {
         matchesCancelled++
@@ -90,7 +95,9 @@ export async function cancelPlayerSeasonWins(
         success: cancelResult.success,
         cancelled: cancelResult.cancelled,
         revertedMmrChanges: cancelResult.revertedMmrChanges,
-        message: formatCancelledMatchResult(match.match_id, cancelResult),
+        message: options?.finalizeOnly
+          ? `Successfully finalized cancelled match ${match.match_id} without additional MMR revert.`
+          : formatCancelledMatchResult(match.match_id, cancelResult),
         error: null,
       })
     } catch (error) {
