@@ -14,6 +14,7 @@ import { addLeaderboardRole } from './addLeaderboardRole'
 import { editQueueRole } from './editQueueRole'
 import { removeBan } from './removeBan'
 import { removeStrike } from './removeStrike'
+import { rebuildPlayerSeasonQueues } from './rebuildPlayerSeasonQueues'
 import { updateBan } from './updateBan'
 
 export const MODERATION_COMMAND_HANDLERS = {
@@ -21,6 +22,7 @@ export const MODERATION_COMMAND_HANDLERS = {
   CANCEL_PLAYER_SEASON_WINS: cancelPlayerSeasonWins,
   CREATE_BAN: createBan,
   CREATE_STRIKE: createStrike,
+  REBUILD_PLAYER_SEASON_QUEUES: rebuildPlayerSeasonQueues,
   REMOVE_BAN: removeBan,
   REMOVE_STRIKE: removeStrike,
   LOCK_QUEUE: lockQueue,

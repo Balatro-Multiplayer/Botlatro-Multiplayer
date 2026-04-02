@@ -218,6 +218,20 @@ const cancelPlayerSeasonWinsResponseSchema = z.object({
   results: z.array(cancelPlayerSeasonWinsMatchSchema),
 })
 
+const rebuildPlayerSeasonQueuesResponseSchema = z.object({
+  player_id: z.string(),
+  season: z.number(),
+  queues: z.array(
+    z.object({
+      queue_id: z.number(),
+      queue_name: z.string(),
+      users_updated: z.number(),
+      matches_processed: z.number(),
+      match_user_rows_updated: z.number(),
+    }),
+  ),
+})
+
 const cancelPlayerSeasonWinsBodySchema = z
   .object({
     finalize_only: z.boolean().optional().default(false),
@@ -801,6 +815,65 @@ async function serializeGuildMember(
     }),
   }
 }
+
+moderationRouter.openapi(
+  createRoute({
+    method: 'post',
+    path: '/players/{user_id}/rebuild-season-queues',
+    description:
+      "Rebuild current-season ratings for every queue the player touched this season from stored match history.",
+    request: {
+      params: userIdParamSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          'application/json': {
+            schema: rebuildPlayerSeasonQueuesResponseSchema,
+          },
+        },
+        description: 'Current-season queue ratings rebuilt.',
+      },
+      500: {
+        content: {
+          'application/json': {
+            schema: errorSchema,
+          },
+        },
+        description: 'Internal server error.',
+      },
+    },
+  }),
+  async (c) => {
+    const { user_id } = c.req.valid('param')
+
+    try {
+      const result =
+        await COMMAND_HANDLERS.MODERATION.REBUILD_PLAYER_SEASON_QUEUES(user_id)
+
+      return c.json(
+        {
+          player_id: result.playerId,
+          season: result.season,
+          queues: result.queues.map((queue) => ({
+            queue_id: queue.queueId,
+            queue_name: queue.queueName,
+            users_updated: queue.usersUpdated,
+            matches_processed: queue.matchesProcessed,
+            match_user_rows_updated: queue.matchUserRowsUpdated,
+          })),
+        },
+        200,
+      )
+    } catch (error) {
+      console.error(
+        `Error rebuilding current-season queues for user ${user_id}:`,
+        error,
+      )
+      return c.json({ error: 'Internal server error' }, 500)
+    }
+  },
+)
 
 moderationRouter.openapi(
   createRoute({
