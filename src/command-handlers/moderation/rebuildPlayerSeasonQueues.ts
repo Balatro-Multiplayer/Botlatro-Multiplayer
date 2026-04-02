@@ -220,8 +220,17 @@ async function rebuildQueueSeasonRatings(
               peak_win_streak = v.peak_win_streak,
               volatility = v.volatility
           FROM (
-            VALUES ${placeholders.join(', ')}
-          ) AS v(user_id, elo, peak_elo, win_streak, peak_win_streak, volatility)
+            SELECT
+              raw.user_id::text AS user_id,
+              raw.elo::real AS elo,
+              raw.peak_elo::real AS peak_elo,
+              raw.win_streak::integer AS win_streak,
+              raw.peak_win_streak::integer AS peak_win_streak,
+              raw.volatility::real AS volatility
+            FROM (
+              VALUES ${placeholders.join(', ')}
+            ) AS raw(user_id, elo, peak_elo, win_streak, peak_win_streak, volatility)
+          ) AS v
           WHERE qu.user_id = v.user_id
             AND qu.queue_id = $${values.length + 1}
         `,
@@ -242,8 +251,14 @@ async function rebuildQueueSeasonRatings(
           UPDATE match_users mu
           SET mmr_after = v.mmr_after
           FROM (
-            VALUES ${placeholders.join(', ')}
-          ) AS v(match_id, user_id, mmr_after)
+            SELECT
+              raw.match_id::integer AS match_id,
+              raw.user_id::text AS user_id,
+              raw.mmr_after::real AS mmr_after
+            FROM (
+              VALUES ${placeholders.join(', ')}
+            ) AS raw(match_id, user_id, mmr_after)
+          ) AS v
           WHERE mu.match_id = v.match_id
             AND mu.user_id = v.user_id
         `,
