@@ -627,8 +627,8 @@ export default {
             t.players.map((u) => u.user_id),
           )
           const players = await pool.query(
-            `SELECT elo, user_id FROM queue_users WHERE user_id = ANY($1)`,
-            [matchUsersArray],
+            `SELECT elo, user_id FROM queue_users WHERE user_id = ANY($1) AND queue_id = $2`,
+            [matchUsersArray, queueId],
           )
           const vetoLimit = await pool.query(
             `SELECT veto_mmr_threshold FROM queues WHERE id = $1`,
