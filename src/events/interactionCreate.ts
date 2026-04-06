@@ -15,7 +15,6 @@ import {
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
   TextChannel,
-  TextDisplayBuilder,
 } from 'discord.js'
 import { pool } from '../db'
 import { env } from '../env'
@@ -1471,12 +1470,66 @@ export default {
           const votes = await getVotesForMatch(matchId, 'Rematch Votes')
 
           if (votes.length === matchUsersArray.length) {
-            const textDisplay = new TextDisplayBuilder().setContent(
-              'A Rematch for this matchup has begun!',
+            const rawComponents = interaction.message.components.map((c) =>
+              c.toJSON(),
             )
+            const container = rawComponents[0] as any
+            if (container?.components) {
+              container.components = container.components.filter(
+                (c: any) =>
+                  !(
+                    c.type === 10 &&
+                    c.content?.startsWith('**Rematch Votes:**')
+                  ),
+              )
+
+              const rematchStartedText =
+                '### A Rematch for this matchup has begun!\nYou can still contest this finished match below.'
+              const existingStatus = container.components.find(
+                (c: any) =>
+                  c.type === 10 &&
+                  c.content?.startsWith(
+                    '### A Rematch for this matchup has begun!',
+                  ),
+              )
+
+              if (existingStatus) {
+                existingStatus.content = rematchStartedText
+              } else {
+                const lastActionRowIndex = container.components.findLastIndex(
+                  (c: any) => c.type === 1,
+                )
+                const statusComponent = {
+                  type: 10,
+                  content: rematchStartedText,
+                }
+
+                if (lastActionRowIndex !== -1) {
+                  container.components.splice(
+                    lastActionRowIndex,
+                    0,
+                    statusComponent,
+                  )
+                } else {
+                  container.components.push(statusComponent)
+                }
+              }
+
+              const actionRow = container.components.findLast(
+                (c: any) => c.type === 1,
+              )
+              if (actionRow?.components) {
+                actionRow.components = actionRow.components.filter(
+                  (component: any) =>
+                    !String(
+                      component.custom_id ?? component.customId ?? '',
+                    ).startsWith('rematch-'),
+                )
+              }
+            }
 
             await interaction.update({
-              components: [textDisplay],
+              components: rawComponents,
               flags: MessageFlags.IsComponentsV2,
               allowedMentions: { parse: [] },
             })
