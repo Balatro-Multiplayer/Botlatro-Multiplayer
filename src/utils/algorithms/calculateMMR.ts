@@ -177,7 +177,7 @@ export async function calculateNewMMR(
           : currentVolatility
 
         const newMMR = parseFloat((oldMMR + mmrChange).toFixed(1))
-        const newVolatility = Math.min(oldVolatility + 1, 10)
+        const newVolatility = Math.min(oldVolatility + 1, 15)
 
         player.elo = clamp(newMMR, 0, 9999)
         player.elo_change = parseFloat(mmrChange.toFixed(1))
