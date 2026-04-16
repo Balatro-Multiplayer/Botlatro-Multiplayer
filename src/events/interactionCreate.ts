@@ -1149,6 +1149,15 @@ export default {
             matchId: number,
             log: boolean = false,
           ) {
+            // Prevent concurrent cancellation (same guard used by win path)
+            if (processingMatchEnds.has(matchId)) {
+              console.log(
+                `Match ${matchId} cancel already being processed, skipping`,
+              )
+              return
+            }
+            processingMatchEnds.add(matchId)
+
             let usedDeferredReply = false
             let usedMessageUpdate = false
 
@@ -1188,6 +1197,8 @@ export default {
               }
             } catch (err) {
               console.error('Error in finishing match:', err)
+            } finally {
+              processingMatchEnds.delete(matchId)
             }
           }
 
@@ -1197,13 +1208,16 @@ export default {
               (member.roles.cache.has(botSettings.helper_role_id) ||
                 member.roles.cache.has(botSettings.queue_helper_role_id)) &&
               !matchUsersArray.includes(interaction.user.id)
-            )
+            ) {
               await cancel(interaction, matchId)
+              return
+            }
           }
 
           // Check if log channel is the channel
           if (interaction.channel!.id == botSettings.queue_logs_channel_id) {
             await cancel(interaction, matchId, true)
+            return
           }
 
           // Otherwise do normal vote
