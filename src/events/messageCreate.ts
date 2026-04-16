@@ -53,10 +53,20 @@ export default {
 
         if (pasteName === 'bans') {
           const parsed = Number.parseInt(parts[1], 10)
-          const banAmount: number | null = Number.isNaN(parsed) ? null : parsed
+          let banAmount: number | null = Number.isNaN(parsed) ? null : parsed
 
           if (banAmount && banAmount < 4)
             return await message.channel.send('Min ban amount is 4.')
+
+          // PPTT custom configuration
+          if (guild.id === '1370470224339406868') {
+            banAmount = 9
+            if (channel.id !== '1386800105117581312') {
+              return await message.channel.send(
+                'This command is only available in <#1386800105117581312>.',
+              )
+            }
+          }
 
           const tupleGen = new TupleBans(1)
           await tupleGen.init()
