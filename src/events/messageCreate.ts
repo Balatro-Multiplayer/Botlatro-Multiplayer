@@ -58,10 +58,8 @@ export default {
           if (banAmount && banAmount < 4)
             return await message.channel.send('Min ban amount is 4.')
 
-          console.log('guild.id: ', guild.id)
-
           // PPTT custom configuration
-          if (guild.id === '1370470224339406868') {
+          if (channel.guild.id === '1370470224339406868') {
             banAmount = 9
             if (channel.id !== '1386800105117581312') {
               return await message.channel.send(
