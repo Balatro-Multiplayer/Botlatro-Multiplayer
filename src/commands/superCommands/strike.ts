@@ -31,13 +31,13 @@ export default {
             .setDescription('Amount of strikes to give')
             .setRequired(true)
             .addChoices(
-              { name: '0 (warning)', value: 0 },
               { name: '1 (no punishment)', value: 1 },
-              { name: '2 (1 day QTO)', value: 2 },
-              { name: '3 (3 day QTO)', value: 3 },
-              { name: '4 (7 day QTO, temp tourney ban)', value: 4 },
-              { name: '5 (month QTO, temp tourney ban)', value: 5 },
-              { name: '6 (perma blacklist)', value: 6 },
+              { name: '2 (no punishment)', value: 2 },
+              { name: '3 (1 day QTO)', value: 3 },
+              { name: '4 (3 day QTO', value: 4 },
+              { name: '5 (7 day QTO, temp tourney ban)', value: 5 },
+              { name: '6 (30 day QTO, temp tourney ban)', value: 5 },
+              { name: '7 (perma blacklist)', value: 6 },
             ),
         )
         .addStringOption((option) =>
