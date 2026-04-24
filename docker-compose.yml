@@ -1,5 +1,5 @@
 x-app: &app
-  image: mybot:local
+  image: botlatro:local
   build: .
 
 x-app-env: &app-env
