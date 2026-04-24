@@ -1,12 +1,12 @@
 # syntax=docker/dockerfile:1.7
 FROM node:20-bookworm-slim AS deps
 WORKDIR /app
-COPY package.json package-lock.json* tsconfig.json ./
-RUN npm install --no-audit --no-fund
+COPY package.json package-lock.json* ./
+RUN npm ci --no-audit --no-fund
 
 FROM deps AS build
 COPY . .
-RUN npm run build  # -> dist/
+RUN npm run build
 RUN mkdir -p dist/fonts && cp -r src/fonts/. dist/fonts/
 RUN mkdir -p dist/assets && cp -r src/assets/. dist/assets/
 
@@ -15,20 +15,16 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates fontconfig && rm -rf /var/lib/apt/lists/*
 
-# runtime deps + app
 COPY --from=deps /app/node_modules ./node_modules
-COPY package.json tsconfig.json ./
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/migrations ./migrations
 
-# logs: create a writable dir and expose to app via env
 RUN mkdir -p /app/data/logs
 ENV LOG_DIR=/app/data/logs
 ENV ASSETS_DIR=/app/dist/assets
 ENV FONTS_DIR=/app/dist/fonts
-
 ENV NODE_ENV=production
 
 EXPOSE 4931
 
-CMD ["bash","-lc","exec node dist/index.js"]
+CMD ["node", "dist/index.js"]
