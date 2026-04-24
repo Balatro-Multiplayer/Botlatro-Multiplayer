@@ -36,13 +36,6 @@ export default {
       await interaction.editReply(
         `User ${user.username} given ${finalAmount} strikes for ${reason} (total: ${totalStrikes})`,
       )
-      if (finalAmount >= 4) {
-        await interaction.followUp({
-          content:
-            'Please apply the tournament blacklist role to this user, will automate this soon',
-          ephemeral: true,
-        })
-      }
     } catch (err: any) {
       console.error(err)
       await interaction.editReply('Failed to give strike.')
