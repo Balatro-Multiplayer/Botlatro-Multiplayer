@@ -70,8 +70,7 @@ export default {
             .setName('reason')
             .setDescription('The reason to unban this user from the queue')
             .setRequired(true)
-            .setMaxLength(500)
-            .setAutocomplete(true),
+            .setMaxLength(500),
         ),
     )
     .addSubcommand((sub) =>
