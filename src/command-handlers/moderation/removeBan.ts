@@ -1,5 +1,5 @@
 import type { Bans } from 'psqlDB'
-import { client } from '../../client'
+import { client, getGuild } from '../../client'
 import { moderationMessages } from '../../config/moderationMessages'
 import { pool } from '../../db'
 import { createEmbedType, logStrike } from '../../utils/logCommandUse'
@@ -52,6 +52,17 @@ export async function removeBan({ userId, blame, reason }: RemoveBanParams) {
   )
   const removedBan = removedBanRes.rows[0]
 
+  const guild = await getGuild()
+
+  // remove blacklisted roles
+  const member = await guild.members.fetch(userId).catch(() => null)
+  if (member) {
+    await Promise.all([
+      member.roles.remove('1354296037094854788'),
+      member.roles.remove('1344793211146600530'),
+    ])
+  }
+
   if (!removedBan) {
     throw new RemoveBanError('Ban not found')
   }
@@ -93,7 +104,10 @@ export async function removeBan({ userId, blame, reason }: RemoveBanParams) {
       expiresAt: removedBan.expires_at?.toISOString() ?? null,
     },
   })
-  await sendDm(userId, moderationMessages.banLiftedDm({ reason: trimmedReason }))
+  await sendDm(
+    userId,
+    moderationMessages.banLiftedDm({ reason: trimmedReason }),
+  )
 
   return {
     removedBan,

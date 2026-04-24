@@ -5,6 +5,7 @@ import { createEmbedType, logStrike } from '../../utils/logCommandUse'
 import { logModerationEvent } from '../../utils/logModerationEvent'
 import { sendDm } from '../../utils/sendDm'
 import { resolveModerationTarget } from './resolveModerationTarget'
+import { getGuild } from '../../client'
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000
 
@@ -89,7 +90,10 @@ export async function createBan({
     [
       {
         name: 'Length',
-        value: length === 0 ? 'Permanent' : `${length} day${length === 1 ? '' : 's'}`,
+        value:
+          length === 0
+            ? 'Permanent'
+            : `${length} day${length === 1 ? '' : 's'}`,
         inline: true,
       },
       {
@@ -111,6 +115,17 @@ export async function createBan({
     null,
     blame,
   )
+
+  const guild = await getGuild()
+
+  // add blacklisted roles for visibility + tourney blacklisting
+  const member = await guild.members.fetch(userId).catch(() => null)
+  if (member) {
+    await Promise.all([
+      member.roles.add('1354296037094854788'),
+      member.roles.add('1344793211146600530'),
+    ])
+  }
 
   await logStrike('general', embedType)
   await logModerationEvent({
