@@ -11,6 +11,7 @@ export default {
     // optional
     const queueDesc = interaction.options.getString('queue-desc', false)
     const defaultElo = interaction.options.getInteger('default-elo', false)
+    const newName = interaction.options.getString('new-queue-name', false)
     const membersPerTeam = interaction.options.getInteger(
       'members-per-team',
       false,
@@ -91,7 +92,8 @@ export default {
           instaqueue_min = COALESCE($16, instaqueue_min),
           instaqueue_max = COALESCE($17, instaqueue_max),
           use_tuple_bans = COALESCE($18, use_tuple_bans),
-          queue_icon = COALESCE($19, queue_icon)
+          queue_icon = COALESCE($19, queue_icon),
+          queue_name = COALESCE($20, queue_name)
         WHERE queue_name = $1
         RETURNING queue_name
         `,
@@ -115,6 +117,7 @@ export default {
           instaqueueMax,
           useTupleBans,
           queueIcon,
+          newName,
         ],
       )
 
@@ -128,18 +131,26 @@ export default {
 
       const changedFields: Record<string, unknown> = {}
       if (queueDesc != null) changedFields.queue_desc = queueDesc
-      if (membersPerTeam != null) changedFields.members_per_team = membersPerTeam
+      if (membersPerTeam != null)
+        changedFields.members_per_team = membersPerTeam
       if (numberOfTeams != null) changedFields.number_of_teams = numberOfTeams
-      if (eloSearchStart != null) changedFields.elo_search_start = eloSearchStart
-      if (eloSearchIncrement != null) changedFields.elo_search_increment = eloSearchIncrement
-      if (eloSearchSpeed != null) changedFields.elo_search_speed = eloSearchSpeed
+      if (eloSearchStart != null)
+        changedFields.elo_search_start = eloSearchStart
+      if (eloSearchIncrement != null)
+        changedFields.elo_search_increment = eloSearchIncrement
+      if (eloSearchSpeed != null)
+        changedFields.elo_search_speed = eloSearchSpeed
       if (defaultElo != null) changedFields.default_elo = defaultElo
-      if (maxPartyEloDifference != null) changedFields.max_party_elo_difference = maxPartyEloDifference
+      if (maxPartyEloDifference != null)
+        changedFields.max_party_elo_difference = maxPartyEloDifference
       if (bestOf != null) changedFields.best_of_allowed = bestOf
-      if (deckBanFirstNum != null) changedFields.first_deck_ban_num = deckBanFirstNum
-      if (deckBanSecondNum != null) changedFields.second_deck_ban_num = deckBanSecondNum
+      if (deckBanFirstNum != null)
+        changedFields.first_deck_ban_num = deckBanFirstNum
+      if (deckBanSecondNum != null)
+        changedFields.second_deck_ban_num = deckBanSecondNum
       if (roleLockId != null) changedFields.role_lock_id = roleLockId
-      if (vetoMmrThreshold != null) changedFields.veto_mmr_threshold = vetoMmrThreshold
+      if (vetoMmrThreshold != null)
+        changedFields.veto_mmr_threshold = vetoMmrThreshold
       if (color != null) changedFields.color = color
       if (instaqueueMin != null) changedFields.instaqueue_min = instaqueueMin
       if (instaqueueMax != null) changedFields.instaqueue_max = instaqueueMax

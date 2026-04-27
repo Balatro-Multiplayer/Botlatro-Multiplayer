@@ -159,6 +159,13 @@ export default {
             .setDescription('Emoji displayed next to the queue name')
             .setRequired(false)
             .setMaxLength(64),
+        )
+        .addStringOption((option) =>
+          option
+            .setName('new-queue-name')
+            .setDescription('Change the name of this queue')
+            .setRequired(false)
+            .setMaxLength(64),
         ),
     )
     .addSubcommand((sub) =>
