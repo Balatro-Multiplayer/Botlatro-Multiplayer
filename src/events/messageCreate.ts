@@ -16,6 +16,7 @@ import {
 import { resendMatchWinVote } from '../utils/matchHelpers'
 import { getGuild } from '../client'
 import { TupleBans } from '../utils/TupleBans'
+import { env } from '../env'
 
 // Track message count per channel
 const channelMessageCounts = new Map<string, number>()
@@ -84,6 +85,8 @@ export default {
           return await message.channel.send(output)
         }
 
+        if (message.guild.id != env.GUILD_ID) return;
+        
         const botSettings = await getSettings()
         const member = message.member as GuildMember
 
