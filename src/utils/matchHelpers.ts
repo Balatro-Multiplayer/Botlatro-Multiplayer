@@ -1286,6 +1286,16 @@ export async function endMatch(
   cancelled = false,
 ): Promise<EndMatchResult> {
   const matchCheck = await getMatchStatus(matchId)
+  if (!matchCheck && cancelled) {
+    console.log(
+      `Match ${matchId} already closed, skipping cancellation to prevent double MMR revert`,
+    )
+    return {
+      success: true,
+      cancelled: true,
+      revertedMmrChanges: [],
+    }
+  }
   if (!matchCheck) {
     console.log(`match ${matchId} already closed, running change winner logic`)
   }
