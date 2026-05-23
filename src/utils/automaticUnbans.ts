@@ -14,7 +14,17 @@ export async function automaticUnban(ban: Bans) {
   await sendDm(userId, moderationMessages.banLiftedDm({ expired: true }))
 
   const guild = await getGuild()
-  const username = (await guild.members.fetch(userId))?.displayName ?? userId
+ // Added member fetch to remove blacklisted roles when unbanning a user whose ban has expired. 
+  const member = await guild.members.fetch(userId).catch(() => null)
+  const username = member?.displayName ?? userId
+
+  if (member) {
+  await Promise.all([
+    member.roles.remove('1354296037094854788'),
+    member.roles.remove('1344793211146600530'),
+  ])
+}
+
 
   // log ban removal
   const embedType = createEmbedType(
