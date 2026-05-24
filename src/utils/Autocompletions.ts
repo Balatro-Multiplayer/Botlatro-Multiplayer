@@ -165,6 +165,95 @@ export async function strikeAutocomplete(interaction: AutocompleteInteraction) {
   }
 }
 
+export async function strikeAutocompleteByUser(interaction: AutocompleteInteraction) {
+try {
+    const focused = interaction.options.getFocused(true)
+    const name = focused.name
+    const value = String(focused.value ?? '')
+
+    // only handles the strike field since user is a plain mention
+    if (name === 'strike') {
+      const raw = interaction.options.getString('user') ?? ''
+      const selectedUser = raw.match(/^<@!?(\d+)>$/)?.[1] ?? raw
+      
+      if (!selectedUser) {
+        await interaction.respond([
+          { name: 'select a user first', value: 'select_user_first' },
+        ])
+        return
+      }
+      // query directly by user ID — bypassing getAllStrikedUsers call which makes autocomplete fail 
+      const strikes = await strikeUtils.getUserStrikes(selectedUser)
+
+      if (!strikes || strikes.length === 0) {
+        await interaction.respond([
+          { name: 'This user has no strikes', value: 'no_strikes_found' },
+        ])
+        return
+      }
+
+      const issuerIds = [
+        ...new Set(strikes.map((s: any) => s.issued_by_id).filter(Boolean)),
+      ]
+
+      const issuers = await Promise.all(
+        issuerIds.map((id: string) => fetchUserSafe(id)),
+      )
+
+      const issuerMap = new Map<string, string>()
+      issuerIds.forEach((id, i) =>
+        issuerMap.set(id, issuers[i]?.username ?? id),
+      )
+      const qraw = value.trim()
+      const q = qraw.toLowerCase()
+      let filtered = strikes as any[]
+
+      // same filtering logic as original
+      const m = q.match(prefixed)
+      if (m) {
+        const key = m[1].toLowerCase()
+        const val = m[2].trim()
+        if (key === 'id') {
+          filtered = strikes.filter((s) => String(s.id).includes(val))
+        } else if (key === 'reason') {
+          const v = val.toLowerCase()
+          filtered = strikes.filter((s) =>
+            (s.reason || '').toLowerCase().includes(v),
+          )
+        }
+      } else if (digits.test(q)) {
+        filtered = strikes.filter((s) => String(s.id).includes(q))
+      } else if (q.length > 0) {
+        filtered = strikes.filter((s) => {
+          const issuer = (issuerMap.get(s.issued_by_id) || '').toLowerCase()
+          const reason = (s.reason || '').toLowerCase()
+          const ref = (s.reference || '').toLowerCase()
+          return issuer.includes(q) || reason.includes(q) || ref.includes(q)
+        })
+      }
+      const choices = filtered.slice(0, 25).map((s) => {
+        const issuer = issuerMap.get(s.issued_by_id) || s.issued_by_id
+        const refLabel = s.reference || 'no channel'
+        const issued = s.issued_at ? new Date(s.issued_at) : null
+        const stamp = issued ? issued.toISOString().slice(0, 10) : ''
+        const label = `#${s.id} by ${issuer} · ${ell(s.reason || '', 40)} · ${refLabel} · ${stamp}`
+        return { name: ell(label, 100), value: String(s.id) }
+      })
+
+      await interaction.respond(
+        choices.length ? choices : [{ name: 'no matches', value: 'none' }],
+      )
+      return
+    }
+
+    await interaction.respond([])
+  } catch (err) {
+    console.error('autocomplete error:', err)
+    if (!interaction.responded) await interaction.respond([])
+  }
+}
+
+
 const BAN_REASON_PRESETS = [
   'Repeated offenses',
   'Severe harassment',
