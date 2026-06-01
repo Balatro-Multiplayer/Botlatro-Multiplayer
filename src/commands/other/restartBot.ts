@@ -15,6 +15,12 @@ export default {
     try {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
+      console.log('token present:', !!process.env.GITHUB_ACTION_TOKEN)
+      console.log(
+        'token prefix:',
+        process.env.GITHUB_ACTION_TOKEN?.slice(0, 10),
+      )
+
       const res = await fetch(
         'https://api.github.com/repos/Balatro-Multiplayer/Botlatro-Multiplayer/actions/workflows/manual-deploy.yml/dispatches',
         {
