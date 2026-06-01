@@ -47,12 +47,11 @@ export default {
         },
       )
 
-      if (res.status === 204) {
+      if (res.status !== 204) {
         await interaction.editReply('deployment triggered, see you in a sec!')
         await interaction.followUp({
           content: `
-          # Bot restart triggered by <@${interaction.user.id}> 
-          #- let's hope they know what they're doing...
+          # Bot restart triggered by <@${interaction.user.id}> \n-# let's hope they know what they're doing...
           `,
           ephemeral: false,
         })
