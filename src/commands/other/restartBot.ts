@@ -47,7 +47,7 @@ export default {
         },
       )
 
-      if (res.status !== 204) {
+      if (res.status === 204) {
         await interaction.editReply('deployment triggered, see you in a sec!')
         await interaction.followUp({
           content: `
