@@ -117,6 +117,10 @@ export abstract class Embed {
 
   // build and send embed to logging channel
   public async logCommand() {
+    if (!this.channel) {
+      await this.setLogChannel()
+    }
+
     if (!this.canSendToChannel(this.channel)) {
       console.warn(`[logCommand] skipping send for logType=${this.logType}`)
       return
