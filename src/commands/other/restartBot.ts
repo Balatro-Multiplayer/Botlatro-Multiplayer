@@ -4,6 +4,7 @@ import {
   PermissionFlagsBits,
   SlashCommandBuilder,
 } from 'discord.js'
+import { CommandFactory } from '../../utils/logCommandUse'
 
 export default {
   data: new SlashCommandBuilder()
@@ -12,6 +13,19 @@ export default {
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
   async execute(interaction: ChatInputCommandInteraction) {
+    const restartLog = CommandFactory.build('restart')
+    if (!restartLog) return
+    restartLog.setBlame(interaction.user.displayName)
+    restartLog.createEmbed()
+    let status = 'PENDING'
+    const field = [
+      {
+        name: 'Status',
+        value: `${status}`,
+        inline: false,
+      },
+    ]
+
     try {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
@@ -35,6 +49,13 @@ export default {
 
       if (res.status === 204) {
         await interaction.editReply('deployment triggered, see you in a sec!')
+        await interaction.followUp({
+          content: `
+          # Bot restart triggered by <@${interaction.user.id}> 
+          #- let's hope they know what they're doing...
+          `,
+          ephemeral: false,
+        })
       } else {
         const body = await res.text()
         console.error('github actions error:', res.status, body)
@@ -45,6 +66,9 @@ export default {
     } catch (err: any) {
       console.error(err)
       await interaction.editReply(`something went wrong: ${err.message ?? err}`)
+    } finally {
+      restartLog.setFields(field)
+      await restartLog.logCommand()
     }
   },
 }

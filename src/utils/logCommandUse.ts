@@ -159,6 +159,8 @@ export class CommandFactory extends Embed {
         return new Room(id)
       case 'match_created':
         return new MatchCreated()
+      case 'restart':
+        return new Restart()
     }
   }
 }
@@ -167,6 +169,12 @@ export class General extends CommandFactory {
   color: ColorResolvable = '#99A5A5' // grey
   title: string = 'COMMAND LOGGED'
   logType: string = 'command'
+}
+
+export class Restart extends CommandFactory {
+  color: ColorResolvable = '#e85f0e' // orange
+  title: string = 'BOT RESTARTED'
+  logType: string = 'restart command'
 }
 
 export class Room extends CommandFactory {
