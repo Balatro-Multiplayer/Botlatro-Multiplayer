@@ -7,7 +7,7 @@ import {
 
 export default {
   data: new SlashCommandBuilder()
-    .setName('RESTART-BOT')
+    .setName('restart-bot')
     .setDescription('WARNING: only do this if it is *NEEDED*')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
