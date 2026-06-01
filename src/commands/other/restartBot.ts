@@ -18,13 +18,6 @@ export default {
     restartLog.setBlame(interaction.user.displayName)
     restartLog.createEmbed()
     let status = 'PENDING'
-    const field = [
-      {
-        name: 'Status',
-        value: `${status}`,
-        inline: false,
-      },
-    ]
 
     try {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral })
@@ -66,6 +59,13 @@ export default {
       console.error(err)
       await interaction.editReply(`something went wrong: ${err.message ?? err}`)
     } finally {
+      const field = [
+        {
+          name: 'Status',
+          value: `${status}`,
+          inline: false,
+        },
+      ]
       restartLog.setFields(field)
       await restartLog.logCommand()
     }
