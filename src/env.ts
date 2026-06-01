@@ -25,10 +25,13 @@ const envSchema = z.object({
     z.string().default(path.join(process.cwd(), 'fonts')),
   ),
   GUILD_ID: z.string().trim().min(1, 'GUILD_ID is required'),
+  QUEUE_BLACKLIST_ROLE_ID: z.string().trim().min(1, 'QUEUE_BLACKLIST_ROLE_ID is required'),
+  TOURNEY_BLACKLIST_ROLE_ID: z.string().trim().min(1, 'TOURNEY_BLACKLIST_ROLE_ID is required'),
   LOG_DIR: z.preprocess(
     emptyStringToUndefined,
     z.string().default(path.join(process.cwd(), 'logs')),
   ),
+
   NODE_ENV: z.preprocess(
     emptyStringToUndefined,
     z.enum(['development', 'production', 'test']).default('production'),

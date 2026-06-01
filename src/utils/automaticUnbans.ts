@@ -6,6 +6,7 @@ import { logModerationEvent } from './logModerationEvent'
 import { sendDm } from './sendDm'
 import { createEmbedType, logStrike } from './logCommandUse'
 import { getGuild } from '../client'
+import { env } from 'env'
 
 export async function automaticUnban(ban: Bans) {
   // remove ban
@@ -20,8 +21,8 @@ export async function automaticUnban(ban: Bans) {
 
   if (member) {
   await Promise.all([
-    member.roles.remove('1354296037094854788'),
-    member.roles.remove('1344793211146600530'),
+    member.roles.remove(env.QUEUE_BLACKLIST_ROLE_ID),
+    member.roles.remove(env.TOURNEY_BLACKLIST_ROLE_ID),
   ])
 }
 
@@ -54,6 +55,7 @@ export async function automaticUnban(ban: Bans) {
   })
 }
 
+
 // check all bans for timeout. todo: replace with an api call from external service that is running a cronjob
 export async function checkBans() {
   const res = await pool.query('SELECT * FROM "bans"')
@@ -72,3 +74,4 @@ export async function checkBans() {
     await automaticUnban(expiredBan)
   }
 }
+

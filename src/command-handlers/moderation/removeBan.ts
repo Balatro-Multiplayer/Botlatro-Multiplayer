@@ -5,6 +5,7 @@ import { pool } from '../../db'
 import { createEmbedType, logStrike } from '../../utils/logCommandUse'
 import { logModerationEvent } from '../../utils/logModerationEvent'
 import { sendDm } from '../../utils/sendDm'
+import { env } from 'env'
 
 export class RemoveBanError extends Error {
   code: 'NOT_FOUND'
@@ -58,8 +59,8 @@ export async function removeBan({ userId, blame, reason }: RemoveBanParams) {
   const member = await guild.members.fetch(userId).catch(() => null)
   if (member) {
     await Promise.all([
-      member.roles.remove('1354296037094854788'),
-      member.roles.remove('1344793211146600530'),
+      member.roles.remove(env.QUEUE_BLACKLIST_ROLE_ID),
+      member.roles.remove(env.TOURNEY_BLACKLIST_ROLE_ID),
     ])
   }
 
