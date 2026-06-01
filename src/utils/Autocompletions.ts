@@ -23,6 +23,24 @@ const digits = /^\d+$/
 const userMention = /^<@!?(\d{16,25})>$/
 const prefixed = /^(id|by|reason|ref|reference):\s*(.+)$/i
 
+async function getUsersWithStrikesMatching(
+  query: string,
+): Promise<{ user_id: string; display_name: string }[]> {
+  const res = await pool.query(
+    `
+    SELECT DISTINCT u.user_id, u.display_name
+    FROM users u
+           INNER JOIN strikes s ON s.user_id = u.user_id
+      ${query ? `WHERE u.display_name ILIKE $1 OR u.user_id ILIKE $1` : ''}
+    ORDER BY u.display_name
+    LIMIT 25
+  `,
+    query ? [`${query}%`] : [],
+  )
+
+  return res.rows
+}
+
 export async function strikeAutocomplete(interaction: AutocompleteInteraction) {
   try {
     const focused = interaction.options.getFocused(true)
@@ -51,22 +69,12 @@ export async function strikeAutocomplete(interaction: AutocompleteInteraction) {
     }
 
     if (name === 'user') {
-      const userIds = await strikeUtils.getUserIdsWithStrikes()
-      const uniqueIds = [...new Set(userIds)]
-      const users = await Promise.all(uniqueIds.map((id) => fetchUserSafe(id)))
+      const q = value.trim()
+      const users = await getUsersWithStrikesMatching(q)
 
-      const q = value.toLowerCase()
-      const entries =
-        users
-          .filter((u: any): u is User => !!u)
-          .filter((u: any) =>
-            q
-              ? u.username.toLowerCase().includes(q) || u.id.includes(value)
-              : true,
-          )
-          .slice(0, 25)
-          .map((u: any) => ({ name: `${u.username}`, value: u.id })) || []
-      await interaction.respond(entries)
+      await interaction.respond(
+        users.map((u) => ({ name: u.display_name, value: u.user_id })),
+      )
       return
     }
 
@@ -218,7 +226,6 @@ export async function roomDeleteAutoCompletion(
   return
 }
 
-// Show all active matches for autocomplete using prefix
 export async function getMatchesForAutocomplete(
   input: string,
 ): Promise<{ id: number }[]> {
@@ -235,7 +242,6 @@ export async function getMatchesForAutocomplete(
     `
     params = [`${input}%`]
   } else {
-    // Show 25 matches with no input
     query = `
       SELECT id FROM matches
       WHERE open = true
