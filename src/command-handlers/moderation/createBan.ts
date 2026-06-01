@@ -6,6 +6,7 @@ import { logModerationEvent } from '../../utils/logModerationEvent'
 import { sendDm } from '../../utils/sendDm'
 import { resolveModerationTarget } from './resolveModerationTarget'
 import { getGuild } from '../../client'
+import { env } from 'env'
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000
 
@@ -120,10 +121,12 @@ export async function createBan({
 
   // add blacklisted roles for visibility + tourney blacklisting
   const member = await guild.members.fetch(userId).catch(() => null)
+  console.log('Member found for role add:', !!member)
   if (member) {
     await Promise.all([
-      member.roles.add('1354296037094854788'),
-      member.roles.add('1344793211146600530'),
+      member.roles.add(env.QUEUE_BLACKLIST_ROLE_ID),
+      member.roles.add(env.TOURNEY_BLACKLIST_ROLE_ID),
+    
     ])
   }
 

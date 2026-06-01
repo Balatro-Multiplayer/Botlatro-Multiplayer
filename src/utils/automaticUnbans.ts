@@ -6,6 +6,7 @@ import { logModerationEvent } from './logModerationEvent'
 import { sendDm } from './sendDm'
 import { createEmbedType, logStrike } from './logCommandUse'
 import { getGuild } from '../client'
+import { env } from 'env'
 
 export async function automaticUnban(ban: Bans) {
   // remove ban
@@ -14,7 +15,17 @@ export async function automaticUnban(ban: Bans) {
   await sendDm(userId, moderationMessages.banLiftedDm({ expired: true }))
 
   const guild = await getGuild()
-  const username = (await guild.members.fetch(userId))?.displayName ?? userId
+ // Added member fetch to remove blacklisted roles when unbanning a user whose ban has expired. 
+  const member = await guild.members.fetch(userId).catch(() => null)
+  const username = member?.displayName ?? userId
+
+  if (member) {
+  await Promise.all([
+    member.roles.remove(env.QUEUE_BLACKLIST_ROLE_ID),
+    member.roles.remove(env.TOURNEY_BLACKLIST_ROLE_ID),
+  ])
+}
+
 
   // log ban removal
   const embedType = createEmbedType(
@@ -44,6 +55,7 @@ export async function automaticUnban(ban: Bans) {
   })
 }
 
+
 // check all bans for timeout. todo: replace with an api call from external service that is running a cronjob
 export async function checkBans() {
   const res = await pool.query('SELECT * FROM "bans"')
@@ -62,3 +74,4 @@ export async function checkBans() {
     await automaticUnban(expiredBan)
   }
 }
+
