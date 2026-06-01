@@ -8,6 +8,7 @@ x-app-env: &app-env
   CLIENT_ID: ${CLIENT_ID}
   GUILD_ID: ${GUILD_ID}
   API_TOKEN: ${API_TOKEN}
+  GITHUB_ACTION_TOKEN: ${GITHUB_ACTION_TOKEN}
 
 services:
   db:
