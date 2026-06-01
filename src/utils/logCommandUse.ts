@@ -96,6 +96,9 @@ export abstract class Embed {
       case 'command':
         channelId = res.rows[0].logs_channel_id
         break
+      case 'restart command':
+        channelId = '1510820916538638447' // hard-coded status channel
+        break
     }
     if (!channelId) {
       console.warn(
