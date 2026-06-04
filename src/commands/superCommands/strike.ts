@@ -7,7 +7,7 @@ import {
 
 import giveStrike from '../moderation/playerModeration/giveStrike'
 import removeStrike from '../moderation/playerModeration/removeStrike'
-import { strikeAutocomplete } from '../../utils/Autocompletions'
+import { strikeAutocomplete, strikeAutocompleteByUser } from '../../utils/Autocompletions'
 
 export default {
   data: new SlashCommandBuilder()
@@ -86,18 +86,52 @@ export default {
             .setRequired(false)
             .setMaxLength(500),
         ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('remove-manual-user')
+        .setDescription('[HELPER] Remove strike(s) from a user without user name autocomplete')
+        .addStringOption((option) =>
+          option
+            .setName('user')
+            .setDescription('The user to remove strike(s) from')
+            .setRequired(true),            
+        )
+        .addStringOption((option) =>
+          option
+            .setName('strike')
+            .setDescription('Strike to remove')
+            .setRequired(true)
+            .setAutocomplete(true)
+            .setMaxLength(500),  
+        )
+        .addStringOption((option) =>
+          option
+            .setName('reason')
+            .setDescription('Reason for removing strike')
+            .setRequired(false)
+            .setMaxLength(500),
+        ),
     ),
 
+
+
   async execute(interaction: ChatInputCommandInteraction) {
-    if (interaction.options.getSubcommand() === 'give') {
-      await giveStrike.execute(interaction)
-    } else if (interaction.options.getSubcommand() === 'remove') {
-      await removeStrike.execute(interaction)
-    }
-  },
+  if (interaction.options.getSubcommand() === 'give') {
+    await giveStrike.execute(interaction)
+  } else if (interaction.options.getSubcommand() === 'remove') {
+    await removeStrike.execute(interaction)
+  } else if (interaction.options.getSubcommand() === 'remove-manual-user') {
+    await removeStrike.execute(interaction)
+  }
+},
 
   async autocomplete(interaction: AutocompleteInteraction) {
+    if (interaction.options.getSubcommand() === 'remove-manual-user') {
+    await strikeAutocompleteByUser(interaction)
+  } else {
     await strikeAutocomplete(interaction)
+  }
   },
 }
 // this supercommand should only be usable by helper+
