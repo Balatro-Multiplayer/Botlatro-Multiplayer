@@ -1,12 +1,9 @@
 import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
 import { pool } from '../../../db'
 import { Bans } from 'psqlDB'
-import {
-  createModerationListEmbed,
-  formatBanLogEntry,
-  isExpired,
-} from './moderationLogUtils'
+import { formatBanLogEntry, isExpired } from './moderationLogUtils'
 import { resolveModerationTarget } from '../../../command-handlers/moderation/resolveModerationTarget'
+import { sendPaginatedEmbed } from '../../../utils/paginatedEmbed'
 
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
@@ -46,7 +43,7 @@ export default {
       )
       const targetLookup = new Map<string, string>(targetEntries)
 
-      const embed = createModerationListEmbed({
+      await sendPaginatedEmbed(interaction, {
         title: 'Ban Log',
         summary: `Active bans: ${activeBanCount}${expiredBanCount > 0 ? ` · Expired: ${expiredBanCount}` : ''}`,
         emptyState: 'No bans on record.',
@@ -57,8 +54,6 @@ export default {
           ),
         ),
       })
-
-      await interaction.editReply({ embeds: [embed] })
     } catch (err: any) {
       console.error(err)
     }

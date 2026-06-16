@@ -1,8 +1,5 @@
-import { EmbedBuilder, Guild } from 'discord.js'
+import { Guild } from 'discord.js'
 import type { Bans, Strikes } from 'psqlDB'
-
-const MODERATION_LIST_COLOR = 0x5865f2
-const MAX_FIELD_VALUE_LENGTH = 1024
 
 function normalizeText(
   value: string | number | null | undefined,
@@ -34,74 +31,6 @@ export function isExpired(expiresAt: Date | null | undefined): boolean {
   return new Date(expiresAt).getTime() < Date.now()
 }
 
-function chunkEntries(entries: string[]) {
-  const chunks: { start: number; end: number; value: string }[] = []
-  let currentValue = ''
-  let currentStart = 0
-
-  entries.forEach((entry, index) => {
-    const nextValue =
-      currentValue.length === 0 ? entry : `${currentValue}\n\n${entry}`
-
-    if (nextValue.length > MAX_FIELD_VALUE_LENGTH && currentValue.length > 0) {
-      chunks.push({
-        start: currentStart + 1,
-        end: index,
-        value: currentValue,
-      })
-      currentValue = entry
-      currentStart = index
-      return
-    }
-
-    currentValue = nextValue
-  })
-
-  if (currentValue.length > 0) {
-    chunks.push({
-      start: currentStart + 1,
-      end: entries.length,
-      value: currentValue,
-    })
-  }
-
-  return chunks
-}
-
-export function createModerationListEmbed({
-  title,
-  summary,
-  emptyState,
-  entries,
-}: {
-  title: string
-  summary: string
-  emptyState: string
-  entries: string[]
-}) {
-  const embed = new EmbedBuilder()
-    .setColor(MODERATION_LIST_COLOR)
-    .setTitle(title)
-    .setDescription(summary)
-    .setTimestamp()
-
-  if (entries.length === 0) {
-    embed.addFields({ name: 'Entries', value: emptyState, inline: false })
-    return embed
-  }
-
-  const chunks = chunkEntries(entries)
-  for (const chunk of chunks) {
-    embed.addFields({
-      name:
-        chunks.length === 1 ? 'Entries' : `Entries ${chunk.start}-${chunk.end}`,
-      value: chunk.value,
-      inline: false,
-    })
-  }
-
-  return embed
-}
 
 export function formatBanLogEntry(ban: Bans, targetLabel: string) {
   const relatedStrikes =
