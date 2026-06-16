@@ -232,6 +232,28 @@ export async function joinQueues(
   const guild = await getGuild()
   const member = await guild.members.fetch(userId)
 
+  // Ban check — enforced here (the single chokepoint for every join path).
+  // Blocks on the blacklist role OR an active DB ban, so a banned user is
+  // stopped even if they shed the role by leaving and rejoining the server
+  // (DB), and a manually role-blacklisted user is stopped too (role).
+  const hasBlacklistRole = member.roles.cache.has('1354296037094854788')
+  const banCheck = await pool.query(
+    `SELECT 1 FROM bans
+     WHERE user_id = $1
+       AND (expires_at IS NULL OR expires_at > NOW())
+     LIMIT 1`,
+    [userId],
+  )
+  const hasDbBan = !!banCheck.rowCount && banCheck.rowCount > 0
+  if (hasBlacklistRole || hasDbBan) {
+    await interaction
+      ?.editReply({
+        content: 'You are queue blacklisted, and cannot join the queue.',
+      })
+      .catch((e) => console.error(e))
+    return null
+  }
+
   // Ensure user exists
   await pool.query(
     'INSERT INTO users (user_id) VALUES ($1) ON CONFLICT DO NOTHING',
