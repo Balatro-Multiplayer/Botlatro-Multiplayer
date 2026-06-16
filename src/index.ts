@@ -1,7 +1,6 @@
 /// <reference path="./@types/discord.d.ts" />
 import './register-paths'
 import {
-  deleteExpiredStrikesCronJob,
   replenishReservePoolCronJob,
   runDecayTick,
   updateMatchCountCronJob,
@@ -76,9 +75,6 @@ if (env.NODE_ENV !== 'development') {
 //void deleteOldTranscriptsCronJob()
 void updateMatchCountCronJob().catch((error) =>
   console.error('[MATCH COUNT CRON ERROR]', error),
-)
-void deleteExpiredStrikesCronJob().catch((error) =>
-  console.error('[STRIKES CRON ERROR]', error),
 )
 
 // Start API server

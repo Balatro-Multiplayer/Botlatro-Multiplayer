@@ -47,6 +47,7 @@ export async function createStrike({
           SELECT id
           FROM strikes
           WHERE user_id = $1
+            AND expires_at > NOW()
           LIMIT 1
         `,
         [userId],
@@ -55,7 +56,7 @@ export async function createStrike({
 
   const finalAmount = hasPriorStrikes && amount === 0 ? 1 : amount
   const expiresAt =
-    (await calculateExpiryDate(userId)) ??
+    (await calculateExpiryDate(userId, finalAmount)) ??
     new Date(Date.now() + DEFAULT_STRIKE_EXPIRY_MS)
   const issuedAt = new Date()
 
@@ -82,6 +83,7 @@ export async function createStrike({
       SELECT COALESCE(SUM(amount), 0)::int AS total
       FROM strikes
       WHERE user_id = $1
+        AND expires_at > NOW()
     `,
     [userId],
   )

@@ -56,7 +56,8 @@ export async function createBan({
       SET reason = EXCLUDED.reason,
           allowed_queue_ids = EXCLUDED.allowed_queue_ids,
           expires_at = EXCLUDED.expires_at,
-          related_strike_ids = EXCLUDED.related_strike_ids
+          related_strike_ids = EXCLUDED.related_strike_ids,
+          expiry_handled = false
       WHERE bans.expires_at IS NOT NULL
         AND bans.expires_at <= NOW()
       RETURNING *

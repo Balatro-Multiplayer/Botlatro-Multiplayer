@@ -459,7 +459,8 @@ async function buildPlayersPage({
       display_name: userId,
       avatar_url: null,
     }
-    const userStrikes = (strikesByUser.get(userId) ?? []).map((strike) =>
+    const rawUserStrikes = strikesByUser.get(userId) ?? []
+    const userStrikes = rawUserStrikes.map((strike) =>
       serializeStrike(strike, users),
     )
     const activeBan = serializeBan(activeBanMap.get(userId) ?? null)
@@ -472,8 +473,13 @@ async function buildPlayersPage({
       ...user,
       strikes: userStrikes,
       active_ban: activeBan,
-      total_strike_points: userStrikes.reduce(
-        (runningTotal, strike) => runningTotal + strike.amount,
+      // Only non-expired strikes count toward the total; expired strikes are
+      // retained in the list above as history.
+      total_strike_points: rawUserStrikes.reduce(
+        (runningTotal, strike) =>
+          strike.expires_at && new Date(strike.expires_at).getTime() < Date.now()
+            ? runningTotal
+            : runningTotal + strike.amount,
         0,
       ),
       latest_strike_at: latestStrikeAt,
@@ -538,6 +544,7 @@ async function listModerationPlayersFast({
         WITH strike_users AS (
           SELECT user_id, MAX(issued_at) AS latest_strike_at
           FROM strikes
+          WHERE expires_at > NOW()
           GROUP BY user_id
         ),
         ban_only_users AS (
@@ -567,6 +574,7 @@ async function listModerationPlayersFast({
         WITH strike_users AS (
           SELECT user_id
           FROM strikes
+          WHERE expires_at > NOW()
           GROUP BY user_id
         ),
         ban_only_users AS (
@@ -608,6 +616,7 @@ async function listModerationPlayersFast({
     `
       SELECT user_id, MAX(issued_at) AS latest_strike_at
       FROM strikes
+      WHERE expires_at > NOW()
       GROUP BY user_id
       ORDER BY MAX(issued_at) DESC, user_id ASC
       LIMIT $1 OFFSET $2
@@ -618,6 +627,7 @@ async function listModerationPlayersFast({
     `
       SELECT COUNT(DISTINCT user_id)::int AS total
       FROM strikes
+      WHERE expires_at > NOW()
     `,
   )
   const strikeLatestMap = new Map(
@@ -684,6 +694,7 @@ async function listModerationPlayers({
           `SELECT user_id, MAX(issued_at) AS latest_strike_at
            FROM strikes
            WHERE user_id = ANY($1::text[])
+             AND expires_at > NOW()
            GROUP BY user_id`,
           [[...searchUserIds]],
         )
@@ -692,6 +703,7 @@ async function listModerationPlayers({
         : pool.query<{ user_id: string; latest_strike_at: Date | null }>(
             `SELECT user_id, MAX(issued_at) AS latest_strike_at
              FROM strikes
+             WHERE expires_at > NOW()
              GROUP BY user_id`,
           ),
   ])
@@ -1628,7 +1640,7 @@ moderationRouter.openapi(
       if (filter === 'banned') {
         filterJoin = `INNER JOIN bans b ON b.user_id = gm.user_id AND (b.expires_at IS NULL OR b.expires_at > NOW())`
       } else if (filter === 'striked') {
-        filterJoin = `INNER JOIN (SELECT DISTINCT user_id FROM strikes) s ON s.user_id = gm.user_id`
+        filterJoin = `INNER JOIN (SELECT DISTINCT user_id FROM strikes WHERE expires_at > NOW()) s ON s.user_id = gm.user_id`
       }
 
       const sortJoin =
@@ -1636,6 +1648,7 @@ moderationRouter.openapi(
           ? `LEFT JOIN (
                SELECT user_id, MAX(issued_at) AS latest_strike_at
                FROM strikes
+               WHERE expires_at > NOW()
                GROUP BY user_id
              ) ls ON ls.user_id = gm.user_id`
           : ''

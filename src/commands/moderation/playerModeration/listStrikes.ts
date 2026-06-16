@@ -4,6 +4,7 @@ import { getGuild } from '../../../client'
 import {
   createModerationListEmbed,
   formatStrikeLogEntry,
+  isExpired,
 } from './moderationLogUtils'
 
 export default {
@@ -15,10 +16,13 @@ export default {
       const guild = await getGuild()
       const member =
         guild.members.cache.get(user.id) ?? (await guild.members.fetch(user.id))
-      const sortedStrikes = [...strikeInfo].sort(
-        (a, b) =>
-          new Date(b.issued_at).getTime() - new Date(a.issued_at).getTime(),
-      )
+      // Active strikes first, then expired; each group newest-first.
+      const sortedStrikes = [...strikeInfo].sort((a, b) => {
+        const aExpired = isExpired(a.expires_at)
+        const bExpired = isExpired(b.expires_at)
+        if (aExpired !== bExpired) return aExpired ? 1 : -1
+        return new Date(b.issued_at).getTime() - new Date(a.issued_at).getTime()
+      })
       const issuedByIds = [
         ...new Set(sortedStrikes.map((strike) => strike.issued_by_id)),
       ]
@@ -35,14 +39,18 @@ export default {
         }),
       )
       const issuedByLookup = new Map(issuedByEntries)
-      const totalStrikes = sortedStrikes.reduce(
-        (total, strike) => total + strike.amount,
+      const activeStrikes = sortedStrikes.reduce(
+        (total, strike) =>
+          isExpired(strike.expires_at) ? total : total + strike.amount,
         0,
       )
+      const expiredCount = sortedStrikes.filter((strike) =>
+        isExpired(strike.expires_at),
+      ).length
 
       const embed = createModerationListEmbed({
         title: `${member.displayName} Strike Log`,
-        summary: `Entries: ${sortedStrikes.length} · Total strikes: ${totalStrikes}`,
+        summary: `Active strikes: ${activeStrikes} · Entries: ${sortedStrikes.length}${expiredCount > 0 ? ` (${expiredCount} expired)` : ''}`,
         emptyState: 'No strikes found for this user.',
         entries: sortedStrikes.map((strike) =>
           formatStrikeLogEntry(
