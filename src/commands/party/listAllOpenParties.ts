@@ -1,5 +1,6 @@
 import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
 import { partyUtils } from '../../utils/queryDB'
+import { sendPaginatedEmbed } from '../../utils/paginatedEmbed'
 
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
@@ -7,18 +8,14 @@ export default {
 
     try {
       const parties = await partyUtils.listAllParties()
-      if (!parties || parties.length === 0) {
-        await interaction.editReply({
-          content: `There are currently no parties.`,
-        })
-        return
-      }
 
-      const partyList = parties.map((party) => {
-        return `- ${party.name} (ID: ${party.id})`
-      })
-      await interaction.editReply({
-        content: `All Parties: \n${partyList.join('\n')}`,
+      await sendPaginatedEmbed(interaction, {
+        title: 'All Parties',
+        summary: `Total: ${parties?.length ?? 0}`,
+        emptyState: 'There are currently no parties.',
+        entries: (parties ?? []).map(
+          (party) => `- ${party.name} (ID: ${party.id})`,
+        ),
       })
     } catch (err: any) {
       console.error(err)

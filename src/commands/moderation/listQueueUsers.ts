@@ -1,5 +1,6 @@
 import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
 import { getQueueIdFromName, getUsersInQueue } from 'utils/queryDB'
+import { sendPaginatedEmbed } from '../../utils/paginatedEmbed'
 
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
@@ -15,23 +16,13 @@ export default {
       }
 
       const queueUsers = await getUsersInQueue(queueId)
-      const formattedQueueUsers = queueUsers
-        .map((userId: string) => {
-          return `<@${userId}>`
-        })
-        .join('\n')
 
-      if (queueUsers.length > 0) {
-        await interaction.reply({
-          content: `**Users in Queue for ${queueName}**\n${formattedQueueUsers}`,
-          flags: MessageFlags.Ephemeral,
-        })
-      } else {
-        await interaction.reply({
-          content: `No users are currently in the queue for **${queueName}**.`,
-          flags: MessageFlags.Ephemeral,
-        })
-      }
+      await sendPaginatedEmbed(interaction, {
+        title: `Users in Queue for ${queueName}`,
+        summary: `Total: ${queueUsers.length}`,
+        emptyState: `No users are currently in the queue for **${queueName}**.`,
+        entries: queueUsers.map((userId: string) => `<@${userId}>`),
+      })
     } catch (err: any) {
       console.error(err)
       const errorMsg = err.detail || err.message || 'Unknown'

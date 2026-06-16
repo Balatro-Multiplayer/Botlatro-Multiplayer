@@ -1,11 +1,8 @@
 import { ChatInputCommandInteraction, MessageFlags } from 'discord.js'
 import { strikeUtils } from '../../../utils/queryDB'
 import { getGuild } from '../../../client'
-import {
-  createModerationListEmbed,
-  formatStrikeLogEntry,
-  isExpired,
-} from './moderationLogUtils'
+import { formatStrikeLogEntry, isExpired } from './moderationLogUtils'
+import { sendPaginatedEmbed } from '../../../utils/paginatedEmbed'
 
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
@@ -48,7 +45,7 @@ export default {
         isExpired(strike.expires_at),
       ).length
 
-      const embed = createModerationListEmbed({
+      await sendPaginatedEmbed(interaction, {
         title: `${member.displayName} Strike Log`,
         summary: `Active strikes: ${activeStrikes} · Entries: ${sortedStrikes.length}${expiredCount > 0 ? ` (${expiredCount} expired)` : ''}`,
         emptyState: 'No strikes found for this user.',
@@ -59,8 +56,6 @@ export default {
           ),
         ),
       })
-
-      await interaction.editReply({ embeds: [embed] })
     } catch (err: any) {
       console.error(err)
     }
