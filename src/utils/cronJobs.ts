@@ -19,7 +19,6 @@ import {
   replenishReservePool,
   updateMatchCountChannel,
 } from './matchHelpers'
-import { pool } from '../db'
 import * as fs from 'fs'
 import * as path from 'path'
 import { glob } from 'glob'
@@ -279,24 +278,4 @@ export async function updateMatchCountCronJob() {
     },
     7 * 60 * 1000,
   ) // every 7 mins
-}
-
-// delete expired strikes every 2 hours
-export async function deleteExpiredStrikesCronJob() {
-  setInterval(
-    async () => {
-      try {
-        const res = await pool.query(
-          `DELETE FROM strikes WHERE expires_at < NOW() RETURNING id`,
-        )
-        const deletedCount = res.rowCount || 0
-        if (deletedCount > 0) {
-          console.log(`Deleted ${deletedCount} expired strike(s)`)
-        }
-      } catch (err) {
-        console.error('Error deleting expired strikes:', err)
-      }
-    },
-    2 * 60 * 60 * 1000,
-  ) // every 2 hours
 }

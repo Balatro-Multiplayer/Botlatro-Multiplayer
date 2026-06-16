@@ -1,31 +1,30 @@
 import { getUserStrikes } from './queryDB'
 
-// for calculating how long the expiry should be on a strike, based on a few crude methods
+// Calculate how long a newly-issued strike should last. Expiry scales
+// quadratically with the user's total *active* strike count, including the
+// strikes being issued right now, so issuing several at once (a major offense)
+// is punished much harder than a single strike.
+//
+//   T (active strikes incl. this issuance):  1    2    3    4
+//   expiry (days = 7 * T^2):                 7   28   63  112
 export async function calculateExpiryDate(
   user_id: string,
-): Promise<Date | null> {
+  amount: number,
+): Promise<Date> {
   const dayLength = 1000 * 60 * 60 * 24
-  const currentDate = new Date()
-  const res = await getUserStrikes(user_id)
-  let lengthOfBan: number = 14 // default strike expiry timer
+  const now = Date.now()
 
-  const strikes = res.map((strike) => {
-    const currentDate = new Date()
-    const expired: boolean = strike.expires_at >= currentDate
-    return { amount: strike.amount, expired: expired }
-  })
+  const strikes = await getUserStrikes(user_id)
 
-  const totalStrikes = strikes.reduce((sum, strike) => {
-    return sum + strike.amount
-  }, 0)
+  // Only non-expired strikes count toward the total. Expired strikes are kept
+  // as a permanent record but no longer influence escalation.
+  const activeTotalBefore = strikes
+    .filter((strike) => new Date(strike.expires_at).getTime() > now)
+    .reduce((sum, strike) => sum + strike.amount, 0)
 
-  const severeStrikes = strikes.filter((strike) => {
-    // checks if a user has ever had a more serious incident
-    return strike.amount >= 1
-  })
+  // Floor at 1 so a degenerate amount of 0 still produces a sane expiry.
+  const totalStrikes = Math.max(1, activeTotalBefore + amount)
+  const expiryDays = 7 * totalStrikes * totalStrikes
 
-  lengthOfBan += totalStrikes * 7
-  lengthOfBan += severeStrikes.length * 14
-
-  return new Date(currentDate.getTime() + dayLength * lengthOfBan)
+  return new Date(now + dayLength * expiryDays)
 }

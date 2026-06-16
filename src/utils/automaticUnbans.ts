@@ -8,9 +8,12 @@ import { createEmbedType, logStrike } from './logCommandUse'
 import { getGuild } from '../client'
 
 export async function automaticUnban(ban: Bans) {
-  // remove ban
+  // Keep the ban row as a permanent record, but mark its expiry as handled so
+  // the one-time side effects below (role removal, DM, log) only run once.
   const userId = ban.user_id.toString()
-  await pool.query(`DELETE FROM "bans" WHERE user_id = $1`, [userId])
+  await pool.query(`UPDATE "bans" SET expiry_handled = true WHERE id = $1`, [
+    ban.id,
+  ])
   await sendDm(userId, moderationMessages.banLiftedDm({ expired: true }))
 
   const guild = await getGuild()
@@ -59,19 +62,17 @@ export async function automaticUnban(ban: Bans) {
 
 // check all bans for timeout. todo: replace with an api call from external service that is running a cronjob
 export async function checkBans() {
-  const res = await pool.query('SELECT * FROM "bans"')
-
-  const bans = res.rows
-  const currentTime = Date.now()
-
-  // filter for bans that have expired
-  const expiredBans = bans.filter(
-    (ban: Bans): ban is Bans =>
-      !!ban.expires_at && ban.expires_at.getTime() < currentTime,
+  // Only pick up bans that have expired and whose expiry has not yet been
+  // handled (permanent bans have expires_at NULL and are never selected).
+  const res = await pool.query<Bans>(
+    `SELECT * FROM "bans"
+     WHERE expires_at IS NOT NULL
+       AND expires_at < NOW()
+       AND expiry_handled = false`,
   )
 
   // unban user
-  for (const expiredBan of expiredBans) {
+  for (const expiredBan of res.rows) {
     await automaticUnban(expiredBan)
   }
 }

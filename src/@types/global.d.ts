@@ -112,6 +112,7 @@ declare module 'psqlDB' {
     expires_at?: Date | null
     related_strike_ids?: number[] | null
     allowed_queue_ids?: number[] | null
+    expiry_handled?: boolean
   }
 
   export interface Strikes {

@@ -126,7 +126,10 @@ export default {
     }
 
     const currentValue = String(focused.value ?? '').toLowerCase()
-    const bannedUsers = await getBannedUsers()
+    // Expired bans are kept as a record; only offer currently-banned users.
+    const bannedUsers = (await getBannedUsers()).filter(
+      (ban) => !ban.expires_at || new Date(ban.expires_at).getTime() > Date.now(),
+    )
 
     const users = (
       await Promise.all(
