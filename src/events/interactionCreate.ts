@@ -92,24 +92,38 @@ const tupleRerollUsed = new Set<number>()
 // Track matches that have consumed their one-time tuple veto
 const tupleVetoUsed = new Set<number>()
 
+// Last display name we persisted per user. Updating the display name on every
+// interaction put a blocking DB write in front of Discord's 3s ack deadline and
+// flooded the connection pool during interaction bursts. We now skip the write
+// when the name is unchanged and never block the interaction on it.
+const lastKnownDisplayName = new Map<string, string>()
+
+function refreshUserDisplayName(userId: string, displayName: string): void {
+  if (lastKnownDisplayName.get(userId) === displayName) return
+  lastKnownDisplayName.set(userId, displayName)
+  // Fire-and-forget: never block interaction handling on this write.
+  updateUserDisplayName(userId, displayName).catch((err) => {
+    // Drop the cache entry so the write is retried on the next interaction.
+    lastKnownDisplayName.delete(userId)
+    console.error('Error updating display name:', err)
+  })
+}
+
 export default {
   name: Events.InteractionCreate,
   async execute(interaction: Interaction) {
     if (!interaction) return console.log('*No interaction found*')
 
-    // Update display name for all interactions except autocomplete
+    // Update display name for all interactions except autocomplete.
+    // Deduped + fire-and-forget so it never delays acknowledging the interaction.
     if (
       !interaction.isAutocomplete() &&
       interaction.member instanceof GuildMember
     ) {
-      try {
-        await updateUserDisplayName(
-          interaction.user.id,
-          interaction.member.displayName,
-        )
-      } catch (err) {
-        console.error('Error updating display name:', err)
-      }
+      refreshUserDisplayName(
+        interaction.user.id,
+        interaction.member.displayName,
+      )
     }
 
     // Slash commands

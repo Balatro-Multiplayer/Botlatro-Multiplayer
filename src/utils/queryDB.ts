@@ -1609,11 +1609,27 @@ export async function getSettings(): Promise<Settings> {
 }
 
 // get the active season from settings
+// The active season changes only on rare admin action, but this is read on
+// nearly every stats/leaderboard request. Cache it briefly to keep those hot
+// paths off the connection pool. Call clearActiveSeasonCache() when the season
+// is changed if an immediate refresh is needed.
+let activeSeasonCache: { expires: number; value: number } | null = null
+const ACTIVE_SEASON_CACHE_TTL_MS = 30_000
+
+export function clearActiveSeasonCache(): void {
+  activeSeasonCache = null
+}
+
 export async function getActiveSeason(): Promise<number> {
+  if (activeSeasonCache && activeSeasonCache.expires > Date.now()) {
+    return activeSeasonCache.value
+  }
   const res = await pool.query(
     'SELECT active_season FROM settings WHERE singleton = true',
   )
-  return res.rows[0].active_season
+  const value = res.rows[0].active_season
+  activeSeasonCache = { expires: Date.now() + ACTIVE_SEASON_CACHE_TTL_MS, value }
+  return value
 }
 
 // get the data for the statistics canvas display

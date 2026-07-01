@@ -20,13 +20,34 @@ export type LeaderboardEntry = {
  * @param {number} season - Optional season number to filter matches by.
  * @return {Promise<LeaderboardEntry[]>} A promise that resolves to the leaderboard data.
  */
+// Short-lived cache for leaderboard responses. The public website polls this
+// endpoint frequently and each call runs an expensive window-function query
+// against the shared connection pool; a brief cache collapses repeat hits into
+// a single DB read without meaningfully staling the leaderboard.
+const LEADERBOARD_CACHE_TTL_MS = 30_000
+const leaderboardCache = new Map<
+  string,
+  { expires: number; data: LeaderboardEntry[] }
+>()
+
 export async function getLeaderboard(
   queueId: number,
   limit?: number,
   season?: number,
 ): Promise<LeaderboardEntry[]> {
+  const cacheKey = `${queueId}:${limit ?? 'all'}:${season ?? 'active'}`
+  const cached = leaderboardCache.get(cacheKey)
+  if (cached && cached.expires > Date.now()) {
+    return cached.data
+  }
+
   try {
-    return await getQueueLeaderboard(queueId, limit, season)
+    const data = await getQueueLeaderboard(queueId, limit, season)
+    leaderboardCache.set(cacheKey, {
+      expires: Date.now() + LEADERBOARD_CACHE_TTL_MS,
+      data,
+    })
+    return data
   } catch (error) {
     console.error('Error fetching leaderboard:', error)
     throw error

@@ -6,7 +6,7 @@ import {
 } from 'discord.js'
 import { pool } from '../../db'
 import { logModerationEvent } from '../../utils/logModerationEvent'
-import { getActiveSeason } from '../../utils/queryDB'
+import { clearActiveSeasonCache, getActiveSeason } from '../../utils/queryDB'
 
 export default {
   data: new SlashCommandBuilder()
@@ -87,6 +87,7 @@ export default {
         `UPDATE settings SET active_season = $1 WHERE singleton = true`,
         [newSeason],
       )
+      clearActiveSeasonCache()
       console.log(`[Reset Season] Active season set to ${newSeason}`)
 
       await pool.query(
