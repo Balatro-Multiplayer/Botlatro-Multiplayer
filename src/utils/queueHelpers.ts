@@ -495,6 +495,7 @@ export async function matchUpGames(): Promise<void> {
       // Atomically check and remove users from queue to prevent race conditions
       const userIds = users.map((u: Record<string, any>) => u.user_id)
       const dbClient = await pool.connect()
+      let committed = false
       try {
         await dbClient.query('BEGIN')
 
@@ -510,7 +511,6 @@ export async function matchUpGames(): Promise<void> {
         // If not all users are still available, skip this match
         if (checkResult.rowCount !== userIds.length) {
           await dbClient.query('ROLLBACK')
-          dbClient.release()
           continue
         }
 
@@ -522,16 +522,23 @@ export async function matchUpGames(): Promise<void> {
         )
 
         await dbClient.query('COMMIT')
-        dbClient.release()
-
-        lastMatchCreationTime = Date.now()
-
-        // Now create the match (users are already removed from queue)
-        await createMatch(userIds, queueId)
+        committed = true
       } catch (err) {
-        await dbClient.query('ROLLBACK')
-        dbClient.release()
+        // Best-effort rollback; guard so a failing ROLLBACK can't skip release()
+        if (!committed) await dbClient.query('ROLLBACK').catch(() => {})
         console.error('Error creating match:', err)
+      } finally {
+        dbClient.release()
+      }
+
+      // Create the match outside the transaction (users are already removed)
+      if (committed) {
+        lastMatchCreationTime = Date.now()
+        try {
+          await createMatch(userIds, queueId)
+        } catch (err) {
+          console.error('Error creating match:', err)
+        }
       }
     }
   } catch (err) {
