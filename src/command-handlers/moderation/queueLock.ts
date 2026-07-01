@@ -5,7 +5,7 @@ import {
   queueChangeLock,
   unlockAllQueues,
 } from 'utils/queryDB'
-import { updateQueueMessage } from 'utils/queueHelpers'
+import { updateQueueMessage, updateQueueMessageImmediate } from 'utils/queueHelpers'
 
 export async function lockQueue(
   queueId: number,
@@ -14,7 +14,7 @@ export async function lockQueue(
   const lockCheck = await queueChangeLock(queueId, true)
   if (lockCheck) {
     await clearQueueUsers(queueId)
-    await updateQueueMessage()
+    await updateQueueMessageImmediate()
     if (moderatorId) {
       await logModerationEvent({
         action: 'queue_lock',
@@ -32,7 +32,7 @@ export async function unlockQueue(
 ): Promise<boolean> {
   const unlockCheck = await queueChangeLock(queueId, false)
   if (unlockCheck) {
-    await updateQueueMessage()
+    await updateQueueMessageImmediate()
     if (moderatorId) {
       await logModerationEvent({
         action: 'queue_unlock',

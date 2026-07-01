@@ -1582,15 +1582,21 @@ export async function endMatch(
   }
 }
 
-// Send webhook notification (fire-and-forget, never throws)
-export function sendWebhook(action: string, payload: any): void {
+// Send webhook notification (fire-and-forget, never throws).
+// Uses a generous timeout and retries transient failures, because these fire
+// from the heavily-contended match-end path where a busy event loop can stall
+// the request past a short deadline (previously causing MATCH_COMPLETED aborts).
+const WEBHOOK_TIMEOUT_MS = 15000
+const WEBHOOK_MAX_ATTEMPTS = 3
+
+export function sendWebhook(action: string, payload: any, attempt = 1): void {
   const webhookUrl = env.WEBHOOK_URL
   const webhookSecret = env.WEBHOOK_QUERY_SECRET
 
   if (!webhookUrl || !webhookSecret) return
 
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 5000)
+  const timeout = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS)
 
   fetch(webhookUrl, {
     method: 'POST',
@@ -1608,7 +1614,19 @@ export function sendWebhook(action: string, payload: any): void {
       console.log(`Webhook sent for action: ${action}`)
     })
     .catch((err) => {
-      console.error(`Failed to send webhook for action ${action}:`, err)
+      if (attempt < WEBHOOK_MAX_ATTEMPTS) {
+        console.warn(
+          `Webhook for action ${action} failed (attempt ${attempt}/${WEBHOOK_MAX_ATTEMPTS}), retrying:`,
+          err?.name ?? err,
+        )
+        // Backoff before retrying; retries re-enter with a fresh timeout.
+        setTimeout(() => sendWebhook(action, payload, attempt + 1), 1000 * attempt)
+      } else {
+        console.error(
+          `Failed to send webhook for action ${action} after ${WEBHOOK_MAX_ATTEMPTS} attempts:`,
+          err,
+        )
+      }
     })
     .finally(() => {
       clearTimeout(timeout)

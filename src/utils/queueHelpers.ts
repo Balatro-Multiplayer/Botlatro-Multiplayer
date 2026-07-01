@@ -77,6 +77,16 @@ export function updateQueueMessage(force = false): void {
   scheduleQueueMessageUpdate(force)
 }
 
+// Immediately refresh the queue message in-place (no 10s debounce, no repost).
+// Used by lock/unlock so the displayed queue reflects removed players right away.
+export async function updateQueueMessageImmediate(): Promise<void> {
+  if (debounceTimer) {
+    clearTimeout(debounceTimer)
+    debounceTimer = null
+  }
+  await updateQueueMessageNow(false).catch(console.error)
+}
+
 // Updates or sends a new queue message for the specified text channel
 async function updateQueueMessageNow(
   force = false,
