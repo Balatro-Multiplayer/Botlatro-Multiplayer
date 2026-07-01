@@ -13,3 +13,19 @@ export const pool = new Pool({
   connectionTimeoutMillis: 5000, // Fail fast if no connection available
   allowExitOnIdle: false, // Keep pool alive
 })
+
+// Surface errors on idle pool clients — otherwise a dropped connection can
+// leave the pool in a bad state without any log line explaining why.
+pool.on('error', (err) => {
+  console.error('[pool] idle client error:', err)
+})
+
+// Periodically log pool health so a connection leak is visible: if `total`
+// pins at max, `idle` sits at 0, and `waiting` climbs, clients are being
+// checked out and never released. Runs every 15s; unref() so it never keeps
+// the process alive on its own.
+setInterval(() => {
+  console.log(
+    `[pool] total=${pool.totalCount} idle=${pool.idleCount} waiting=${pool.waitingCount}`,
+  )
+}, 30000).unref()
