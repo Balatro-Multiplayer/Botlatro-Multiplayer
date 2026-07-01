@@ -41,6 +41,32 @@ async function fetchUserMessageContents(
   return contents
 }
 
+// Limit how many transcripts can be generated at once. Each one builds a large
+// HTML string plus a base64 copy plus a pg query buffer; running ~15 in parallel
+// during a burst of match completions exhausted the container heap (OOM). Two at
+// a time keeps peak memory bounded while still draining the backlog quickly.
+const MAX_CONCURRENT_TRANSCRIPTS = 2
+let activeTranscripts = 0
+const transcriptWaiters: Array<() => void> = []
+
+async function acquireTranscriptSlot(): Promise<void> {
+  if (activeTranscripts < MAX_CONCURRENT_TRANSCRIPTS) {
+    activeTranscripts++
+    return
+  }
+  // Wait for a slot to be handed off by releaseTranscriptSlot (count unchanged).
+  await new Promise<void>((resolve) => transcriptWaiters.push(resolve))
+}
+
+function releaseTranscriptSlot(): void {
+  const next = transcriptWaiters.shift()
+  if (next) {
+    next() // hand this slot to the next waiter without changing the count
+  } else {
+    activeTranscripts--
+  }
+}
+
 /**
  * Generate an HTML transcript from a Discord text channel and store it in the database
  * @param matchId - The match ID to associate with the transcript
@@ -51,6 +77,7 @@ export async function generateAndStoreHtmlTranscript(
   matchId: number,
   channel: TextChannel,
 ): Promise<string | null> {
+  await acquireTranscriptSlot()
   try {
     try {
       const messageContents = await fetchUserMessageContents(channel)
@@ -93,6 +120,8 @@ export async function generateAndStoreHtmlTranscript(
       err,
     )
     return null
+  } finally {
+    releaseTranscriptSlot()
   }
 }
 
