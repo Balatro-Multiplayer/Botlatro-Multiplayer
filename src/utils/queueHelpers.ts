@@ -900,10 +900,7 @@ export async function updateAllLeaderboardRoles(
         users.rows.slice(i, i + 5).map(async ({ user_id }) => {
           try {
             const expected = await getLeaderboardQueueRole(queueId, user_id)
-            const member = await guild.members.fetch({
-              user: user_id,
-              force: true,
-            })
+            const member = await guild.members.fetch(user_id)
             const current = member.roles.cache.filter((r) =>
               roleIds.includes(r.id),
             )
@@ -949,7 +946,7 @@ export async function setUserQueueRole(
 
   const guild = await getGuild()
   const member = await guild.members
-    .fetch({ user: userId, force: true })
+    .fetch(userId)
     .catch((err) => {
       if (isUnknownMemberError(err)) {
         console.log(
@@ -998,13 +995,16 @@ export async function setUserQueueRole(
   }
 
   try {
-    const currentRoles = Array.from(member.roles.cache.keys())
-
-    const newRoles = currentRoles
-      .filter((roleId) => !rolesToRemove.includes(roleId))
-      .concat(rolesToAdd.filter((roleId) => !currentRoles.includes(roleId)))
-
-    await member.roles.set(newRoles)
+    // Surgical add/remove only touches the specific queue roles, so a stale
+    // role cache can never clobber unrelated roles (mod/color/etc). Both lists
+    // are already minimal: rolesToAdd excludes roles the member holds and
+    // rolesToRemove only contains roles the member currently has.
+    if (rolesToRemove.length > 0) {
+      await member.roles.remove(rolesToRemove)
+    }
+    if (rolesToAdd.length > 0) {
+      await member.roles.add(rolesToAdd)
+    }
   } catch (err) {
     console.error(`Failed to update roles for user ${userId}:`, err)
   }
