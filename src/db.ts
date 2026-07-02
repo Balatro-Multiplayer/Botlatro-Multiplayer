@@ -15,9 +15,11 @@ export const pool = new Pool({
   // Guarantee no single query or stalled transaction can hold a pool connection
   // forever. Without these, one hung query (a slow scan, or a transaction blocked
   // on the FOR UPDATE row locks in match creation) pins a connection until the
-  // pool is fully exhausted and never recovers.
-  statement_timeout: 15000, // Postgres aborts any query running > 15s
-  query_timeout: 15000, // Client-side backstop if the server/connection is unresponsive
+  // pool is fully exhausted and never recovers. The ceiling is generous enough
+  // for legitimately heavy reads (e.g. the leaderboard aggregation) to finish;
+  // its job is to reclaim genuinely-stuck connections, not to kill slow queries.
+  statement_timeout: 60000, // Postgres aborts any query running > 60s
+  query_timeout: 60000, // Client-side backstop if the server/connection is unresponsive
   idle_in_transaction_session_timeout: 15000, // Kill transactions that BEGIN then stall, freeing their locks
 })
 
