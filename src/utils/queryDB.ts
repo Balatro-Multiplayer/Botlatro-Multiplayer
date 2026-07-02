@@ -2400,8 +2400,24 @@ export async function getQueueLeaderboard(
 
   let query: string
 
+  // Pre-aggregate wins/losses per user over just this queue's (and season's)
+  // matches, then join to the user list. This replaces a flat
+  // queue_users x match_users x matches join + wide GROUP BY (which materialized
+  // a large intermediate set and was timing out) with a small grouped subquery.
+  const matchStats = `
+    SELECT
+      mu.user_id,
+      COUNT(*) FILTER (WHERE m.winning_team = mu.team)::integer AS wins,
+      COUNT(*) FILTER (WHERE m.winning_team IS NOT NULL AND m.winning_team != mu.team)::integer AS losses
+    FROM match_users mu
+    JOIN matches m ON m.id = mu.match_id
+    WHERE m.queue_id = $1${seasonFilter}
+    GROUP BY mu.user_id
+  `
+
   if (isHistorical) {
-    // Historical season: read elo/peak/streak from queue_users_seasons snapshot
+    // Historical season: read elo/peak/streak from queue_users_seasons snapshot.
+    // LEFT JOIN keeps every user in the snapshot even with no matches (0/0).
     query = `
       SELECT
         qus.user_id,
@@ -2410,18 +2426,17 @@ export async function getQueueLeaderboard(
         qus.peak_elo,
         qus.win_streak,
         qus.peak_win_streak,
-        COUNT(CASE WHEN m.winning_team = mu.team THEN 1 END)::integer as wins,
-        COUNT(CASE WHEN m.winning_team IS NOT NULL AND m.winning_team != mu.team THEN 1 END)::integer as losses
+        COALESCE(s.wins, 0) AS wins,
+        COALESCE(s.losses, 0) AS losses
       FROM queue_users_seasons qus
       LEFT JOIN users u ON u.user_id = qus.user_id
-      LEFT JOIN match_users mu ON mu.user_id = qus.user_id
-      LEFT JOIN matches m ON m.id = mu.match_id AND m.queue_id = $1${seasonFilter}
+      LEFT JOIN (${matchStats}) s ON s.user_id = qus.user_id
       WHERE qus.queue_id = $1 AND qus.season = $2
-      GROUP BY qus.user_id, u.display_name, qus.elo, qus.peak_elo, qus.win_streak, qus.peak_win_streak
       ORDER BY qus.elo DESC
     `
   } else {
-    // Current season: read from queue_users
+    // Current season: read from queue_users. INNER JOIN on the stats subquery
+    // reproduces the old HAVING COUNT(m.id) > 0 (only users with >=1 match).
     query = `
       SELECT
         qu.user_id,
@@ -2430,15 +2445,12 @@ export async function getQueueLeaderboard(
         qu.peak_elo,
         qu.win_streak,
         qu.peak_win_streak,
-        COUNT(CASE WHEN m.winning_team = mu.team THEN 1 END)::integer as wins,
-        COUNT(CASE WHEN m.winning_team IS NOT NULL AND m.winning_team != mu.team THEN 1 END)::integer as losses
+        s.wins,
+        s.losses
       FROM queue_users qu
       LEFT JOIN users u ON u.user_id = qu.user_id
-      LEFT JOIN match_users mu ON mu.user_id = qu.user_id
-      LEFT JOIN matches m ON m.id = mu.match_id AND m.queue_id = $1${seasonFilter}
+      JOIN (${matchStats}) s ON s.user_id = qu.user_id
       WHERE qu.queue_id = $1
-      GROUP BY qu.user_id, u.display_name, qu.elo, qu.peak_elo, qu.win_streak, qu.peak_win_streak
-      HAVING COUNT(m.id) > 0
       ORDER BY qu.elo DESC
     `
   }
