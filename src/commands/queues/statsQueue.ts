@@ -34,7 +34,6 @@ export default {
         playerStats,
         byDate,
         season,
-        queueId,
         showDots,
       )
       const viewStatsButtons = setupViewStatsButtons(queueName)
