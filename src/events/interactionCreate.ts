@@ -1012,6 +1012,7 @@ export default {
               playerStats,
               false,
               season,
+              queueId,
             )
             const viewStatsButtons = setupViewStatsButtons(queueName)
 
