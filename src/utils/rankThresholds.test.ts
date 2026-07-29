@@ -3,6 +3,7 @@ import {
   getDefaultMmr,
   getQueueLadder,
   getRankThresholds,
+  resolveSeasonRank,
   QUEUE_ID_CASUAL,
   QUEUE_ID_LEGACY,
   QUEUE_ID_RANKED,
@@ -42,8 +43,16 @@ describe('getQueueLadder', () => {
 })
 
 describe('getRankThresholds', () => {
+  // These tests are about thresholds and colours; `name` is covered under
+  // resolveSeasonRank. Strip it so the expectations stay focused.
+  const bands = (season: number, queueId: number) =>
+    getRankThresholds(season, queueId)?.map(({ threshold, colorKey }) => ({
+      threshold,
+      colorKey,
+    })) ?? null
+
   test('season 1 (OLD set) enhancement thresholds', () => {
-    expect(getRankThresholds(1, QUEUE_ID_RANKED)).toEqual([
+    expect(bands(1, QUEUE_ID_RANKED)).toEqual([
       { threshold: 230, colorKey: 'steel' },
       { threshold: 320, colorKey: 'gold' },
       { threshold: 460, colorKey: 'lucky' },
@@ -52,7 +61,7 @@ describe('getRankThresholds', () => {
   })
 
   test('season 6 (last OLD season) enhancement thresholds', () => {
-    expect(getRankThresholds(6, QUEUE_ID_RANKED)).toEqual([
+    expect(bands(6, QUEUE_ID_RANKED)).toEqual([
       { threshold: 230, colorKey: 'steel' },
       { threshold: 320, colorKey: 'gold' },
       { threshold: 460, colorKey: 'lucky' },
@@ -61,7 +70,7 @@ describe('getRankThresholds', () => {
   })
 
   test('season 7 (first NEW season) enhancement thresholds reflect the +300 bump', () => {
-    expect(getRankThresholds(7, QUEUE_ID_RANKED)).toEqual([
+    expect(bands(7, QUEUE_ID_RANKED)).toEqual([
       { threshold: 530, colorKey: 'steel' },
       { threshold: 620, colorKey: 'gold' },
       { threshold: 760, colorKey: 'lucky' },
@@ -70,7 +79,7 @@ describe('getRankThresholds', () => {
   })
 
   test('season 8 (NEW set) enhancement thresholds', () => {
-    expect(getRankThresholds(8, QUEUE_ID_RANKED)).toEqual([
+    expect(bands(8, QUEUE_ID_RANKED)).toEqual([
       { threshold: 530, colorKey: 'steel' },
       { threshold: 620, colorKey: 'gold' },
       { threshold: 760, colorKey: 'lucky' },
@@ -79,13 +88,13 @@ describe('getRankThresholds', () => {
   })
 
   test('an unmapped future season defaults to the NEW set', () => {
-    expect(getRankThresholds(99, QUEUE_ID_RANKED)).toEqual(
-      getRankThresholds(8, QUEUE_ID_RANKED),
+    expect(bands(99, QUEUE_ID_RANKED)).toEqual(
+      bands(8, QUEUE_ID_RANKED),
     )
   })
 
   test('Smallworld queue uses its own OLD thresholds for seasons 1-6', () => {
-    expect(getRankThresholds(6, QUEUE_ID_SMALLWORLD)).toEqual([
+    expect(bands(6, QUEUE_ID_SMALLWORLD)).toEqual([
       { threshold: 225, colorKey: 'ferrite' },
       { threshold: 325, colorKey: 'pyrite' },
       { threshold: 425, colorKey: 'clover' },
@@ -94,7 +103,7 @@ describe('getRankThresholds', () => {
   })
 
   test('Smallworld queue uses its own NEW thresholds for season 7+', () => {
-    expect(getRankThresholds(7, QUEUE_ID_SMALLWORLD)).toEqual([
+    expect(bands(7, QUEUE_ID_SMALLWORLD)).toEqual([
       { threshold: 525, colorKey: 'ferrite' },
       { threshold: 625, colorKey: 'pyrite' },
       { threshold: 725, colorKey: 'clover' },
@@ -106,7 +115,7 @@ describe('getRankThresholds', () => {
   // no palette for them, so legacy keeps the enhancement colours it has always
   // been drawn in. Only the thresholds differ from enhancement.
   test('Legacy queue uses OLD thresholds for seasons 1-6', () => {
-    expect(getRankThresholds(6, QUEUE_ID_LEGACY)).toEqual([
+    expect(bands(6, QUEUE_ID_LEGACY)).toEqual([
       { threshold: 225, colorKey: 'steel' },
       { threshold: 325, colorKey: 'gold' },
       { threshold: 425, colorKey: 'lucky' },
@@ -115,7 +124,7 @@ describe('getRankThresholds', () => {
   })
 
   test('Legacy queue uses NEW thresholds for season 7+', () => {
-    expect(getRankThresholds(7, QUEUE_ID_LEGACY)).toEqual([
+    expect(bands(7, QUEUE_ID_LEGACY)).toEqual([
       { threshold: 525, colorKey: 'steel' },
       { threshold: 625, colorKey: 'gold' },
       { threshold: 725, colorKey: 'lucky' },
@@ -124,29 +133,23 @@ describe('getRankThresholds', () => {
   })
 
   test('Legacy thresholds differ from enhancement despite sharing colours', () => {
-    expect(getRankThresholds(7, QUEUE_ID_LEGACY)).not.toEqual(
+    expect(bands(7, QUEUE_ID_LEGACY)).not.toEqual(
       getRankThresholds(7, QUEUE_ID_RANKED),
     )
   })
 
   test('Vanilla queue returns null for an OLD season', () => {
-    expect(getRankThresholds(1, QUEUE_ID_VANILLA)).toBeNull()
+    expect(bands(1, QUEUE_ID_VANILLA)).toBeNull()
   })
 
   test('Vanilla queue returns null for a NEW season', () => {
-    expect(getRankThresholds(7, QUEUE_ID_VANILLA)).toBeNull()
+    expect(bands(7, QUEUE_ID_VANILLA)).toBeNull()
   })
 
   test('an unknown queue ID resolves to the enhancement ladder', () => {
-    expect(getRankThresholds(7, QUEUE_ID_CASUAL)).toEqual(
-      getRankThresholds(7, QUEUE_ID_RANKED),
-    )
-    expect(getRankThresholds(7, QUEUE_ID_SANDBOX)).toEqual(
-      getRankThresholds(7, QUEUE_ID_RANKED),
-    )
-    expect(getRankThresholds(7, 99)).toEqual(
-      getRankThresholds(7, QUEUE_ID_RANKED),
-    )
+    expect(bands(7, QUEUE_ID_CASUAL)).toEqual(bands(7, QUEUE_ID_RANKED))
+    expect(bands(7, QUEUE_ID_SANDBOX)).toEqual(bands(7, QUEUE_ID_RANKED))
+    expect(bands(7, 99)).toEqual(bands(7, QUEUE_ID_RANKED))
   })
 
   test('bands are always 4 entries in ascending threshold order', () => {
@@ -185,5 +188,65 @@ describe('getDefaultMmr', () => {
 
   test('returns 500 for an unmapped/future season', () => {
     expect(getDefaultMmr(99)).toBe(500)
+  })
+})
+
+describe('resolveSeasonRank', () => {
+  test('uses the cutoffs of that season, not the current ones', () => {
+    // The reported bug: a Smallworld player on 674 in season 6. The bar read
+    // queue_roles (season 7 cutoffs) and said "Pyrite, 51 MMR to Jade". On
+    // season 6's ladder 674 is above CRYSTAL (550), i.e. max rank.
+    const s6 = resolveSeasonRank(6, QUEUE_ID_SMALLWORLD, 674)
+    expect(s6?.name).toBe('Crystal')
+    expect(s6?.threshold).toBe(550)
+    expect(s6?.next).toBeNull()
+
+    // Same MMR under season 7's cutoffs reproduces what the bar was showing.
+    const s7 = resolveSeasonRank(7, QUEUE_ID_SMALLWORLD, 674)
+    expect(s7?.name).toBe('Pyrite')
+    expect(s7?.next?.name).toBe('Jade')
+    expect(s7?.next?.threshold).toBe(725)
+    expect((s7?.next?.threshold ?? 0) - 674).toBe(51)
+  })
+
+  test('returns the base rank below the lowest cutoff', () => {
+    expect(resolveSeasonRank(6, QUEUE_ID_RANKED, 100)?.name).toBe('Stone')
+    expect(resolveSeasonRank(6, QUEUE_ID_SMALLWORLD, 100)?.name).toBe('Pebble')
+    expect(resolveSeasonRank(6, QUEUE_ID_LEGACY, 100)?.name).toBe('Milk')
+  })
+
+  test('base rank has no threshold but does have a next rank', () => {
+    const r = resolveSeasonRank(6, QUEUE_ID_SMALLWORLD, 100)
+    expect(r?.threshold).toBeNull()
+    expect(r?.next?.name).toBe('Ferrite')
+    expect(r?.next?.threshold).toBe(225)
+  })
+
+  test('a threshold is inclusive — landing exactly on it promotes', () => {
+    expect(resolveSeasonRank(7, QUEUE_ID_RANKED, 530)?.name).toBe('Steel')
+    expect(resolveSeasonRank(7, QUEUE_ID_RANKED, 529)?.name).toBe('Stone')
+  })
+
+  test('top rank reports no next rank', () => {
+    const r = resolveSeasonRank(7, QUEUE_ID_RANKED, 5000)
+    expect(r?.name).toBe('Glass')
+    expect(r?.next).toBeNull()
+  })
+
+  test('legacy uses its own names', () => {
+    expect(resolveSeasonRank(7, QUEUE_ID_LEGACY, 700)?.name).toBe('Chocolate')
+    expect(resolveSeasonRank(7, QUEUE_ID_LEGACY, 900)?.name).toBe('Bubblegum')
+  })
+
+  test('vanilla has no rank at all', () => {
+    expect(resolveSeasonRank(7, QUEUE_ID_VANILLA, 700)).toBeNull()
+  })
+
+  test('every rank carries a colour', () => {
+    for (const queue of [QUEUE_ID_RANKED, QUEUE_ID_SMALLWORLD, QUEUE_ID_LEGACY])
+      for (const mmr of [0, 300, 600, 800, 1000]) {
+        const r = resolveSeasonRank(7, queue, mmr)
+        expect(r?.color).toMatch(/^#[0-9a-f]{6}$/i)
+      }
   })
 })

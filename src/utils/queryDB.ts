@@ -16,6 +16,7 @@ import {
 } from 'psqlDB'
 import { client, getGuild } from '../client'
 import { QueryResult } from 'pg'
+import { resolveSeasonRank } from './rankThresholds'
 import { env } from '../env'
 import { endMatch } from './matchHelpers'
 
@@ -2026,7 +2027,32 @@ export async function getStatsCanvasUserData(
         }
       }
     } else {
-      // Fall back to MMR-based role using p.elo (correct for both current and historical seasons)
+      // Fall back to an MMR-based rank.
+      //
+      // queue_roles holds only the *current* season's thresholds — there is no
+      // season column — so measuring a past season's elo against it reports the
+      // rank that MMR would earn today, not the rank it earned then. On a
+      // season 6 Smallworld card a player on 674 was shown as Pyrite climbing
+      // to Jade, which are season 7 cutoffs, while the graph beside it
+      // correctly coloured 674 as Crystal on season 6's ladder.
+      //
+      // For past seasons resolve the rank from that season's own thresholds.
+      // The active season keeps using the roles, which are what Discord
+      // actually assigns and therefore the source of truth there.
+      const historicalRank = isHistorical
+        ? resolveSeasonRank(effectiveSeason, queueId, p.elo)
+        : null
+
+      if (historicalRank) {
+        data.rank_name = historicalRank.name
+        data.rank_color = historicalRank.color
+        data.rank_mmr = historicalRank.threshold
+        if (historicalRank.next) {
+          data.next_rank_name = historicalRank.next.name
+          data.next_rank_color = historicalRank.next.color
+          data.next_rank_mmr = historicalRank.next.threshold
+        }
+      } else {
       const queueRoleRes = await pool.query(
         `SELECT * FROM queue_roles WHERE queue_id = $1 AND mmr_threshold <= $2 ORDER BY mmr_threshold DESC LIMIT 1`,
         [queueId, p.elo],
@@ -2078,6 +2104,7 @@ export async function getStatsCanvasUserData(
           data.next_rank_color = hex
         }
       }
+  }
     }
   } catch {
     // ignore errors; leave rank fields null

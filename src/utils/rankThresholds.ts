@@ -51,6 +51,44 @@ export type RankBand = {
   threshold: number
   /** Key into the canvas colour palette (`config.colors`) for this band. */
   colorKey: RankColorKey
+  /** Display name of the rank this band represents, e.g. "Gold". */
+  name: string
+}
+
+/** The rank a player holds below the lowest threshold of their ladder. */
+type BaseRank = { colorKey: BaseColorKey; name: string }
+
+export type BaseColorKey = 'stone' | 'pebble'
+
+/**
+ * Hex values for every rank colour, mirroring `config.colors` in
+ * canvasHelpers. Kept here so rank resolution needs no canvas import — the two
+ * must not drift.
+ */
+export const RANK_COLORS: Record<RankColorKey | BaseColorKey, string> = {
+  stone: '#868687',
+  pebble: '#b0b3b8',
+  steel: '#c3dee0',
+  ferrite: '#546e7a',
+  gold: '#ffd081',
+  pyrite: '#ffd081',
+  lucky: '#ffefc4',
+  clover: '#2ecc71',
+  glass: '#7debf3',
+  crystal: '#3498db',
+}
+
+/** Rank names per ladder, lowest first, matching the website's getRankData. */
+const ENHANCEMENT_RANK_NAMES = ['Steel', 'Gold', 'Lucky', 'Glass']
+const SMALLWORLD_RANK_NAMES = ['Ferrite', 'Pyrite', 'Jade', 'Crystal']
+const LEGACY_RANK_NAMES = ['Strawberry', 'Chocolate', 'Mint', 'Bubblegum']
+
+const BASE_RANKS: Record<Exclude<QueueLadder, 'none'>, BaseRank> = {
+  enhancement: { colorKey: 'stone', name: 'Stone' },
+  smallworld: { colorKey: 'pebble', name: 'Pebble' },
+  // Legacy shares the enhancement palette (see LEGACY_COLOR_KEYS) but has its
+  // own names.
+  legacy: { colorKey: 'stone', name: 'Milk' },
 }
 
 type ThresholdSet = {
@@ -184,10 +222,78 @@ export function getRankThresholds(
         ? LEGACY_COLOR_KEYS
         : ENHANCEMENT_COLOR_KEYS
 
+  const names =
+    ladder === 'smallworld'
+      ? SMALLWORLD_RANK_NAMES
+      : ladder === 'legacy'
+        ? LEGACY_RANK_NAMES
+        : ENHANCEMENT_RANK_NAMES
+
   return values.map((threshold, i) => ({
     threshold,
     colorKey: colorKeys[i],
+    name: names[i],
   }))
+}
+
+/** A resolved rank: where the player sits, and what they are climbing toward. */
+export type ResolvedRank = {
+  name: string
+  color: string
+  /** MMR at which this rank starts; null for the base rank of a ladder. */
+  threshold: number | null
+  next: { name: string; color: string; threshold: number } | null
+}
+
+/**
+ * Resolves the rank a given MMR sits in for a season and queue.
+ *
+ * This exists because the rank bar used to read `queue_roles`, which stores
+ * only the *current* season's thresholds — so a historical card measured that
+ * season's MMR against today's cutoffs and reported the wrong rank. Roles are
+ * still the right source for the active season, since they are what actually
+ * gets assigned in Discord; this is for past seasons, where no roles exist for
+ * the cutoffs that were in force at the time.
+ *
+ * Returns null for queues with no rank ladder (vanilla).
+ */
+export function resolveSeasonRank(
+  season: number,
+  queueId: number,
+  mmr: number,
+): ResolvedRank | null {
+  const bands = getRankThresholds(season, queueId)
+  if (bands === null) return null
+
+  const ladder = getQueueLadder(queueId) as Exclude<QueueLadder, 'none'>
+  const base = BASE_RANKS[ladder]
+
+  // Highest band whose threshold the player has reached.
+  let currentIndex = -1
+  for (let i = 0; i < bands.length; i++) {
+    if (mmr >= bands[i].threshold) currentIndex = i
+  }
+
+  const nextBand = bands[currentIndex + 1] ?? null
+  const current =
+    currentIndex === -1
+      ? { name: base.name, color: RANK_COLORS[base.colorKey], threshold: null }
+      : {
+          name: bands[currentIndex].name,
+          color: RANK_COLORS[bands[currentIndex].colorKey],
+          threshold: bands[currentIndex].threshold,
+        }
+
+  return {
+    ...current,
+    next: nextBand
+      ? {
+          name: nextBand.name,
+          color: RANK_COLORS[nextBand.colorKey],
+          threshold: nextBand.threshold,
+        }
+      : null,
+  }
 }
 
 /**
