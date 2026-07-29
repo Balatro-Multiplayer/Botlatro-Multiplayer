@@ -1745,6 +1745,7 @@ export async function getStatsCanvasUserData(
     `
     SELECT
       mu.elo_change,
+      mu.mmr_after,
       m.created_at AS date
     FROM match_users mu
     JOIN matches m ON m.id = mu.match_id
@@ -1757,14 +1758,45 @@ export async function getStatsCanvasUserData(
 
   let eloChanges = eloRes.rows.map((r: any) => ({
     change: Number(r.elo_change) || 0,
+    mmrAfter: r.mmr_after === null ? null : Number(r.mmr_after),
     date: r.date as Date,
   }))
 
-  // Get queue default_elo for initial data point
-  const queueSettings = await getQueueSettings(queueId)
-  const defaultElo = queueSettings.default_elo
+  // Where the replayed series has to start.
+  //
+  // This used to be the queue's `default_elo`, read with no season awareness —
+  // so a historical graph replayed an old season's deltas from *today's*
+  // starting MMR. After season 7 raised it by 300, every pre-7 graph drew 300
+  // MMR too high while `peak_elo` stayed correct, pushing the series clean off
+  // the top of the plot box.
+  //
+  // Anchoring to the player's recorded elo for the season instead is
+  // season-agnostic and self-correcting: the run is made to *end* where the
+  // snapshot says it ended, so it can never disagree with `peak_elo` again.
+  const totalChange = eloChanges.reduce((sum, r) => sum + r.change, 0)
+  const startingElo = p.elo - totalChange
 
-  let running = defaultElo
+  // `mmr_after` records the MMR each match left the player on, which is better
+  // than any replay — it survives adjustments that never appear as a match row.
+  // But it is only trustworthy if it agrees with the season it belongs to.
+  //
+  // scripts/backfill-mmr-after.ts populated the column by walking backwards from
+  // the player's *current* elo across every season at once, with no season
+  // filter, so it never accounts for the reset at each season boundary. The
+  // error compounds per boundary crossed: on a seven-season history the oldest
+  // season came out several hundred MMR low, and negative outright.
+  //
+  // So use the column only when its final value lands on the elo this season is
+  // recorded as ending at. That holds for rows written live, and for the active
+  // season, and fails exactly where the backfill corrupted it.
+  const lastMmrAfter = eloChanges.at(-1)?.mmrAfter ?? null
+  const mmrAfterTrustworthy =
+    eloChanges.length > 0 &&
+    eloChanges.every((r) => r.mmrAfter !== null) &&
+    lastMmrAfter !== null &&
+    Math.abs(lastMmrAfter - p.elo) <= 1
+
+  let running = startingElo
 
   const elo_graph_data: { date: Date; rating: number }[] = []
 
@@ -1772,12 +1804,12 @@ export async function getStatsCanvasUserData(
   if (eloChanges.length > 0) {
     const firstMatchDate = new Date(eloChanges[0].date)
     const startDate = new Date(firstMatchDate.getTime() - 1000) // 1 second before
-    elo_graph_data.push({ date: startDate, rating: defaultElo })
+    elo_graph_data.push({ date: startDate, rating: startingElo })
   }
 
-  // Add all match data points
+  // Add all match data points.
   eloChanges.forEach((r) => {
-    running += r.change
+    running = mmrAfterTrustworthy ? (r.mmrAfter as number) : running + r.change
     const clampedRating = Math.max(0, Math.min(9999, running)) // Clamp between 0 and 9999
     running = clampedRating // Update running to match the clamped value for next iteration
     elo_graph_data.push({ date: r.date, rating: clampedRating })

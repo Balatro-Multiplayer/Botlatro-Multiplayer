@@ -14,6 +14,9 @@ const fontDir = env.FONTS_DIR
 
 const font = 'm6x11'
 
+/** Radius of the per-match dots on the MMR graph. */
+const DOT_RADIUS = 4
+
 FontLibrary.use(font, [path.join(fontDir, `${font}.ttf`)])
 
 const config = {
@@ -438,8 +441,27 @@ function createGraph(
   // Find min/max ratings for scaling
   const ratings = normalizedPoints.map((p) => p.rating)
   const minRating = Math.round(Math.min(...ratings))
-  const maxRating = playerData.peak_mmr
+  // The axis top is the player's peak, but never below the highest point we are
+  // about to plot. peak_mmr comes from a different source than the series, so
+  // the two can disagree; when they did, every point above the peak was mapped
+  // outside the plot box and drawn over the rest of the card.
+  const maxRating = Math.max(
+    playerData.peak_mmr,
+    Math.round(Math.max(...ratings)),
+  )
   const ratingRange = maxRating - minRating || 1
+
+  // The axis is the data range plus headroom, so the highest and lowest points
+  // are drawn clear of the graph's edges instead of centred on them. Without it
+  // the lowest dots straddle the x-axis line and get sliced by the clip. 5% of
+  // the range reads as deliberate spacing; the dot-radius term is a floor for
+  // players whose MMR barely moved, where 5% of the range is sub-pixel.
+  const axisPad = Math.max(
+    ratingRange * 0.05,
+    ((DOT_RADIUS + 2) / graphYLen) * ratingRange,
+  )
+  const axisMin = minRating - axisPad
+  const axisSpan = ratingRange + axisPad * 2
 
   // Find min/max x values for scaling (in case byDate gives non-integer xVar)
   const xValues = normalizedPoints.map((p) => p.xVar)
@@ -489,11 +511,11 @@ function createGraph(
   ctx.lineWidth = 0.5
 
   function convertToCanvasSpace(y: number) {
-    return graphY + graphYLen - ((y - minRating) / ratingRange) * graphYLen
+    return graphY + graphYLen - ((y - axisMin) / axisSpan) * graphYLen
   }
 
   // Build rating bands (from minRating to maxRating)
-  const bands = [minRating, ...eloSplits, maxRating]
+  const bands = [axisMin, ...eloSplits, axisMin + axisSpan]
 
   for (let i = 0; i < bands.length - 1; i++) {
     const bandMin = bands[i]
@@ -552,7 +574,13 @@ function createGraph(
     if (r < minRating || r > maxRating) return
 
     const yPos =
-      graphY + graphYLen - ((r - minRating) / ratingRange) * graphYLen
+      graphY + graphYLen - ((r - axisMin) / axisSpan) * graphYLen
+
+    // Every branch below is conditional, so without a default the line inherits
+    // whatever colour the previous guide set. maxRating is drawn immediately
+    // before minRating and matches no branch, which is why the lowest line came
+    // out in the peak's green.
+    ctx.strokeStyle = config.colors.stone
 
     if (queueName != 'Smallworld') {
       if (r == maxRating) {
@@ -607,6 +635,13 @@ function createGraph(
   //DRAW LINE
 
   ctx.save()
+  // Belt and braces alongside the maxRating clamp above: whatever the data does,
+  // the series is physically confined to the graph area and can never paint over
+  // the player's name, avatar, or MMR badge. The axis headroom keeps the extreme
+  // dots inside this rect, so clipping to it exactly is safe.
+  ctx.beginPath()
+  ctx.rect(graphX, graphY, graphXLen, graphYLen)
+  ctx.clip()
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
   ctx.lineWidth = 3
@@ -670,9 +705,8 @@ function createGraph(
     }
   }
 
-  ctx.restore()
-
-  // Draw dots at each data point if enabled
+  // Draw dots at each data point if enabled — still inside the clip above, so
+  // they stay in the graph area with the line they belong to.
   if (showDots) {
     for (let i = 0; i < normalizedPoints.length; i++) {
       const p = normalizedPoints[i]
@@ -682,20 +716,38 @@ function createGraph(
 
       // Draw dot
       ctx.beginPath()
-      ctx.arc(x, y, 4, 0, Math.PI * 2)
+      ctx.arc(x, y, DOT_RADIUS, 0, Math.PI * 2)
       ctx.fillStyle = color
       ctx.fill()
     }
   }
 
+  ctx.restore()
+
   // Add y level labels
+
+  // How close two guide labels may sit, in MMR, before one is dropped. The peak
+  // and lowest-point labels win; a rank cutoff a few MMR away is what gets
+  // dropped, since a peak of 623 next to a 620 cutoff printed the two on top of
+  // each other. Proportional to the range so it tracks the pixel gap, which is
+  // what actually decides whether two labels collide.
+  const labelGapMmr = ratingRange * 0.06
 
   guideRatings.forEach((r) => {
     // Skip if the line is outside of the current visible range
     if (r < minRating || r > maxRating) return
 
+    // Never overprint the peak / lowest-point labels with a nearby cutoff.
+    if (
+      r !== maxRating &&
+      r !== minRating &&
+      (Math.abs(r - maxRating) < labelGapMmr ||
+        Math.abs(r - minRating) < labelGapMmr)
+    )
+      return
+
     const yPos =
-      graphY + graphYLen - ((r - minRating) / ratingRange) * graphYLen
+      graphY + graphYLen - ((r - axisMin) / axisSpan) * graphYLen
 
     ctx.fillStyle = config.colors.textSecondary
     ctx.textAlign = 'left'
