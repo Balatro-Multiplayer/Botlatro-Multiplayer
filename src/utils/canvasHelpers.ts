@@ -1,13 +1,19 @@
+import type { StatsCanvasPlayerData } from 'psqlDB'
+import { client, getGuild } from 'client'
+import path from 'path'
 import {
   Canvas,
-  CanvasRenderingContext2D,
+  type CanvasRenderingContext2D,
   FontLibrary,
   loadImage,
 } from 'skia-canvas'
-import { StatsCanvasPlayerData } from 'psqlDB'
-import { client, getGuild } from 'client'
-import path from 'path'
 import { env } from '../env'
+import {
+  getDefaultMmr,
+  getQueueLadder,
+  getRankThresholds,
+  type RankColorKey,
+} from './rankThresholds'
 
 const bgDir = env.ASSETS_DIR
 const fontDir = env.FONTS_DIR
@@ -18,6 +24,15 @@ const font = 'm6x11'
 const DOT_RADIUS = 4
 
 FontLibrary.use(font, [path.join(fontDir, `${font}.ttf`)])
+
+// Guide lines this close to the min/max-rating labels are suppressed so they
+// don't visually collide with the "Peak MMR" / lowest-point labels.
+const GUIDE_LABEL_MIN_GAP_MMR = 15
+
+// Generic, ladder-independent guide lines drawn on every graph regardless of
+// queue/season, in addition to the season's default-MMR line and rank-band
+// thresholds.
+const GENERIC_GUIDE_RATINGS = [0, 800, 1000, 1200, 1400, 1600, 1800, 2000]
 
 const config = {
   width: 800,
@@ -57,8 +72,6 @@ const config = {
     mini: `12px ${font}`,
     gameList: `20px ${font}`,
   },
-  eloSplits: [230, 320, 460, 620],
-  smallworldEloSplits: [225, 325, 425, 550],
 }
 
 function timeAgo(date: Date) {
@@ -113,7 +126,7 @@ async function addTopText(
   // Start with the default title font size (62px)
   let nameFontSize = 62
   ctx.font = `bold ${nameFontSize}px ${nameFontStack}`
-  let nameWidth = ctx.measureText(displayName).width
+  const nameWidth = ctx.measureText(displayName).width
   // Scale down if name is too wide
   if (nameWidth > nameMaxWidth) {
     nameFontSize = Math.max(
@@ -418,10 +431,11 @@ function normalizeDataPosition(
   })
 }
 
-function createGraph(
+export function createGraph(
   ctx: CanvasRenderingContext2D,
   playerData: StatsCanvasPlayerData,
-  queueName: string,
+  queueId: number,
+  season: number,
   x: number,
   y: number,
   xlen: number,
@@ -471,42 +485,45 @@ function createGraph(
 
   //draw divides
   ctx.save()
+
+  // Single source of truth for this render's rank thresholds: one band set
+  // per (season, queue) pair, ascending by MMR. Everything below — bands,
+  // guide lines, guide-line colours/labels — is derived from this. `null`
+  // means the queue has no rank ladder at all (vanilla) — render a plain,
+  // single-colour graph with no rank bands or rank guide lines.
+  const rankBands = getRankThresholds(season, queueId)
+  const ladder = getQueueLadder(queueId)
+  // Colour below the lowest threshold. Legacy uses the enhancement palette
+  // (see LEGACY_COLOR_KEYS), so it shares 'stone' rather than having its own.
+  const baseColorKey: RankColorKey | 'stone' | 'pebble' | null =
+    rankBands === null ? null : ladder === 'smallworld' ? 'pebble' : 'stone'
+
+  // Single neutral line/guide colour used when there is no rank ladder.
+  const NEUTRAL_LINE_COLOR = config.colors.textSecondary
+
+  const defaultMmr = getDefaultMmr(season)
+
   const guideRatings = [
-    0,
-    200,
-    queueName == 'Smallworld' ? 225 : 230,
-    queueName == 'Smallworld' ? 325 : 320,
-    queueName == 'Smallworld' ? 425 : 460,
-    queueName == 'Smallworld' ? 550 : 620,
-    800,
-    1000,
-    1200,
-    1400,
-    1600,
-    1800,
-    2000,
+    ...GENERIC_GUIDE_RATINGS,
+    defaultMmr,
+    ...(rankBands ? rankBands.map((band) => band.threshold) : []),
     maxRating,
     minRating,
   ]
-  let eloSplits = config.eloSplits
-  let eloColors = [
-    config.colors.stone,
-    config.colors.steel,
-    config.colors.gold,
-    config.colors.lucky,
-    config.colors.glass,
-  ]
 
-  if (queueName == 'Smallworld') {
-    eloSplits = config.smallworldEloSplits
-    eloColors = [
-      config.colors.pebble,
-      config.colors.ferrite,
-      config.colors.pyrite,
-      config.colors.clover,
-      config.colors.crystal,
-    ]
-  }
+  // Map threshold -> colour key for O(1) lookup when drawing guide lines below.
+  const colorKeyByThreshold = new Map<number, RankColorKey>(
+    (rankBands ?? []).map((band) => [band.threshold, band.colorKey]),
+  )
+
+  const eloSplits = (rankBands ?? []).map((band) => band.threshold)
+  const eloColors =
+    rankBands && baseColorKey
+      ? [
+          config.colors[baseColorKey],
+          ...rankBands.map((band) => config.colors[band.colorKey]),
+        ]
+      : [NEUTRAL_LINE_COLOR]
 
   ctx.lineWidth = 0.5
 
@@ -514,57 +531,60 @@ function createGraph(
     return graphY + graphYLen - ((y - axisMin) / axisSpan) * graphYLen
   }
 
-  // Build rating bands (from minRating to maxRating)
-  const bands = [axisMin, ...eloSplits, axisMin + axisSpan]
+  // Build rating bands (from the axis floor to its ceiling). Skipped entirely
+  // when there is no rank ladder (vanilla) — no rank-coloured bands are drawn.
+  if (rankBands) {
+    const bands = [axisMin, ...eloSplits, axisMin + axisSpan]
 
-  for (let i = 0; i < bands.length - 1; i++) {
-    const bandMin = bands[i]
-    const bandMax = bands[i + 1]
+    for (let i = 0; i < bands.length - 1; i++) {
+      const bandMin = bands[i]
+      const bandMax = bands[i + 1]
 
-    // Convert rating band to canvas-space Y
-    const yTop = convertToCanvasSpace(bandMax)
-    const yBottom = convertToCanvasSpace(bandMin)
+      // Convert rating band to canvas-space Y
+      const yTop = convertToCanvasSpace(bandMax)
+      const yBottom = convertToCanvasSpace(bandMin)
 
-    // Create the graph path clipped to this band
-    ctx.save()
+      // Create the graph path clipped to this band
+      ctx.save()
 
-    // Clip only the area between bandTop and bandBottom
-    ctx.beginPath()
-    ctx.rect(graphX, yTop, graphXLen, yBottom - yTop)
-    ctx.clip()
+      // Clip only the area between bandTop and bandBottom
+      ctx.beginPath()
+      ctx.rect(graphX, yTop, graphXLen, yBottom - yTop)
+      ctx.clip()
 
-    // Draw the filled shape under the line
-    ctx.beginPath()
-    const firstX =
-      graphX + ((normalizedPoints[0].xVar - minX) / xRange) * graphXLen
-    const firstY = convertToCanvasSpace(normalizedPoints[0].rating)
-    ctx.moveTo(firstX, firstY)
+      // Draw the filled shape under the line
+      ctx.beginPath()
+      const firstX =
+        graphX + ((normalizedPoints[0].xVar - minX) / xRange) * graphXLen
+      const firstY = convertToCanvasSpace(normalizedPoints[0].rating)
+      ctx.moveTo(firstX, firstY)
 
-    for (let j = 1; j < normalizedPoints.length; j++) {
-      const p = normalizedPoints[j]
-      const x = graphX + ((p.xVar - minX) / xRange) * graphXLen
-      const y = convertToCanvasSpace(p.rating)
-      ctx.lineTo(x, y)
+      for (let j = 1; j < normalizedPoints.length; j++) {
+        const p = normalizedPoints[j]
+        const x = graphX + ((p.xVar - minX) / xRange) * graphXLen
+        const y = convertToCanvasSpace(p.rating)
+        ctx.lineTo(x, y)
+      }
+
+      // Close path down to the bottom of the graph area
+      const lastX =
+        graphX +
+        ((normalizedPoints[normalizedPoints.length - 1].xVar - minX) / xRange) *
+          graphXLen
+      ctx.lineTo(lastX, graphY + graphYLen)
+      ctx.lineTo(firstX, graphY + graphYLen)
+      ctx.closePath()
+
+      // Fill with semi-transparent band color
+      const hex = eloColors[i] || eloColors[eloColors.length - 1]
+      const r = parseInt(hex.slice(1, 3), 16)
+      const g = parseInt(hex.slice(3, 5), 16)
+      const b = parseInt(hex.slice(5, 7), 16)
+
+      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.12)` // translucent
+      ctx.fill()
+      ctx.restore()
     }
-
-    // Close path down to the bottom of the graph area
-    const lastX =
-      graphX +
-      ((normalizedPoints[normalizedPoints.length - 1].xVar - minX) / xRange) *
-        graphXLen
-    ctx.lineTo(lastX, graphY + graphYLen)
-    ctx.lineTo(firstX, graphY + graphYLen)
-    ctx.closePath()
-
-    // Fill with semi-transparent band color
-    const hex = eloColors[i] || eloColors[eloColors.length - 1]
-    const r = parseInt(hex.slice(1, 3), 16)
-    const g = parseInt(hex.slice(3, 5), 16)
-    const b = parseInt(hex.slice(5, 7), 16)
-
-    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.12)` // translucent
-    ctx.fill()
-    ctx.restore()
   }
 
   //Draw Horizontal Lines
@@ -582,48 +602,30 @@ function createGraph(
     // out in the peak's green.
     ctx.strokeStyle = config.colors.stone
 
-    if (queueName != 'Smallworld') {
-      if (r == maxRating) {
-        ctx.strokeStyle = config.colors.win
-      } else if (r == 620) {
-        ctx.strokeStyle = config.colors.glass
-      } else if (r == 460) {
-        ctx.strokeStyle = config.colors.lucky
-      } else if (r == 320) {
-        ctx.strokeStyle = config.colors.gold
-      } else if (r == 250) {
-        ctx.strokeStyle = config.colors.steel
-      } else if (r == 200 && maxRating > 185 && maxRating > 215) {
-        ctx.strokeStyle = config.colors.stone
-      } else if (
-        !(
-          (r < maxRating + 15 && r > maxRating - 15) ||
-          (r < minRating + 15 && r > minRating - 15)
-        )
-      ) {
-        ctx.strokeStyle = config.colors.stone
-      }
-    } else {
-      if (r == maxRating) {
-        ctx.strokeStyle = config.colors.win
-      } else if (r == 550) {
-        ctx.strokeStyle = config.colors.crystal
-      } else if (r == 425) {
-        ctx.strokeStyle = config.colors.clover
-      } else if (r == 325) {
-        ctx.strokeStyle = config.colors.pyrite
-      } else if (r == 225) {
-        ctx.strokeStyle = config.colors.ferrite
-      } else if (r == 200 && maxRating > 185 && maxRating > 215) {
-        ctx.strokeStyle = config.colors.pebble
-      } else if (
-        !(
-          (r < maxRating + 15 && r > maxRating - 15) ||
-          (r < minRating + 15 && r > minRating - 15)
-        )
-      ) {
-        ctx.strokeStyle = config.colors.pebble
-      }
+    const bandColorKey = colorKeyByThreshold.get(r)
+
+    if (r == maxRating) {
+      ctx.strokeStyle = config.colors.win
+    } else if (bandColorKey) {
+      ctx.strokeStyle = config.colors[bandColorKey]
+    } else if (baseColorKey === null) {
+      // No rank ladder for this queue (vanilla) — every non-peak guide line
+      // gets the single neutral colour, never the enhancement fallback.
+      ctx.strokeStyle = NEUTRAL_LINE_COLOR
+    } else if (
+      r === defaultMmr &&
+      maxRating > defaultMmr + GUIDE_LABEL_MIN_GAP_MMR
+    ) {
+      ctx.strokeStyle = config.colors[baseColorKey]
+    } else if (
+      !(
+        (r < maxRating + GUIDE_LABEL_MIN_GAP_MMR &&
+          r > maxRating - GUIDE_LABEL_MIN_GAP_MMR) ||
+        (r < minRating + GUIDE_LABEL_MIN_GAP_MMR &&
+          r > minRating - GUIDE_LABEL_MIN_GAP_MMR)
+      )
+    ) {
+      ctx.strokeStyle = config.colors[baseColorKey]
     }
 
     ctx.beginPath()
@@ -761,15 +763,10 @@ function createGraph(
         x + ctx.measureText(`${Math.round(r)}`).width - 3,
         yPos - 16,
       )
-    } else if (r == 620) {
-      ctx.fillText(r.toString(), x, yPos - 16)
-    } else if (r == 460) {
-      ctx.fillText(r.toString(), x, yPos - 16)
-    } else if (r == 320) {
-      ctx.fillText(r.toString(), x, yPos - 16)
-    } else if (r == 250) {
-      ctx.fillText(r.toString(), x, yPos - 16)
     } else {
+      // Every other guide rating (including each rank threshold) gets a
+      // plain numeric label — there is nothing threshold-specific to render
+      // here, so no per-threshold branching is needed.
       ctx.fillText(r.toString(), x, yPos - 16)
     }
   })
@@ -1176,6 +1173,7 @@ export async function drawPlayerStatsCanvas(
   playerData: StatsCanvasPlayerData,
   byDate: boolean,
   season: number,
+  queueId: number,
   showDots: boolean = false,
 ) {
   // Render at higher resolution for sharper text (2x, 4x, etc.)
@@ -1230,7 +1228,18 @@ export async function drawPlayerStatsCanvas(
 
   //graph
   await addBlackBox(ctx, 270, 170, 470, 370)
-  createGraph(ctx, playerData, queueName, 280, 180, 450, 350, byDate, showDots)
+  createGraph(
+    ctx,
+    playerData,
+    queueId,
+    season,
+    280,
+    180,
+    450,
+    350,
+    byDate,
+    showDots,
+  )
 
   // Export with high quality settings
   return await canvas.toBuffer('png', {
