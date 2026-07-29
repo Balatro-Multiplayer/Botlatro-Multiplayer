@@ -93,6 +93,10 @@ export class TupleBans {
       name: 'Gold Stake',
       multiplier: this.defaultStakeProbability,
     },
+    {
+      name: 'Spectral+ Stake',
+      multiplier: this.defaultStakeProbability / 2,
+    },
   ]
 
   // the finalized list of tuple bans, referencing stake and deck ids
@@ -148,7 +152,7 @@ export class TupleBans {
 
       stake.multiplier = probMultiplier
         ? Number(probMultiplier)
-        : this.defaultStakeProbability
+        : stake.multiplier
     })
 
     this.decks.forEach((deck) => {
