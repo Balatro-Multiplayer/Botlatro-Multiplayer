@@ -47,6 +47,10 @@ export default {
       interaction.options.getInteger('instaqueue-min', false) ?? 650
     const instaqueueMax =
       interaction.options.getInteger('instaqueue-max', false) ?? 2000
+    const instaqueueLowMin =
+      interaction.options.getInteger('instaqueue-low-min', false) ?? 0
+    const instaqueueLowMax =
+      interaction.options.getInteger('instaqueue-low-max', false) ?? 450
 
     try {
       const nameCheck = await pool.query(
@@ -70,8 +74,9 @@ export default {
 				 max_party_elo_difference, locked,
 				 best_of_allowed, first_deck_ban_num, second_deck_ban_num,
 				 role_lock_id, veto_mmr_threshold, color,
-				 instaqueue_min, instaqueue_max, use_tuple_bans)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+				 instaqueue_min, instaqueue_max,
+				 instaqueue_low_min, instaqueue_low_max, use_tuple_bans)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
                 `,
         [
           queueName,
@@ -92,6 +97,8 @@ export default {
           color,
           instaqueueMin,
           instaqueueMax,
+          instaqueueLowMin,
+          instaqueueLowMax,
           useTupleBans,
         ],
       )

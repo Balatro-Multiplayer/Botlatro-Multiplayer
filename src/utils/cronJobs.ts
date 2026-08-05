@@ -85,11 +85,15 @@ export async function incrementEloCronJobAllQueues() {
           'elo_search_start',
           'instaqueue_min',
           'instaqueue_max',
+          'instaqueue_low_min',
+          'instaqueue_low_max',
         ])
         const increment = queueSettings.elo_search_increment || 1
         const start = queueSettings.elo_search_start || 0
         const instaqueueMin = queueSettings.instaqueue_min
         const instaqueueMax = queueSettings.instaqueue_max
+        const instaqueueLowMin = queueSettings.instaqueue_low_min
+        const instaqueueLowMax = queueSettings.instaqueue_low_max
 
         let usersInQueue = await getUsersInQueue(queue.id)
         // if (usersInQueue.length <= 1) continue
@@ -140,8 +144,16 @@ export async function incrementEloCronJobAllQueues() {
               candidates[j].elo >= instaqueueMin &&
               candidates[j].elo <= instaqueueMax
 
+            // Second (low) instaqueue range - match immediately if both players fall in it
+            const bothInInstaQueueLowRange =
+              candidates[i].elo >= instaqueueLowMin &&
+              candidates[i].elo <= instaqueueLowMax &&
+              candidates[j].elo >= instaqueueLowMin &&
+              candidates[j].elo <= instaqueueLowMax
+
             let inRange =
               bothInInstaQueueRange ||
+              bothInInstaQueueLowRange ||
               (diff < candidates[i].range && diff < candidates[j].range)
 
             // Temporarily removing this until its fixed

@@ -43,6 +43,7 @@ export default {
           { name: 'Role Lock', value: roleLock, inline: true },
           { name: 'Veto MMR Threshold', value: `${q.veto_mmr_threshold ?? 'None'}`, inline: true },
           { name: 'Instaqueue Range', value: `${q.instaqueue_min} - ${q.instaqueue_max}`, inline: true },
+          { name: 'Instaqueue Low Range', value: `${q.instaqueue_low_min} - ${q.instaqueue_low_max}`, inline: true },
           { name: 'Color', value: q.color || '#FFD700', inline: true },
           { name: 'Locked', value: `${q.locked}`, inline: true },
           { name: 'Queue Icon', value: q.queue_icon || 'None', inline: true },

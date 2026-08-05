@@ -66,6 +66,14 @@ export default {
       'instaqueue-max',
       false,
     )
+    const instaqueueLowMin = interaction.options.getInteger(
+      'instaqueue-low-min',
+      false,
+    )
+    const instaqueueLowMax = interaction.options.getInteger(
+      'instaqueue-low-max',
+      false,
+    )
 
     const useTupleBans = interaction.options.getBoolean('use-tuple-bans', false)
     const queueIcon = interaction.options.getString('queue-icon', false)
@@ -93,7 +101,9 @@ export default {
           instaqueue_max = COALESCE($17, instaqueue_max),
           use_tuple_bans = COALESCE($18, use_tuple_bans),
           queue_icon = COALESCE($19, queue_icon),
-          queue_name = COALESCE($20, queue_name)
+          queue_name = COALESCE($20, queue_name),
+          instaqueue_low_min = COALESCE($21, instaqueue_low_min),
+          instaqueue_low_max = COALESCE($22, instaqueue_low_max)
         WHERE queue_name = $1
         RETURNING queue_name
         `,
@@ -118,6 +128,8 @@ export default {
           useTupleBans,
           queueIcon,
           newName,
+          instaqueueLowMin,
+          instaqueueLowMax,
         ],
       )
 
@@ -154,6 +166,10 @@ export default {
       if (color != null) changedFields.color = color
       if (instaqueueMin != null) changedFields.instaqueue_min = instaqueueMin
       if (instaqueueMax != null) changedFields.instaqueue_max = instaqueueMax
+      if (instaqueueLowMin != null)
+        changedFields.instaqueue_low_min = instaqueueLowMin
+      if (instaqueueLowMax != null)
+        changedFields.instaqueue_low_max = instaqueueLowMax
       if (useTupleBans != null) changedFields.use_tuple_bans = useTupleBans
       if (queueIcon != null) changedFields.queue_icon = queueIcon
 

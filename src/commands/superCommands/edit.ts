@@ -147,6 +147,24 @@ export default {
             .setRequired(false)
             .setMinValue(0),
         )
+        .addIntegerOption((option) =>
+          option
+            .setName('instaqueue-low-min')
+            .setDescription(
+              'Minimum MMR for the second (low) instant queue range',
+            )
+            .setRequired(false)
+            .setMinValue(0),
+        )
+        .addIntegerOption((option) =>
+          option
+            .setName('instaqueue-low-max')
+            .setDescription(
+              'Maximum MMR for the second (low) instant queue range',
+            )
+            .setRequired(false)
+            .setMinValue(0),
+        )
         .addBooleanOption((option) =>
           option
             .setName('use-tuple-bans')

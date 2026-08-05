@@ -23,6 +23,8 @@ declare module 'psqlDB' {
     color: string
     instaqueue_min: number
     instaqueue_max: number
+    instaqueue_low_min: number
+    instaqueue_low_max: number
     use_tuple_bans: boolean
     queue_icon?: string | null
   }
