@@ -5,6 +5,8 @@ import {
   getMatchIdFromChannel,
   setPickedMatchStake,
 } from '../../utils/queryDB'
+import { isHomeGuild } from '../../utils/installContext'
+import { getStakeAppEmote } from '../../utils/combinedEmoteCache'
 
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
@@ -12,8 +14,20 @@ export default {
       const customStake =
         interaction.options.getString('custom-stake', false) ?? false
       const custom = customStake == 'yes'
-      const matchId = await getMatchIdFromChannel(interaction.channelId)
       const stakeChoice = await getRandomStake(custom)
+
+      // Foreign (user-installed) context: strictly read-only. Roll and reply
+      // without touching any match state. Prefer the application emote (renders
+      // in any server), falling back to the guild emote if none is uploaded.
+      if (!isHomeGuild(interaction)) {
+        const emote = getStakeAppEmote(stakeChoice) ?? stakeChoice.stake_emote
+        await interaction.reply({
+          content: `${emote} ${stakeChoice.stake_name}`,
+        })
+        return
+      }
+
+      const matchId = await getMatchIdFromChannel(interaction.channelId)
 
       if (matchId) {
         // In a match channel

@@ -9,6 +9,7 @@ import {
   setupViewStatsButtons,
   setUserQueueRole,
 } from '../../utils/queueHelpers'
+import { isHomeGuild } from '../../utils/installContext'
 
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
@@ -44,8 +45,12 @@ export default {
         components: [viewStatsButtons],
       })
 
-      // Update queue role, just to be sure it's correct when they check
-      await setUserQueueRole(queueId, targetUser.id)
+      // Update queue role, just to be sure it's correct when they check.
+      // Home guild only: this mutates roles on our guild and must never run for
+      // a personally-installed caller in another server / DM.
+      if (isHomeGuild(interaction)) {
+        await setUserQueueRole(queueId, targetUser.id)
+      }
     } catch (err: any) {
       console.error(err)
       const errorMsg = err.detail || err.message || 'Unknown'

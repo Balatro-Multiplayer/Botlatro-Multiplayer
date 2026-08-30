@@ -10,10 +10,25 @@ import {
   getDeckList,
 } from '../../utils/queryDB'
 import { Decks } from 'psqlDB'
+import { isHomeGuild } from '../../utils/installContext'
+import { getDeckAppEmote } from '../../utils/combinedEmoteCache'
 
 export default {
   async execute(interaction: ChatInputCommandInteraction) {
     try {
+      // Foreign (user-installed) context: strictly read-only. Roll from the
+      // full deck list and reply — never resolve a match or write match state.
+      // Use the application emote (renders in any server), falling back to the
+      // guild emote only if no app emote has been uploaded for this deck.
+      if (!isHomeGuild(interaction)) {
+        const deckChoice = await getRandomDeck(true)
+        const emote = getDeckAppEmote(deckChoice) ?? deckChoice.deck_emote
+        await interaction.reply({
+          content: `${emote} ${deckChoice.deck_name}`,
+        })
+        return
+      }
+
       // Check if filtering by specific queue
       const queueName = interaction.options.getString('queue-filter', false)
       let queueId

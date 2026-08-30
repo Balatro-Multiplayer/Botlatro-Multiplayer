@@ -1,9 +1,15 @@
 import { Client } from 'discord.js'
 import fs from 'node:fs'
 import path from 'node:path'
-import { REST, Routes } from 'discord.js'
+import {
+  ApplicationIntegrationType,
+  InteractionContextType,
+  REST,
+  Routes,
+} from 'discord.js'
 import { env } from './env'
 import { attachDiscordRateLimitLogging } from './utils/discordRateLimitLogger'
+import { USER_INSTALL_COMMANDS } from './utils/installContext'
 
 type DiscordApplication = {
   id: string
@@ -82,6 +88,32 @@ export function setupClientCommands(client: Client, deploy: boolean = false) {
 
       console.log(
         `Successfully reloaded ${data.length} application (/) commands.`,
+      )
+
+      // Additionally register the user-install subset as GLOBAL commands scoped
+      // to user-install only. These are the strictly read-only commands (see
+      // USER_INSTALL_COMMANDS) that anyone can install personally and use in
+      // other servers / DMs. Guild-scoped copies above shadow these in the home
+      // guild, so home members still get the full-behavior versions.
+      const globalUserCommands = commands
+        .filter((command: any) => USER_INSTALL_COMMANDS.has(command.name))
+        .map((command: any) => ({
+          ...command,
+          integration_types: [ApplicationIntegrationType.UserInstall],
+          contexts: [
+            InteractionContextType.Guild,
+            InteractionContextType.BotDM,
+            InteractionContextType.PrivateChannel,
+          ],
+        }))
+
+      const globalData: any = await rest.put(
+        Routes.applicationCommands(resolvedClientId),
+        { body: globalUserCommands },
+      )
+
+      console.log(
+        `Successfully registered ${globalData.length} global user-install command(s).`,
       )
     })()
   }
