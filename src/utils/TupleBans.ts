@@ -1,6 +1,6 @@
 import { pool } from '../db'
 import { BannedDecks, Decks, Stakes } from 'psqlDB'
-import { getCombinedEmote } from './combinedEmoteCache'
+import { getAppEmote, getCombinedEmote } from './combinedEmoteCache'
 
 export type TupleBan = {
   stakeId: number
@@ -9,6 +9,11 @@ export type TupleBan = {
   stakeEmoji?: string
   deckEmoji?: string
   combinedEmote?: string
+
+  // Single application emotes (render in any server, unlike the guild emojis in
+  // stakeEmoji/deckEmoji). Used to render bans for user-installed commands.
+  deckAppEmote?: string
+  stakeAppEmote?: string
 
   stakeName?: string
   deckName?: string
@@ -380,6 +385,9 @@ export class TupleBans {
       stakeEmoji: chosenStake?.emoji ?? '',
       deckEmoji: chosenDeck?.emoji ?? '',
       combinedEmote: combinedEmote ?? undefined,
+
+      deckAppEmote: getAppEmote(`${deckEmoteName}_deck`) ?? undefined,
+      stakeAppEmote: getAppEmote(`${stakeEmoteName}_stake`) ?? undefined,
 
       stakeName: chosenStake?.name ?? '',
       deckName: chosenDeck?.name ?? '',

@@ -81,6 +81,7 @@ import { drawPlayerStatsCanvas } from '../utils/canvasHelpers'
 import { generateBackgroundPreview } from '../commands/queues/setStatsBackground'
 import { getBackgroundById } from '../utils/backgroundManager'
 import { client } from '../client'
+import { isHomeGuild, USER_INSTALL_COMMANDS } from '../utils/installContext'
 
 // Track users currently processing queue joins to prevent duplicates
 const processingQueueJoins = new Set<string>()
@@ -116,9 +117,15 @@ export default {
 
     // Update display name for all interactions except autocomplete.
     // Deduped + fire-and-forget so it never delays acknowledging the interaction.
+    //
+    // Gated on the home guild: a personally-installed user invoking a command in
+    // another server / DM must never be written into our users table. This is
+    // the single automatic write on the interaction path, so gating it here
+    // guarantees foreign (user-install) callers are never added to the DB.
     if (
       !interaction.isAutocomplete() &&
-      interaction.member instanceof GuildMember
+      interaction.member instanceof GuildMember &&
+      isHomeGuild(interaction)
     ) {
       refreshUserDisplayName(
         interaction.user.id,
@@ -134,6 +141,21 @@ export default {
         console.error(
           `No command matching ${interaction.commandName} was found.`,
         )
+        return
+      }
+
+      // User-install safety choke point: outside the home guild, only the
+      // read-only whitelist may run. Every other command mutates state, so we
+      // refuse it here — it can never begin executing in a foreign context.
+      if (
+        !isHomeGuild(interaction) &&
+        !USER_INSTALL_COMMANDS.has(interaction.commandName)
+      ) {
+        await interaction.reply({
+          content:
+            'This command is only available in the Balatro Multiplayer server.',
+          flags: MessageFlags.Ephemeral,
+        })
         return
       }
 
@@ -1507,8 +1529,7 @@ export default {
               container.components = container.components.filter(
                 (c: any) =>
                   !(
-                    c.type === 10 &&
-                    c.content?.startsWith('**Rematch Votes:**')
+                    c.type === 10 && c.content?.startsWith('**Rematch Votes:**')
                   ),
               )
 

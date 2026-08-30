@@ -4,6 +4,13 @@ import { Decks, Stakes } from 'psqlDB'
 // Cache: key is "deckkey__stakekey", value is the full Discord emote string "<:name:id>"
 const combinedEmoteCache = new Map<string, string>()
 
+// Cache of ALL application emojis by (lowercased) name -> "<:name:id>".
+// Application-owned emojis render everywhere the app is used, including servers
+// the bot is not a member of (user-install). Single deck/stake app emotes are
+// named "<deckEmoteName>_deck" / "<stakeEmoteName>_stake" (e.g. "red_deck",
+// "white_stake"). Used to render deck/stake emotes for user-installed commands.
+const appEmoteByName = new Map<string, string>()
+
 /**
  * Returns the emote name for a deck, using emote_name if set, otherwise deriving it from deck_name.
  * "Virt's Cocktail" with emote_name "cocktail" => "cocktail"
@@ -47,17 +54,49 @@ export async function preloadCombinedEmotes(): Promise<void> {
 
     let count = 0
     emojis.forEach((emoji) => {
-      if (emoji.name && emoji.name.includes('__')) {
-        const key = emoji.name.toLowerCase()
-        combinedEmoteCache.set(key, `<:${emoji.name}:${emoji.id}>`)
+      if (!emoji.name) return
+      const emoteString = `<:${emoji.name}:${emoji.id}>`
+      // Every application emoji is cached by name for single-emote lookups.
+      appEmoteByName.set(emoji.name.toLowerCase(), emoteString)
+      // Combined matchup emotes use the double-underscore naming convention.
+      if (emoji.name.includes('__')) {
+        combinedEmoteCache.set(emoji.name.toLowerCase(), emoteString)
         count++
       }
     })
 
-    console.log(`Preloaded ${count} combined matchup emotes`)
+    console.log(
+      `Preloaded ${appEmoteByName.size} application emotes (${count} combined matchup emotes)`,
+    )
   } catch (error) {
     console.error('Failed to preload combined emotes:', error)
   }
+}
+
+/**
+ * Returns an application emote string ("<:name:id>") by its name, or null if no
+ * application emote with that name has been loaded. Application emotes render in
+ * every context the app is used in, unlike guild emotes.
+ */
+export function getAppEmote(name: string): string | null {
+  return appEmoteByName.get(name.toLowerCase()) ?? null
+}
+
+/**
+ * Returns the single application emote for a deck ("<deckEmoteName>_deck"), or
+ * null if it hasn't been uploaded as an application emote. Safe to use in
+ * user-install contexts where the home guild's own emotes would not render.
+ */
+export function getDeckAppEmote(deck: Decks): string | null {
+  return getAppEmote(`${getDeckEmoteName(deck)}_deck`)
+}
+
+/**
+ * Returns the single application emote for a stake ("<stakeEmoteName>_stake"),
+ * or null if it hasn't been uploaded as an application emote.
+ */
+export function getStakeAppEmote(stake: Stakes): string | null {
+  return getAppEmote(`${getStakeEmoteName(stake)}_stake`)
 }
 
 /**
