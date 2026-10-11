@@ -417,8 +417,7 @@ export async function handleTwoPlayerMatchVoting(
     const channel = interaction.channel as GuildChannel
     if (channel && channel.isTextBased()) {
       channel.send(
-        'Failed to handle voting. Please ping Jeff or Cas about this. Error: ' +
-          err,
+        'Failed to handle voting. Please call helpers about this. Error: ' + err,
       )
     } else {
       console.error('Failed to handle voting. Error: ' + err)
