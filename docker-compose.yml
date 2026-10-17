@@ -13,6 +13,7 @@ x-app-env: &app-env
 services:
   db:
     image: postgres:16
+    restart: unless-stopped
     environment:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: nkqueue
